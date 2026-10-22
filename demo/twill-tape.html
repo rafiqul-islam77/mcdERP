@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Daily Twill Tape Stock</title>
+<style>
+body{margin:0;background:#0b0f19;color:white;font-family:Arial}
+.box{padding:20px}
+h2,h3{text-align:center;margin:4px}
+table{width:100%;border-collapse:collapse;margin-top:15px;background:white;color:black}
+th,td{border:1px solid #000;padding:8px;text-align:center}
+input{width:90%;padding:7px;text-align:center}
+button{padding:10px 22px;background:#2563eb;color:white;border:0;border-radius:8px;font-weight:bold;cursor:pointer}
+.deleteBtn{background:#dc2626}
+.excelBtn{background:#16a34a}
+.pdfBtn{background:#7c3aed}
+.total{background:#92d050;font-weight:bold}
+
+@media print{
+  body{background:white;color:black}
+  button,input[type="date"]{display:none}
+  .box{padding:0}
+}
+</style>
+</head>
+
+<body>
+<div class="box">
+
+<h2>GMS TEXTILES LTD</h2>
+<h3>Tansutrapur, Kaliakair, Gazipur.</h3>
+<h3>Accessorie ( MCD )</h3>
+<h3>Daily Twill Tape Stock</h3>
+
+Date:
+<input type="date" id="postDate" style="padding:8px;width:180px">
+
+<button onclick="saveData()">Save Data</button>
+<button class="deleteBtn" onclick="deleteData()">Delete Data</button>
+<button class="excelBtn" onclick="exportExcel()">Export Excel</button>
+<button class="pdfBtn" onclick="exportPDF()">Download PDF / Print</button>
+<button onclick="location.href='index.html'">Back Home</button>
+
+<table id="reportTable">
+<thead>
+<tr>
+<th>Discription</th>
+<th>Unit</th>
+<th>Previous Qty</th>
+<th>Received Qty</th>
+<th>Delivery Qty</th>
+<th>Present Stock</th>
+<th>Remarks</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Twill Tape</td>
+<td>Yds</td>
+<td id="previous">171255</td>
+<td><input type="number" id="receive" oninput="calc()"></td>
+<td><input type="number" id="delivery" oninput="calc()"></td>
+<td id="present">171255</td>
+<td><input id="remarks"></td>
+</tr>
+</tbody>
+
+<tfoot>
+<tr class="total">
+<td colspan="2">TOTAL</td>
+<td id="totalPrevious">171255</td>
+<td id="totalReceive">0</td>
+<td id="totalDelivery">0</td>
+<td id="totalPresent">171255</td>
+<td></td>
+</tr>
+</tfoot>
+</table>
+
+<br>
+
+<h3>Monthly Summary</h3>
+<table id="summaryTable">
+<tr>
+<th>Opening</th>
+<th>Total Receive</th>
+<th>Total Delivery</th>
+<th>Present Stock</th>
+</tr>
+<tr class="total">
+<td id="mOpening">171255</td>
+<td id="mReceive">0</td>
+<td id="mDelivery">0</td>
+<td id="mPresent">171255</td>
+</tr>
+</table>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, doc, setDoc, deleteDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain: "gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId: "gms-warehouse-tracker-7f57e",
+  storageBucket: "gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId: "992250313291",
+  appId: "1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const openingStock = 171255;
+const collectionName = "twillTape";
+
+// মাসিক হিসাবের জন্য গ্লোবাল ভেরিয়েবল
+window.monthStartBalance = openingStock;
+window.monthReceiveBeforeToday = 0;
+window.monthDeliveryBeforeToday = 0;
+
+function calc(){
+  let p = Number(document.getElementById("previous").innerText) || 0;
+  let r = Number(document.getElementById("receive").value) || 0;
+  let d = Number(document.getElementById("delivery").value) || 0;
+  let b = p + r - d;
+
+  document.getElementById("present").innerText = b;
+  document.getElementById("totalPrevious").innerText = p;
+  document.getElementById("totalReceive").innerText = r;
+  document.getElementById("totalDelivery").innerText = d;
+  document.getElementById("totalPresent").innerText = b;
+
+  // টাইপ করার সময় Monthly Summary ডাইনামিকভাবে আপডেট করা
+  let mOpen = window.monthStartBalance || 0;
+  let mRec = (window.monthReceiveBeforeToday || 0) + r;
+  let mDel = (window.monthDeliveryBeforeToday || 0) + d;
+  let mPres = mOpen + mRec - mDel;
+
+  document.getElementById("mOpening").innerText = mOpen;
+  document.getElementById("mReceive").innerText = mRec;
+  document.getElementById("mDelivery").innerText = mDel;
+  document.getElementById("mPresent").innerText = mPres;
+}
+
+async function saveData(){
+  let date = document.getElementById("postDate").value;
+
+  if(!date){
+    alert("Date select koro");
+    return;
+  }
+
+  calc();
+
+  await setDoc(doc(db, collectionName, date),{
+    date:date,
+    receive:Number(document.getElementById("receive").value) || 0,
+    delivery:Number(document.getElementById("delivery").value) || 0,
+    remarks:document.getElementById("remarks").value || ""
+  });
+
+  await loadData();
+  alert("Saved Successfully");
+}
+
+async function deleteData(){
+  let date = document.getElementById("postDate").value;
+
+  if(!date){
+    alert("Date select koro");
+    return;
+  }
+
+  if(!confirm("Ei date er data delete korba?")) return;
+
+  await deleteDoc(doc(db, collectionName, date));
+
+  document.getElementById("receive").value = "";
+  document.getElementById("delivery").value = "";
+  document.getElementById("remarks").value = "";
+
+  await loadData();
+  alert("Deleted Successfully");
+}
+
+async function loadData(){
+  let date = document.getElementById("postDate").value;
+  if(!date) return;
+  await calculateBalances();
+}
+
+// মূল ক্যালকুলেশন ফাংশন যা আগের দিনের Present Stock কে Previous Stock হিসেবে ধরে
+async function calculateBalances(){
+  let date = document.getElementById("postDate").value;
+  if(!date) return;
+
+  let snap = await getDocs(collection(db, collectionName));
+  let allDocs = [];
+  snap.forEach(docSnap => {
+    allDocs.push(docSnap.data());
+  });
+
+  // তারিখ অনুযায়ী ছোট থেকে বড় ক্রমে সাজানো
+  allDocs.sort((a, b) => a.date.localeCompare(b.date));
+
+  let runningBalance = openingStock;
+  let dailyPrevious = openingStock;
+  let dailyPresent = openingStock;
+  let todayReceive = 0;
+  let todayDelivery = 0;
+  
+  let selectedMonth = date.slice(0, 7);
+  let monthStartBalance = openingStock;
+  let monthTotalReceive = 0;
+  let monthTotalDelivery = 0;
+  let enteredSelectedMonth = false;
+  let foundSelectedDate = false;
+
+  for (let doc of allDocs) {
+    if (!doc.date) continue;
+    let docMonth = doc.date.slice(0, 7);
+
+    // সিলেক্টেড তারিখের আগের সব ডেটা প্রসেস করা
+    if (doc.date < date) {
+      // নতুন মাসে প্রবেশ করলে আগের মাসের ব্যালেন্সকে Opening ধরা
+      if (docMonth === selectedMonth && !enteredSelectedMonth) {
+        monthStartBalance = runningBalance;
+        enteredSelectedMonth = true;
+      }
+      
+      if (docMonth === selectedMonth) {
+        monthTotalReceive += Number(doc.receive) || 0;
+        monthTotalDelivery += Number(doc.delivery) || 0;
+      }
+      
+      runningBalance += (Number(doc.receive) || 0) - (Number(doc.delivery) || 0);
+    } 
+    // সিলেক্টেড তারিখে পৌঁছালে
+    else if (doc.date === date) {
+      dailyPrevious = runningBalance; // আগের দিনের Present Stock ই হলো আজকের Previous
+      todayReceive = Number(doc.receive) || 0;
+      todayDelivery = Number(doc.delivery) || 0;
+      dailyPresent = dailyPrevious + todayReceive - todayDelivery;
+      
+      if (!enteredSelectedMonth) {
+        monthStartBalance = runningBalance;
+        enteredSelectedMonth = true;
+      }
+      
+      monthTotalReceive += todayReceive;
+      monthTotalDelivery += todayDelivery;
+      
+      document.getElementById("receive").value = todayReceive || "";
+      document.getElementById("delivery").value = todayDelivery || "";
+      document.getElementById("remarks").value = doc.remarks || "";
+      
+      foundSelectedDate = true;
+      break; 
+    }
+  }
+
+  // যদি সিলেক্টেড তারিখে কোনো ডেটা না থাকে
+  if (!foundSelectedDate) {
+    dailyPrevious = runningBalance;
+    dailyPresent = dailyPrevious; 
+    
+    if (!enteredSelectedMonth) {
+      monthStartBalance = runningBalance;
+    }
+    
+    document.getElementById("receive").value = "";
+    document.getElementById("delivery").value = "";
+    document.getElementById("remarks").value = "";
+  }
+
+  let monthlyPresent = monthStartBalance + monthTotalReceive - monthTotalDelivery;
+
+  // UI ত ভ্যালু সেট করা
+  document.getElementById("previous").innerText = dailyPrevious;
+  document.getElementById("present").innerText = dailyPresent;
+
+  document.getElementById("totalPrevious").innerText = dailyPrevious;
+  document.getElementById("totalReceive").innerText = todayReceive;
+  document.getElementById("totalDelivery").innerText = todayDelivery;
+  document.getElementById("totalPresent").innerText = dailyPresent;
+
+  document.getElementById("mOpening").innerText = monthStartBalance;
+  document.getElementById("mReceive").innerText = monthTotalReceive;
+  document.getElementById("mDelivery").innerText = monthTotalDelivery;
+  document.getElementById("mPresent").innerText = monthlyPresent;
+
+  // calc() ফাংশনের জন্য ভ্যালুগুলো স্টোর করা
+  window.monthStartBalance = monthStartBalance;
+  window.monthReceiveBeforeToday = monthTotalReceive - todayReceive;
+  window.monthDeliveryBeforeToday = monthTotalDelivery - todayDelivery;
+}
+
+function exportExcel(){
+  let title = `
+    <h2>GMS TEXTILES LTD</h2>
+    <h3>Tansutrapur, Kaliakair, Gazipur.</h3>
+    <h3>Accessorie ( MCD )</h3>
+    <h3>Daily Twill Tape Stock</h3>
+  `;
+
+  let table1 = document.getElementById("reportTable").outerHTML;
+  let table2 = document.getElementById("summaryTable").outerHTML;
+
+  let file = new Blob([title + table1 + "<br>" + table2], {
+    type:"application/vnd.ms-excel"
+  });
+
+  let a = document.createElement("a");
+  a.href = URL.createObjectURL(file);
+  a.download = "twill-tape-report.xls";
+  a.click();
+}
+
+function exportPDF(){
+  window.print();
+}
+
+document.getElementById("postDate").addEventListener("change", loadData);
+
+window.calc = calc;
+window.saveData = saveData;
+window.deleteData = deleteData;
+window.exportExcel = exportExcel;
+window.exportPDF = exportPDF;
+
+// পেজ লোড হওয়ার সাথে সাথে আজকের তারিখটি অটো সিলেক্ট এবং ডেটা লোড করা
+let today = new Date().toISOString().split('T')[0];
+document.getElementById("postDate").value = today;
+loadData();
+</script>
+
+</body>
+</html>

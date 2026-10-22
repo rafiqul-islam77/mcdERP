@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GMS MCD ERP – Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --blue:#2563eb;
+  --cyan:#06b6d4;
+  --purple:#7c3aed;
+  --white:#ffffff;
+  --glass:rgba(255,255,255,0.7);
+  --glass2:rgba(255,255,255,0.45);
+  --border:rgba(99,102,241,0.2);
+  --text:#1e293b;
+  --muted:#64748b;
+  --shadow:rgba(37,99,235,0.15);
+}
+body{
+  font-family:'Exo 2',sans-serif;
+  min-height:100vh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  background:#eef2ff;
+}
+
+/* 3D CANVAS */
+#three-bg{
+  position:fixed;inset:0;z-index:0;
+}
+
+/* HEADER */
+header{
+  position:relative;z-index:20;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:13px 36px;
+  background:rgba(255,255,255,0.75);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid rgba(99,102,241,0.15);
+}
+.hdr-left{display:flex;align-items:center;gap:14px;}
+.brand-badge{
+  width:42px;height:42px;
+  background:linear-gradient(135deg,#2563eb,#7c3aed);
+  border-radius:12px;
+  display:grid;place-items:center;
+  font-family:'Rajdhani',sans-serif;
+  font-size:20px;font-weight:700;color:#fff;
+  box-shadow:0 4px 16px rgba(37,99,235,0.35);
+}
+.brand-name{
+  font-family:'Rajdhani',sans-serif;
+  font-size:19px;font-weight:700;color:#1e293b;letter-spacing:.5px;
+}
+.brand-sub{
+  font-size:10px;color:#64748b;letter-spacing:2px;text-transform:uppercase;
+}
+.hdr-right{
+  text-align:right;font-size:11.5px;color:#64748b;line-height:1.75;
+}
+.hdr-right strong{color:#1e293b;}
+
+/* MAIN */
+main{
+  position:relative;z-index:10;
+  flex:1;display:flex;
+  justify-content:center;align-items:center;
+  padding:20px;
+}
+
+/* CARD */
+.card{
+  display:flex;
+  flex-direction:column;
+  width:820px;max-width:100%;
+  min-height:460px;
+  border-radius:24px;
+  overflow:hidden;
+  border:1px solid rgba(99,102,241,0.18);
+  box-shadow:0 32px 80px rgba(37,99,235,0.15),0 0 0 1px rgba(255,255,255,0.8),inset 0 1px 0 rgba(255,255,255,0.9);
+  backdrop-filter:blur(30px);
+  -webkit-backdrop-filter:blur(30px);
+  opacity:0;
+  transform:translateY(36px) scale(0.97);
+  animation:cardIn 1s cubic-bezier(.22,1,.36,1) .5s forwards;
+}
+@keyframes cardIn{to{opacity:1;transform:translateY(0) scale(1);}}
+
+/* TOP BANNER — নামাজের কথা মনে করিয়ে দেওয়া */
+.top-banner{
+  width:100%;
+  padding:12px 20px;
+  background:linear-gradient(90deg,rgba(37,99,235,0.12),rgba(124,58,237,0.12));
+  border-bottom:1px solid rgba(99,102,241,0.15);
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  text-align:center;
+}
+.top-banner .icon{font-size:18px;flex-shrink:0;}
+.top-banner p{
+  font-family:'Exo 2',sans-serif;
+  font-size:13px;font-weight:600;
+  color:#1e293b;line-height:1.5;
+}
+.top-banner span{
+  background:linear-gradient(90deg,#2563eb,#7c3aed);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+
+/* CARD ROW (left + right panels) */
+.card-row{
+  display:flex;
+  flex:1;
+}
+
+/* BOTTOM BANNER — আল্লাহর ৯৯ নাম */
+.bottom-banner{
+  width:100%;
+  padding:14px 20px;
+  background:linear-gradient(90deg,rgba(6,182,212,0.08),rgba(37,99,235,0.1),rgba(124,58,237,0.08));
+  border-top:1px solid rgba(99,102,241,0.15);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  text-align:center;
+  min-height:64px;
+}
+.bottom-banner .bb-label{
+  font-size:9.5px;color:#7c3aed;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+}
+#asmaName{
+  font-family:'Rajdhani',sans-serif;
+  font-size:20px;font-weight:700;
+  background:linear-gradient(90deg,#2563eb,#7c3aed,#06b6d4);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  transition:opacity .35s ease;
+  direction:rtl;
+}
+#asmaTrans{
+  font-size:11.5px;color:#475569;font-weight:600;
+  transition:opacity .35s ease;
+}
+#asmaMeaning{
+  font-size:11px;color:#64748b;
+  transition:opacity .35s ease;
+}
+.asma-fade{opacity:0;}
+
+/* LEFT PANEL */
+.left{
+  flex:1;
+  background:linear-gradient(145deg,rgba(37,99,235,0.1) 0%,rgba(124,58,237,0.08) 50%,rgba(6,182,212,0.07) 100%);
+  padding:44px 36px;
+  display:flex;flex-direction:column;
+  justify-content:center;align-items:center;
+  gap:12px;
+  position:relative;overflow:hidden;
+  border-right:1px solid rgba(99,102,241,0.12);
+}
+.left::before{
+  content:'';position:absolute;
+  top:-80px;left:-80px;
+  width:260px;height:260px;
+  background:radial-gradient(circle,rgba(37,99,235,0.12),transparent 70%);
+  border-radius:50%;
+  animation:pulseGlow 4s ease-in-out infinite;
+}
+.left::after{
+  content:'';position:absolute;
+  bottom:-60px;right:-60px;
+  width:200px;height:200px;
+  background:radial-gradient(circle,rgba(124,58,237,0.1),transparent 70%);
+  border-radius:50%;
+  animation:pulseGlow 4s ease-in-out infinite reverse;
+}
+@keyframes pulseGlow{0%,100%{transform:scale(1);}50%{transform:scale(1.2);}}
+
+/* Human SVG */
+.human-svg{
+  width:160px;
+  filter:drop-shadow(0 8px 24px rgba(37,99,235,0.35));
+  animation:floatUp 3s ease-in-out infinite;
+  position:relative;z-index:2;
+}
+@keyframes floatUp{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+
+.left h2{
+  font-family:'Rajdhani',sans-serif;
+  font-size:26px;font-weight:700;
+  color:#1e293b;text-align:center;
+  line-height:1.3;
+  position:relative;z-index:2;
+}
+.left h2 span{
+  background:linear-gradient(90deg,#2563eb,#7c3aed);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.left p{
+  font-size:12px;color:#64748b;
+  text-align:center;max-width:200px;line-height:1.7;
+  position:relative;z-index:2;
+}
+
+/* DOTS */
+.dot-grid{
+  position:absolute;top:16px;right:16px;
+  display:grid;grid-template-columns:repeat(6,1fr);gap:5px;
+  z-index:2;
+}
+.dot-grid span{width:3px;height:3px;border-radius:50%;background:rgba(37,99,235,0.2);display:block;}
+
+/* RIGHT PANEL */
+.right{
+  width:340px;
+  background:rgba(255,255,255,0.75);
+  padding:40px 32px;
+  display:flex;flex-direction:column;justify-content:center;
+}
+.form-title{
+  font-family:'Rajdhani',sans-serif;
+  font-size:24px;font-weight:700;color:#1e293b;
+  margin-bottom:3px;
+}
+.form-sub{font-size:12px;color:#64748b;margin-bottom:26px;}
+
+.field{margin-bottom:16px;}
+.field label{
+  display:block;font-size:10.5px;
+  color:#2563eb;
+  font-weight:600;letter-spacing:1.8px;
+  text-transform:uppercase;margin-bottom:7px;
+}
+.inp-wrap{position:relative;}
+.inp-wrap svg{
+  position:absolute;left:13px;top:50%;transform:translateY(-50%);
+  width:15px;height:15px;stroke:#94a3b8;pointer-events:none;
+}
+.inp-wrap input{
+  width:100%;
+  padding:12px 12px 12px 38px;
+  background:rgba(241,245,249,0.8);
+  border:1px solid rgba(99,102,241,0.2);
+  border-radius:11px;
+  color:#1e293b;font-size:14px;
+  font-family:'Exo 2',sans-serif;
+  transition:.3s;
+}
+.inp-wrap input::placeholder{color:#94a3b8;}
+.inp-wrap input:focus{
+  outline:none;
+  border-color:rgba(37,99,235,0.6);
+  background:rgba(255,255,255,0.95);
+  box-shadow:0 0 0 3px rgba(37,99,235,0.1);
+}
+
+.btn{
+  width:100%;padding:13px;
+  margin-top:6px;border:none;
+  border-radius:11px;
+  background:linear-gradient(135deg,#2563eb,#7c3aed);
+  color:#fff;
+  font-family:'Rajdhani',sans-serif;
+  font-size:17px;font-weight:700;
+  letter-spacing:1.5px;cursor:pointer;
+  position:relative;overflow:hidden;
+  transition:.3s;
+  box-shadow:0 6px 20px rgba(37,99,235,0.35);
+}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(37,99,235,0.45);}
+.btn:active{transform:translateY(0);}
+.btn::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,0.2),transparent);
+}
+
+#msg{margin-top:12px;text-align:center;font-size:13px;font-weight:600;min-height:20px;}
+
+/* POST LOGIN */
+#postWelcome{display:none;text-align:center;padding:10px;}
+#postWelcome .emoji{font-size:46px;animation:waveHand 1s ease-in-out 4;}
+@keyframes waveHand{0%,100%{transform:rotate(0);}30%{transform:rotate(22deg);}70%{transform:rotate(-12deg);}}
+#postWelcome h2{
+  font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;
+  color:#1e293b;margin-top:10px;
+}
+#postWelcome p{font-size:12px;color:#64748b;margin-top:6px;}
+
+/* WELCOME OVERLAY */
+#splash{
+  position:fixed;inset:0;z-index:999;
+  display:flex;flex-direction:column;
+  justify-content:center;align-items:center;gap:8px;
+  background:linear-gradient(135deg,#eef2ff 0%,#e0e7ff 50%,#f0f9ff 100%);
+  transition:opacity .9s ease;
+}
+#splash .s-human{
+  width:130px;
+  filter:drop-shadow(0 0 24px rgba(37,99,235,0.45));
+  animation:splashFloat 1.4s ease-in-out infinite alternate;
+}
+@keyframes splashFloat{0%{transform:translateY(0);}100%{transform:translateY(-12px);}}
+#splash h2{
+  font-family:'Rajdhani',sans-serif;
+  font-size:32px;font-weight:700;color:#1e293b;
+  text-align:center;
+  opacity:0;animation:fadeUp .8s ease .4s forwards;
+}
+#splash h2 span{
+  background:linear-gradient(90deg,#2563eb,#7c3aed,#06b6d4);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+#splash p{
+  font-size:12px;color:#64748b;
+  letter-spacing:2px;
+  opacity:0;animation:fadeUp .8s ease .7s forwards;
+}
+.pbar{
+  width:180px;height:3px;
+  background:rgba(37,99,235,0.12);
+  border-radius:99px;overflow:hidden;
+  margin-top:18px;
+  opacity:0;animation:fadeUp .6s ease 1s forwards;
+}
+.pfill{
+  height:100%;width:0%;
+  background:linear-gradient(90deg,#2563eb,#7c3aed);
+  border-radius:99px;
+  animation:fillBar 3s ease 1.2s forwards;
+}
+@keyframes fillBar{to{width:100%;}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+
+/* FOOTER */
+footer{
+  position:relative;z-index:20;
+  padding:11px 36px;
+  background:rgba(255,255,255,0.7);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border-top:1px solid rgba(99,102,241,0.15);
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:11px;color:#64748b;
+}
+footer strong{color:#1e293b;}
+footer a{color:#2563eb;text-decoration:none;}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <svg class="s-human" viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="hg1" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#4f8ef7"/>
+        <stop offset="100%" stop-color="#a259ff"/>
+      </linearGradient>
+    </defs>
+    <style>
+      .sh-body{animation:shWalk 0.9s ease-in-out infinite alternate;}
+      .sh-ll{transform-origin:52px 95px;animation:shLL .45s ease-in-out infinite alternate;}
+      .sh-rl{transform-origin:68px 95px;animation:shRL .45s ease-in-out infinite alternate;}
+      .sh-la{transform-origin:40px 72px;animation:shLA .45s ease-in-out infinite alternate;}
+      .sh-ra{transform-origin:80px 72px;animation:shRA .45s ease-in-out infinite alternate;}
+      @keyframes shWalk{0%{transform:translateY(0);}100%{transform:translateY(-5px);}}
+      @keyframes shLL{0%{transform:rotate(-25deg);}100%{transform:rotate(25deg);}}
+      @keyframes shRL{0%{transform:rotate(25deg);}100%{transform:rotate(-25deg);}}
+      @keyframes shLA{0%{transform:rotate(25deg);}100%{transform:rotate(-25deg);}}
+      @keyframes shRA{0%{transform:rotate(-25deg);}100%{transform:rotate(25deg);}}
+    </style>
+    <g class="sh-body">
+      <circle cx="60" cy="22" r="18" fill="url(#hg1)"/>
+      <circle cx="54" cy="19" r="2.5" fill="white" opacity=".9"/>
+      <circle cx="66" cy="19" r="2.5" fill="white" opacity=".9"/>
+      <path d="M54 27 Q60 33 66 27" stroke="white" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <rect x="44" y="42" width="32" height="42" rx="12" fill="url(#hg1)" opacity=".9"/>
+      <rect class="sh-la" x="24" y="46" width="20" height="9" rx="4.5" fill="url(#hg1)"/>
+      <rect class="sh-ra" x="76" y="46" width="20" height="9" rx="4.5" fill="url(#hg1)"/>
+      <rect class="sh-ll" x="46" y="84" width="13" height="32" rx="6.5" fill="url(#hg1)"/>
+      <rect class="sh-rl" x="61" y="84" width="13" height="32" rx="6.5" fill="url(#hg1)" opacity=".8"/>
+    </g>
+  </svg>
+  <h2>Welcome To <span>GMS MCD ERP</span></h2>
+  <p>Gms Textiles · Tansutrapur · Kaliakoir · Gazipur</p>
+  <div class="pbar"><div class="pfill"></div></div>
+</div>
+
+<canvas id="three-bg"></canvas>
+
+<header>
+  <div class="hdr-left">
+    <div class="brand-badge">G</div>
+    <div>
+      <div class="brand-name">GMS MCD SYSTEM</div>
+      <div class="brand-sub">Enterprise Resource Planning</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <strong>Gms Textiles</strong><br>
+    Tansutrapur, Kaliakoir, Gazipur
+  </div>
+</header>
+
+<main>
+  <div class="card">
+
+    <!-- 🕌 নামাজের কথা মনে করিয়ে দেওয়ার ব্যানার -->
+    <div class="top-banner">
+      <span class="icon">🕌</span>
+      <p>নামাজ বাদ দিও না — এই দুনিয়ার জীবনের চেয়ে <span>ওপারের জীবন</span> অনেক বেশি সুন্দর</p>
+    </div>
+
+    <div class="card-row">
+      <div class="left">
+        <div class="dot-grid">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <svg class="human-svg" viewBox="0 0 120 170" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#4f8ef7"/>
+              <stop offset="100%" stop-color="#a259ff"/>
+            </linearGradient>
+            <linearGradient id="lg2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#00e5ff"/>
+              <stop offset="100%" stop-color="#4f8ef7"/>
+            </linearGradient>
+          </defs>
+          <style>
+            .wave-arm{transform-origin:82px 68px;animation:waveA 1.2s ease-in-out infinite alternate;}
+            @keyframes waveA{0%{transform:rotate(-15deg);}100%{transform:rotate(35deg);}}
+          </style>
+          <circle cx="60" cy="72" r="58" fill="none" stroke="rgba(79,142,247,0.15)" stroke-width="1.5" stroke-dasharray="6 5"/>
+          <circle cx="60" cy="28" r="20" fill="url(#lg1)"/>
+          <circle cx="53" cy="25" r="3" fill="white" opacity=".95"/>
+          <circle cx="67" cy="25" r="3" fill="white" opacity=".95"/>
+          <path d="M53 34 Q60 41 67 34" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <rect x="42" y="50" width="36" height="48" rx="14" fill="url(#lg1)"/>
+          <rect x="22" y="54" width="20" height="10" rx="5" fill="url(#lg2)"/>
+          <rect class="wave-arm" x="82" y="54" width="20" height="10" rx="5" fill="url(#lg2)"/>
+          <rect x="44" y="98" width="14" height="38" rx="7" fill="url(#lg1)"/>
+          <rect x="62" y="98" width="14" height="38" rx="7" fill="url(#lg2)"/>
+        </svg>
+        <h2>Secure<br><span>ERP Access</span></h2>
+        <p>GMS Manufacturing Control Dashboard — login to manage your operations.</p>
+      </div>
+
+      <div class="right">
+        <div id="loginForm">
+          <div class="form-title">Sign In</div>
+          <div class="form-sub" id="net-status">Enter your credentials to continue</div>
+
+          <div class="field">
+            <label>Email Address</label>
+            <div class="inp-wrap">
+              <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.75L2.25 6.75"/></svg>
+              <input id="email" type="email" placeholder="your@email.com" autocomplete="email">
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Password</label>
+            <div class="inp-wrap">
+              <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+              <input id="password" type="password" placeholder="••••••••" autocomplete="current-password">
+            </div>
+          </div>
+
+          <button class="btn" id="loginBtn">🔐 LOGIN</button>
+          <div id="msg"></div>
+        </div>
+
+        <div id="postWelcome">
+          <div class="emoji">👋</div>
+          <h2 id="wName">Welcome!</h2>
+          <p>Redirecting to Dashboard…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🕋 আল্লাহর ৯৯ নাম (আসমাউল হুসনা) — একটার পর একটা চলতে থাকবে -->
+    <div class="bottom-banner">
+      <div class="bb-label">✨ আসমাউল হুসনা — আল্লাহর ৯৯ নাম ✨</div>
+      <div id="asmaName">الرَّحْمَنُ</div>
+      <div id="asmaTrans">Ar-Rahman</div>
+      <div id="asmaMeaning">পরম করুণাময়</div>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <span>©️ 2025 <strong>GMS Textiles</strong> · Tansutrapur, Kaliakoir, Gazipur</span>
+  <span>Powered by <strong>JOHURUL</strong> · <a href="tel:01925254746">01925254746</a></span>
+</footer>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    const swCode = `
+      const CACHE_NAME = 'gms-erp-v1';
+      const ASSETS = [
+        '${window.location.pathname}',
+        'https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Exo+2:wght@300;400;500;600&display=swap',
+        'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'
+      ];
+
+      self.addEventListener('install', e => {
+        e.waitUntil(
+          caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+        );
+      });
+
+      self.addEventListener('activate', e => {
+        e.waitUntil(self.clients.claim());
+      });
+
+      self.addEventListener('fetch', e => {
+        if (e.request.url.includes('firebase') || e.request.url.includes('firestore')) {
+          return;
+        }
+        e.respondWith(
+          caches.match(e.request).then(cachedResponse => {
+            return cachedResponse || fetch(e.request).then(fetchResponse => {
+              return caches.open(CACHE_NAME).then(cache => {
+                cache.put(e.request, fetchResponse.clone());
+                return fetchResponse;
+              });
+            });
+          }).catch(() => caches.match('${window.location.pathname}'))
+        );
+      });
+    `;
+
+    const blob = new Blob([swCode], { type: 'application/javascript' });
+    const swUrl = URL.createObjectURL(blob);
+    
+    navigator.serviceWorker.register(swUrl)
+      .then(() => console.log('GMS Service Worker Registered Successfully.'))
+      .catch(err => console.log('Service Worker Failed:', err));
+  });
+}
+
+function updateOnlineStatus() {
+  const statusEl = document.getElementById('net-status');
+  if (navigator.onLine) {
+    statusEl.innerHTML = "Enter your credentials to continue";
+    statusEl.style.color = "#64748b";
+  } else {
+    statusEl.innerHTML = "📶 Offline Mode Active (Using local backup)";
+    statusEl.style.color = "#ea580c";
+  }
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+
+/* 🕋 আল্লাহর ৯৯ নাম — একটার পর একটা অটো-চলবে */
+const asmaUlHusna = [
+["الرَّحْمَنُ","Ar-Rahman","পরম করুণাময়"],
+["الرَّحِيمُ","Ar-Raheem","পরম দয়ালু"],
+["الْمَلِكُ","Al-Malik","সর্বাধিপতি"],
+["الْقُدُّوسُ","Al-Quddus","পরম পবিত্র"],
+["السَّلاَمُ","As-Salam","শান্তিদাতা"],
+["الْمُؤْمِنُ","Al-Mu'min","নিরাপত্তাদাতা"],
+["الْمُهَيْمِنُ","Al-Muhaymin","রক্ষণাবেক্ষণকারী"],
+["الْعَزِيزُ","Al-Aziz","পরাক্রমশালী"],
+["الْجَبَّارُ","Al-Jabbar","মহাপরাক্রমশালী"],
+["الْمُتَكَبِّرُ","Al-Mutakabbir","মহিমান্বিত"],
+["الْخَالِقُ","Al-Khaliq","সৃষ্টিকর্তা"],
+["الْبَارِئُ","Al-Bari","স্রষ্টা"],
+["الْمُصَوِّرُ","Al-Musawwir","রূপদানকারী"],
+["الْغَفَّارُ","Al-Ghaffar","মহাক্ষমাশীল"],
+["الْقَهَّارُ","Al-Qahhar","প্রবল দমনকারী"],
+["الْوَهَّابُ","Al-Wahhab","মহাদাতা"],
+["الرَّزَّاقُ","Ar-Razzaq","রিযিকদাতা"],
+["الْفَتَّاحُ","Al-Fattah","বিজয়দানকারী"],
+["الْعَلِيمُ","Al-Alim","সর্বজ্ঞ"],
+["الْقَابِضُ","Al-Qabid","সংকোচনকারী"],
+["الْبَاسِطُ","Al-Basit","প্রসারণকারী"],
+["الْخَافِضُ","Al-Khafid","অবনতকারী"],
+["الرَّافِعُ","Ar-Rafi","উন্নতকারী"],
+["الْمُعِزُّ","Al-Mu'izz","সম্মানদাতা"],
+["الْمُذِلُّ","Al-Muzil","অপমানকারী"],
+["السَّمِيعُ","As-Sami","সর্বশ্রোতা"],
+["الْبَصِيرُ","Al-Baseer","সর্বদ্রষ্টা"],
+["الْحَكَمُ","Al-Hakam","বিচারক"],
+["الْعَدْلُ","Al-Adl","ন্যায়পরায়ণ"],
+["اللَّطِيفُ","Al-Lateef","সূক্ষ্মদর্শী"],
+["الْخَبِيرُ","Al-Khabir","সম্যক অবহিত"],
+["الْحَلِيمُ","Al-Haleem","সহনশীল"],
+["الْعَظِيمُ","Al-Azeem","মহান"],
+["الْغَفُورُ","Al-Ghafoor","ক্ষমাশীল"],
+["الشَّكُورُ","Ash-Shakur","কদরদাতা"],
+["الْعَلِيُّ","Al-Aliyy","সমুন্নত"],
+["الْكَبِيرُ","Al-Kabeer","সুমহান"],
+["الْحَفِيظُ","Al-Hafiz","রক্ষাকারী"],
+["الْمُقِيتُ","Al-Muqeet","পুষ্টিদাতা"],
+["الْحَسِيبُ","Al-Haseeb","হিসাবগ্রহণকারী"],
+["الْجَلِيلُ","Al-Jaleel","মহিমান্বিত"],
+["الْكَرِيمُ","Al-Karim","মহানুভব"],
+["الرَّقِيبُ","Ar-Raqib","পর্যবেক্ষক"],
+["الْمُجِيبُ","Al-Mujeeb","সাড়াদানকারী"],
+["الْوَاسِعُ","Al-Wasi","প্রশস্ত"],
+["الْحَكِيمُ","Al-Hakeem","প্রজ্ঞাময়"],
+["الْوَدُودُ","Al-Wadud","প্রেমময়"],
+["الْمَجِيدُ","Al-Majeed","মহিমান্বিত"],
+["الْبَاعِثُ","Al-Ba'ith","পুনরুত্থানকারী"],
+["الشَّهِيدُ","Ash-Shaheed","সাক্ষী"],
+["الْحَقُّ","Al-Haqq","সত্য"],
+["الْوَكِيلُ","Al-Wakeel","অভিভাবক"],
+["الْقَوِيُّ","Al-Qawiyy","শক্তিমান"],
+["الْمَتِينُ","Al-Matin","দৃঢ়"],
+["الْوَلِيُّ","Al-Waliy","বন্ধু-অভিভাবক"],
+["الْحَمِيدُ","Al-Hameed","প্রশংসিত"],
+["الْمُحْصِي","Al-Muhsi","গণনাকারী"],
+["الْمُبْدِئُ","Al-Mubdi","সূচনাকারী"],
+["الْمُعِيدُ","Al-Muid","পুনঃসৃষ্টিকারী"],
+["الْمُحْيِي","Al-Muhyi","জীবনদাতা"],
+["الْمُمِيتُ","Al-Mumeet","মৃত্যুদাতা"],
+["الْحَيُّ","Al-Hayy","চিরঞ্জীব"],
+["الْقَيُّومُ","Al-Qayyum","চিরস্থায়ী ধারক"],
+["الْوَاجِدُ","Al-Wajid","স্বয়ংসমৃদ্ধ"],
+["الْمَاجِدُ","Al-Maajid","মহিমান্বিত"],
+["الْوَاحِدُ","Al-Wahid","অদ্বিতীয়"],
+["اَلْاَحَدُ","Al-Ahad","একক"],
+["الصَّمَدُ","As-Samad","অমুখাপেক্ষী"],
+["الْقَادِرُ","Al-Qadir","সর্বশক্তিমান"],
+["الْمُقْتَدِرُ","Al-Muqtadir","প্রবল ক্ষমতাবান"],
+["الْمُقَدِّمُ","Al-Muqaddim","অগ্রবর্তীকারী"],
+["الْمُؤَخِّرُ","Al-Muakhkhir","পশ্চাদবর্তীকারী"],
+["الْأَوَّلُ","Al-Awwal","প্রথম"],
+["الْآخِرُ","Al-Akhir","সর্বশেষ"],
+["الظَّاهِرُ","Az-Zaahir","প্রকাশ্য"],
+["الْبَاطِنُ","Al-Baatin","গুপ্ত"],
+["الْوَالِي","Al-Wali","অভিভাবক শাসক"],
+["الْمُتَعَالِي","Al-Mutaali","সর্বোচ্চ"],
+["الْبَرُّ","Al-Barr","কল্যাণকারী"],
+["التَّوَابُ","At-Tawwab","তওবা কবুলকারী"],
+["الْمُنْتَقِمُ","Al-Muntaqim","প্রতিশোধ গ্রহণকারী"],
+["الْعَفُوُّ","Al-Afuw","ক্ষমাকারী"],
+["الرَّؤُوفُ","Ar-Rauf","স্নেহশীল"],
+["مَالِكُ الْمُلْكِ","Malikul-Mulk","রাজ্যাধিপতি"],
+["ذُوالْجَلَالِ وَالْإِكْرَامِ","Dhul-Jalaali-Wal-Ikram","মহিমা ও সম্মানের অধিকারী"],
+["الْمُقْسِطُ","Al-Muqsit","ন্যায়বিচারক"],
+["الْجَامِعُ","Al-Jami","সমবেতকারী"],
+["الْغَنِيُّ","Al-Ghaniy","অভাবমুক্ত"],
+["الْمُغْنِي","Al-Mughni","প্রাচুর্যদাতা"],
+["الْمَانِعُ","Al-Mani","প্রতিরোধকারী"],
+["الضَّارَّ","Ad-Darr","ক্ষতি-নিয়ন্ত্রক"],
+["النَّافِعُ","An-Naafi","উপকারী"],
+["النُّورُ","An-Noor","জ্যোতি"],
+["الْهَادِي","Al-Hadi","পথপ্রদর্শক"],
+["الْبَدِيعُ","Al-Badi","অতুলনীয় উদ্ভাবক"],
+["الْبَاقِي","Al-Baaqi","চিরস্থায়ী"],
+["الْوَارِثُ","Al-Warith","উত্তরাধিকারী"],
+["الرَّشِيدُ","Ar-Rasheed","সৎপথপ্রদর্শক"],
+["الصَّبُورُ","As-Sabur","পরম ধৈর্যশীল"]
+];
+let asmaIndex = 0;
+function showAsma(i){
+  const nameEl = document.getElementById('asmaName');
+  const transEl = document.getElementById('asmaTrans');
+  const meanEl = document.getElementById('asmaMeaning');
+  if(!nameEl) return;
+  [nameEl, transEl, meanEl].forEach(el => el.classList.add('asma-fade'));
+  setTimeout(() => {
+    nameEl.textContent = asmaUlHusna[i][0];
+    transEl.textContent = (i+1) + '. ' + asmaUlHusna[i][1];
+    meanEl.textContent = asmaUlHusna[i][2];
+    [nameEl, transEl, meanEl].forEach(el => el.classList.remove('asma-fade'));
+  }, 350);
+}
+setInterval(() => {
+  asmaIndex = (asmaIndex + 1) % asmaUlHusna.length;
+  showAsma(asmaIndex);
+}, 2600);
+</script>
+
+<script type="module">
+/* ══════════════════════════════════════
+   THREE.JS — LIGHT 3D BACKGROUND
+══════════════════════════════════════ */
+(function(){
+  const canvas = document.getElementById('three-bg');
+  const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0xeef2ff, 1);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 200);
+  camera.position.z = 18;
+
+  scene.fog = new THREE.FogExp2(0xe0e7ff, 0.022);
+
+  const ambient = new THREE.AmbientLight(0xdde8ff, 2.5);
+  scene.add(ambient);
+
+  const light1 = new THREE.PointLight(0x2563eb, 5, 30);
+  light1.position.set(-8, 6, 5);
+  scene.add(light1);
+
+  const light2 = new THREE.PointLight(0x7c3aed, 4, 25);
+  light2.position.set(8, -4, 3);
+  scene.add(light2);
+
+  const light3 = new THREE.PointLight(0x06b6d4, 3, 20);
+  light3.position.set(0, 8, -5);
+  scene.add(light3);
+
+  const torusGeo = new THREE.TorusGeometry(7, 2.2, 18, 80);
+  const torusMat = new THREE.MeshBasicMaterial({
+    color:0x2563eb, wireframe:true, transparent:true, opacity:0.1
+  });
+  const torus = new THREE.Mesh(torusGeo, torusMat);
+  torus.rotation.x = Math.PI/4;
+  scene.add(torus);
+
+  const t2Geo = new THREE.TorusGeometry(4, 1, 12, 50);
+  const t2Mat = new THREE.MeshBasicMaterial({
+    color:0x7c3aed, wireframe:true, transparent:true, opacity:0.09
+  });
+  const torus2 = new THREE.Mesh(t2Geo, t2Mat);
+  torus2.rotation.y = Math.PI/3;
+  scene.add(torus2);
+
+  const sphereData = [
+    {r:1.4, x:-7, y:3, z:-4, color:0x3b82f6, speed:0.8},
+    {r:0.9, x:7, y:-3, z:-2, color:0x8b5cf6, speed:1.1},
+    {r:1.1, x:3, y:5, z:-6, color:0x06b6d4, speed:0.6},
+    {r:0.6, x:-4, y:-5, z:-1, color:0x6366f1, speed:1.3},
+    {r:0.5, x:6, y:4, z:-3, color:0x22d3ee, speed:0.9},
+    {r:1.8, x:0, y:-7, z:-8, color:0x3b82f6, speed:0.5},
+  ];
+  const sphereMeshes = sphereData.map(d=>{
+    const geo = new THREE.SphereGeometry(d.r, 24, 24);
+    const mat = new THREE.MeshPhongMaterial({
+      color:d.color, emissive:d.color, emissiveIntensity:0.25,
+      transparent:true, opacity:0.45, shininess:180
+    });
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(d.x, d.y, d.z);
+    m.userData = {oy:d.y, speed:d.speed, phase:Math.random()*Math.PI*2};
+    scene.add(m);
+    return m;
+  });
+
+  const icoGeo = new THREE.IcosahedronGeometry(5, 1);
+  const icoMat = new THREE.MeshBasicMaterial({
+    color:0x06b6d4, wireframe:true, transparent:true, opacity:0.07
+  });
+  const ico = new THREE.Mesh(icoGeo, icoMat);
+  ico.position.set(6, -2, -6);
+  scene.add(ico);
+
+  const starCount = 600;
+  const starGeo = new THREE.BufferGeometry();
+  const starPos = new Float32Array(starCount*3);
+  for(let i=0;i<starCount*3;i++) starPos[i]=(Math.random()-0.5)*80;
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
+  const starMat = new THREE.PointsMaterial({color:0x6366f1, size:0.1, transparent:true, opacity:0.4});
+  scene.add(new THREE.Points(starGeo, starMat));
+
+  const ringCount = 300;
+  const ringGeo = new THREE.BufferGeometry();
+  const ringPos = new Float32Array(ringCount*3);
+  for(let i=0;i<ringCount;i++){
+    const angle = (i/ringCount)*Math.PI*2;
+    const r = 9 + (Math.random()-.5)*1.5;
+    ringPos[i*3]   = Math.cos(angle)*r;
+    ringPos[i*3+1] = (Math.random()-.5)*1;
+    ringPos[i*3+2] = Math.sin(angle)*r - 8;
+  }
+  ringGeo.setAttribute('position', new THREE.BufferAttribute(ringPos,3));
+  const ringMat = new THREE.PointsMaterial({color:0x2563eb, size:0.12, transparent:true, opacity:0.4});
+  const ringPts = new THREE.Points(ringGeo, ringMat);
+  scene.add(ringPts);
+
+  let mx=0, my=0;
+  document.addEventListener('mousemove', e=>{
+    mx = (e.clientX/window.innerWidth - 0.5)*2;
+    my = (e.clientY/window.innerHeight - 0.5)*2;
+  });
+
+  let t=0;
+  function animate(){
+    requestAnimationFrame(animate);
+    t+=0.007;
+
+    torus.rotation.y += 0.003;
+    torus.rotation.z += 0.001;
+    torus2.rotation.x += 0.005;
+    torus2.rotation.z += 0.004;
+    ico.rotation.y += 0.004;
+    ico.rotation.x += 0.002;
+    ringPts.rotation.y += 0.001;
+
+    sphereMeshes.forEach(m=>{
+      m.position.y = m.userData.oy + Math.sin(t*m.userData.speed + m.userData.phase)*1.2;
+      m.rotation.y += 0.01;
+    });
+
+    light1.position.x = Math.sin(t*0.7)*10;
+    light1.position.y = Math.cos(t*0.5)*6;
+    light2.position.x = Math.cos(t*0.6)*10;
+    light2.position.y = Math.sin(t*0.8)*6;
+    light3.position.x = Math.sin(t*0.4)*8;
+    light3.position.z = Math.cos(t*0.3)*8 - 5;
+
+    camera.position.x += (mx*1.5 - camera.position.x)*0.04;
+    camera.position.y += (-my*1.2 - camera.position.y)*0.04;
+    camera.lookAt(scene.position);
+
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener('resize',()=>{
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+})();
+
+/* SPLASH */
+window.addEventListener('load',()=>{
+  setTimeout(()=>{
+    const sp = document.getElementById('splash');
+    if(sp) {
+      sp.style.opacity='0';
+      setTimeout(()=>sp.remove(), 900);
+    }
+  }, 3800);
+  if(typeof updateOnlineStatus === 'function') updateOnlineStatus();
+});
+
+/* FIREBASE INIT */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId:"gms-warehouse-tracker-7f57e",
+  storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId:"992250313291",
+  appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+/* 🔐 SECURITY: Hash Function (SHA-256) */
+async function hashPassword(password) {
+    try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) {
+        // Fallback for file:// protocol (Simple Hash)
+        let hash = 0;
+        for (let i = 0; i < password.length; i++) {
+            const char = password.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return "fallback_" + Math.abs(hash).toString(16);
+    }
+}
+
+/* LOGIN (ONLINE + OFFLINE HYBRID LOGIC) */
+window.login = async function(){
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value.trim();
+  const msg      = document.getElementById('msg');
+  msg.innerHTML  = '';
+
+  if(!email || !password){
+    msg.style.color = '#ef4444';
+    msg.innerHTML   = '⚠ Email ও Password দিন';
+    return;
+  }
+
+  // Hash the entered password once
+  const enteredHash = await hashPassword(password);
+
+  // ১. ইউজার যদি অফলাইনে থাকে (ইন্টারনেট না থাকে)
+  if (!navigator.onLine) {
+    msg.style.color = '#ea580c';
+    msg.innerHTML   = '🔄 Checking local cache...';
+
+    const localUsers = JSON.parse(localStorage.getItem('gms_cached_users') || '[]');
+    const matchingUser = localUsers.find(u => {
+        const emailMatch = String(u.email || '').trim().toLowerCase() === email.toLowerCase();
+        // Check against Hash OR Legacy Plain Password (for backward compatibility)
+        const hashMatch = u.passwordHash === enteredHash;
+        const legacyMatch = !u.passwordHash && u.password === password;
+        return emailMatch && (hashMatch || legacyMatch);
+    });
+
+    if (matchingUser) {
+      handleSuccess(matchingUser, true);
+    } else {
+      msg.style.color = '#ef4444';
+      msg.innerHTML   = '❌ অফলাইন লগইন ব্যর্থ! Email বা Password ভুল।';
+    }
+    return;
+  }
+
+  // ২. ইউজার অনলাইনে থাকলে সাধারণ নিয়মে Firebase থেকে চেক হবে
+  msg.style.color = '#4f8ef7';
+  msg.innerHTML   = '🔄 Verifying with Cloud...';
+
+  try{
+    const snap = await getDocs(collection(db, 'users'));
+    let found = null, id = '';
+    let allUsersList = []; 
+
+    snap.forEach(d => {
+      const u = d.data();
+      u.id = d.id;
+      allUsersList.push(u); 
+
+      const emailMatch = String(u.email || '').trim().toLowerCase() === email.toLowerCase();
+      // Priority: Hash Match > Legacy Plain Match
+      const hashMatch = u.passwordHash === enteredHash;
+      const legacyMatch = !u.passwordHash && u.password === password;
+
+      if(emailMatch && (hashMatch || legacyMatch)){
+        found = u;
+        id    = d.id;
+      }
+    });
+
+    // 🔥 SECURITY: Save to Local Cache WITHOUT Plain Passwords
+    if(allUsersList.length > 0) {
+      let secureCacheList = [];
+      allUsersList.forEach(u => {
+          let safeUser = { ...u };
+          // ALWAYS remove plain password from cache
+          if (safeUser.password) delete safeUser.password; 
+          secureCacheList.push(safeUser);
+      });
+      localStorage.setItem('gms_cached_users', JSON.stringify(secureCacheList));
+    }
+
+    if(!found){
+      msg.style.color = '#ef4444';
+      msg.innerHTML   = '❌ Login Failed — email বা password ভুল';
+      return;
+    }
+
+    handleSuccess(found, false);
+
+  } catch(e){
+    console.error(e);
+    // Fallback to offline cache
+    const localUsers = JSON.parse(localStorage.getItem('gms_cached_users') || '[]');
+    const matchingUser = localUsers.find(u => {
+        const emailMatch = String(u.email || '').trim().toLowerCase() === email.toLowerCase();
+        const hashMatch = u.passwordHash === enteredHash;
+        const legacyMatch = !u.passwordHash && u.password === password;
+        return emailMatch && (hashMatch || legacyMatch);
+    });
+
+    if(matchingUser) {
+      handleSuccess(matchingUser, true);
+    } else {
+      msg.style.color = '#ef4444';
+      msg.innerHTML   = '🔥 Firebase সমস্যা এবং কোনো লোকাল ব্যাকআপ পাওয়া যায়নি';
+    }
+  }
+};
+
+function handleSuccess(user, isOffline) {
+  const msg = document.getElementById('msg');
+  
+  // 🔥 SECURITY: Remove sensitive data before saving session
+  let safeUser = { ...user };
+  delete safeUser.password;
+  delete safeUser.passwordHash;
+  
+  localStorage.setItem('gmsUser', JSON.stringify(safeUser));
+
+  msg.style.color = '#00e5ff';
+  msg.innerHTML   = isOffline ? '✅ Offline Login Successful!' : '✅ Online Login Successful!';
+  
+  document.getElementById('loginForm').style.display = 'none';
+  document.getElementById('wName').textContent = 'Welcome, ' + (user.name || user.email) + '!';
+  document.getElementById('postWelcome').style.display = 'block';
+
+  setTimeout(() => { location.href = 'index.html'; }, 2000);
+}
+
+document.addEventListener('keydown', e => { if(e.key === 'Enter') window.login(); });
+document.getElementById('loginBtn').addEventListener('click', () => window.login());
+</script>
+</body>
+</html>

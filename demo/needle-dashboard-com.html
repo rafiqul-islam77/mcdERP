@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>GMS Composite - Needle Floor Wise Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600;700;900&display=swap');
+
+:root{
+  --bg:#040d1a;
+  --bg2:#060f20;
+  --card:#071528;
+  --card2:#0a1c35;
+  --text:#e8f4ff;
+  --muted:#6a9bc3;
+  --border:#1a3a5c;
+  --blue:#00c8ff;
+  --blue2:#0066ff;
+  --green:#00ff88;
+  --red:#ff3366;
+  --yellow:#ffcc00;
+  --purple:#9933ff;
+  --glow-blue:rgba(0,200,255,0.35);
+  --glow-green:rgba(0,255,136,0.3);
+  --glow-red:rgba(255,51,102,0.3);
+  --chartText:#c8e8ff;
+  --chartGrid:rgba(0,180,255,0.12);
+  --shadow:0 0 40px rgba(0,100,200,0.2),0 20px 40px rgba(0,0,0,0.5);
+}
+
+body.light{
+  --bg:#eef3f9;
+  --bg2:#f8fafc;
+  --card:#ffffff;
+  --card2:#f1f5f9;
+  --text:#0f172a;
+  --muted:#64748b;
+  --border:#cbd5e1;
+  --blue:#2563eb;
+  --green:#16a34a;
+  --red:#dc2626;
+  --yellow:#d97706;
+  --purple:#7c3aed;
+  --chartText:#0f172a;
+  --chartGrid:rgba(15,23,42,0.12);
+  --shadow:0 12px 28px rgba(15,23,42,0.14);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  background:
+    radial-gradient(ellipse at 20% 10%,rgba(0,80,180,0.18) 0%,transparent 50%),
+    radial-gradient(ellipse at 80% 90%,rgba(80,0,180,0.12) 0%,transparent 50%),
+    var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  padding:14px;
+  min-height:100vh;
+  overflow-x:hidden;
+  transition:background 0.3s,color 0.3s;
+}
+
+body.light{
+  background:var(--bg);
+}
+
+/* Circuit lines — dark only */
+body:not(.light)::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(0,150,255,0.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,150,255,0.04) 1px,transparent 1px);
+  background-size:50px 50px;
+  pointer-events:none;
+  z-index:0;
+}
+
+body:not(.light)::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  background:
+    radial-gradient(circle at 15% 25%,rgba(0,200,255,0.06) 0%,transparent 30%),
+    radial-gradient(circle at 85% 75%,rgba(100,0,255,0.05) 0%,transparent 30%);
+  pointer-events:none;
+  z-index:0;
+}
+
+.page-wrap{position:relative;z-index:1}
+
+/* Scanline — dark only */
+.scanline{
+  position:fixed;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+  pointer-events:none;
+  z-index:9999;
+}
+body.light .scanline{display:none}
+
+/* ── HEADER ── */
+.header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:linear-gradient(135deg,rgba(7,21,40,0.97),rgba(10,28,53,0.92));
+  border:1px solid rgba(0,200,255,0.25);
+  border-top:2px solid var(--blue);
+  padding:16px 22px;
+  border-radius:18px;
+  margin-bottom:14px;
+  box-shadow:0 0 30px rgba(0,200,255,0.15),var(--shadow);
+  position:relative;
+  overflow:hidden;
+}
+
+body.light .header{
+  background:linear-gradient(135deg,#ffffff,#f1f5f9);
+  border-color:#cbd5e1;
+  border-top-color:#2563eb;
+  box-shadow:0 12px 28px rgba(15,23,42,0.12);
+}
+
+.header::before{
+  content:"";
+  position:absolute;
+  top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--blue),var(--purple),transparent);
+}
+body.light .header::before{background:linear-gradient(90deg,transparent,#2563eb,#7c3aed,transparent)}
+
+.header-title{
+  font-family:'Orbitron',monospace;
+  font-size:22px;
+  font-weight:900;
+  letter-spacing:1.5px;
+  background:linear-gradient(90deg,var(--blue),#ffffff,var(--purple));
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+body.light .header-title{
+  background:linear-gradient(90deg,#2563eb,#0f172a,#7c3aed);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+
+.header-sub{
+  color:var(--muted);
+  font-size:11px;
+  font-weight:700;
+  margin-top:5px;
+  letter-spacing:1px;
+  text-transform:uppercase;
+}
+
+.live-dot{
+  display:inline-block;
+  width:7px;height:7px;
+  background:var(--green);
+  border-radius:50%;
+  animation:blink 1.4s infinite;
+  margin-right:4px;
+  vertical-align:middle;
+  box-shadow:0 0 6px var(--green);
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+.btn-group{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+
+button{
+  padding:9px 15px;
+  border:1px solid rgba(0,200,255,0.3);
+  border-radius:10px;
+  background:rgba(0,100,200,0.2);
+  color:var(--blue);
+  font-family:'Inter',sans-serif;
+  font-weight:800;
+  font-size:12px;
+  cursor:pointer;
+  letter-spacing:0.4px;
+  transition:all 0.2s;
+}
+button:hover{border-color:var(--blue);box-shadow:0 0 18px rgba(0,200,255,0.3);transform:translateY(-1px)}
+body.light button{background:#f1f5f9;color:#2563eb;border-color:#cbd5e1}
+body.light button:hover{background:#2563eb;color:#fff;border-color:#2563eb}
+
+.btn-refresh{border-color:rgba(0,255,136,0.4);color:var(--green)}
+.btn-refresh:hover{border-color:var(--green);box-shadow:0 0 18px rgba(0,255,136,0.3)}
+body.light .btn-refresh{color:#16a34a;border-color:#bbf7d0}
+body.light .btn-refresh:hover{background:#16a34a;color:#fff}
+
+.btn-theme{border-color:rgba(255,204,0,0.4);color:var(--yellow)}
+.btn-theme:hover{border-color:var(--yellow);box-shadow:0 0 18px rgba(255,204,0,0.3)}
+
+.btn-home{border-color:rgba(153,51,255,0.4);color:var(--purple)}
+.btn-home:hover{border-color:var(--purple);box-shadow:0 0 18px rgba(153,51,255,0.3)}
+
+/* ── CONTROLS ── */
+.controls{
+  text-align:center;
+  margin:10px 0;
+  font-size:12px;
+  color:var(--muted);
+  letter-spacing:1px;
+  text-transform:uppercase;
+  font-weight:800;
+}
+
+input[type="month"]{
+  padding:9px 14px;
+  border-radius:8px;
+  border:1px solid rgba(0,200,255,0.3);
+  background:rgba(0,50,100,0.3);
+  color:var(--blue);
+  font-family:'Inter',sans-serif;
+  font-weight:800;
+  font-size:13px;
+  margin-left:8px;
+  outline:none;
+  letter-spacing:1px;
+}
+input[type="month"]:focus{border-color:var(--blue);box-shadow:0 0 12px rgba(0,200,255,0.2)}
+body.light input[type="month"]{background:#fff;color:#0f172a;border-color:#cbd5e1}
+
+/* ── ALERTS ── */
+.alertBox{
+  padding:11px 16px;
+  border-radius:10px;
+  margin:5px 0;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:0.4px;
+}
+.alert-low{
+  background:rgba(255,51,102,0.12);
+  border:1px solid rgba(255,51,102,0.45);
+  color:#ffaabb;
+  box-shadow:0 0 18px rgba(255,51,102,0.1);
+}
+body.light .alert-low{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
+
+.alert-ok{
+  background:rgba(0,255,136,0.08);
+  border:1px solid rgba(0,255,136,0.3);
+  color:#aaffcc;
+  box-shadow:0 0 18px rgba(0,255,136,0.08);
+}
+body.light .alert-ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
+
+/* ── KPI ── */
+.kpi{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:12px;
+  margin:12px 0;
+}
+
+.kpiCard{
+  background:linear-gradient(135deg,rgba(7,21,40,0.97),rgba(10,28,53,0.92));
+  border:1px solid rgba(0,200,255,0.2);
+  border-radius:16px;
+  padding:16px 14px;
+  box-shadow:var(--shadow);
+  position:relative;
+  overflow:hidden;
+  transition:transform 0.2s,box-shadow 0.2s;
+}
+.kpiCard:hover{transform:translateY(-3px);box-shadow:0 0 36px rgba(0,200,255,0.22),var(--shadow)}
+body.light .kpiCard{background:linear-gradient(135deg,#fff,#f1f5f9);border-color:#e2e8f0;box-shadow:0 12px 26px rgba(15,23,42,0.1)}
+
+.kpiCard::before{
+  content:"";
+  position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--blue),transparent);
+}
+.kpiCard:nth-child(2)::before{background:linear-gradient(90deg,transparent,var(--green),transparent)}
+.kpiCard:nth-child(3)::before{background:linear-gradient(90deg,transparent,var(--red),transparent)}
+.kpiCard:nth-child(4)::before{background:linear-gradient(90deg,transparent,var(--yellow),transparent)}
+.kpiCard:nth-child(5)::before{background:linear-gradient(90deg,transparent,var(--purple),transparent)}
+
+.kpi-icon{font-size:20px;margin-bottom:5px;display:block}
+.label{color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px}
+.value{
+  font-family:'Orbitron',monospace;
+  font-size:26px;font-weight:900;
+  color:var(--blue);margin-top:6px;
+  text-shadow:0 0 18px rgba(0,200,255,0.5);
+  letter-spacing:1px;
+}
+body.light .value{color:#2563eb;text-shadow:none}
+.kpiCard:nth-child(2) .value{color:var(--green);text-shadow:0 0 18px rgba(0,255,136,0.5)}
+.kpiCard:nth-child(3) .value{color:var(--red);text-shadow:0 0 18px rgba(255,51,102,0.5)}
+.kpiCard:nth-child(4) .value{color:var(--yellow);text-shadow:0 0 18px rgba(255,204,0,0.5)}
+.kpiCard:nth-child(5) .value{color:var(--purple);text-shadow:0 0 18px rgba(153,51,255,0.5)}
+body.light .kpiCard:nth-child(2) .value{color:#16a34a;text-shadow:none}
+body.light .kpiCard:nth-child(3) .value{color:#dc2626;text-shadow:none}
+body.light .kpiCard:nth-child(4) .value{color:#d97706;text-shadow:none}
+body.light .kpiCard:nth-child(5) .value{color:#7c3aed;text-shadow:none}
+
+/* ── BUILDING TABS ── */
+.buildingTabs{
+  display:flex;flex-wrap:wrap;gap:8px;
+  margin:14px 0 10px;
+}
+.bTab{
+  padding:7px 15px;border-radius:10px;
+  font-size:12px;font-weight:800;cursor:pointer;
+  background:rgba(0,50,100,0.25);
+  border:1px solid rgba(0,200,255,0.2);
+  color:var(--muted);
+  transition:all 0.2s;letter-spacing:0.3px;
+}
+.bTab:hover,.bTab.active{
+  background:linear-gradient(135deg,rgba(0,200,255,0.2),rgba(153,51,255,0.2));
+  border-color:var(--blue);color:var(--blue);
+  box-shadow:0 0 14px rgba(0,200,255,0.2);
+}
+body.light .bTab{background:#f1f5f9;border-color:#e2e8f0;color:#64748b}
+body.light .bTab:hover,body.light .bTab.active{background:#2563eb;color:#fff;border-color:#2563eb}
+
+/* ── CHARTS ── */
+.chartGrid{display:grid;grid-template-columns:1.5fr 0.8fr;gap:14px;margin-bottom:14px}
+.chartGrid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+
+.chartCard{
+  background:linear-gradient(135deg,rgba(7,21,40,0.97),rgba(10,28,53,0.92));
+  border:1px solid rgba(0,200,255,0.2);
+  border-radius:18px;
+  padding:16px;
+  box-shadow:var(--shadow);
+  height:320px;
+  position:relative;overflow:hidden;
+}
+body.light .chartCard{background:linear-gradient(135deg,#fff,#f1f5f9);border-color:#e2e8f0;box-shadow:0 12px 26px rgba(15,23,42,0.1)}
+
+.chartCard::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--blue),var(--purple),transparent);
+}
+body.light .chartCard::before{background:linear-gradient(90deg,transparent,#2563eb,#7c3aed,transparent)}
+
+.chartCard h3{
+  margin:0 0 10px 0;
+  font-family:'Orbitron',monospace;
+  font-size:11px;font-weight:800;
+  color:var(--blue);letter-spacing:1.5px;
+  text-transform:uppercase;
+  text-shadow:0 0 12px rgba(0,200,255,0.4);
+  position:relative;z-index:1;
+}
+body.light .chartCard h3{color:#2563eb;text-shadow:none}
+.chartCard canvas{max-height:270px!important;position:relative;z-index:1}
+
+/* ── SECTION TITLE ── */
+.sectionTitle{
+  font-family:'Orbitron',monospace;
+  font-size:12px;font-weight:800;
+  color:var(--blue);text-transform:uppercase;
+  letter-spacing:1.5px;margin:16px 0 10px;
+  padding-left:4px;
+  text-shadow:0 0 12px rgba(0,200,255,0.35);
+  display:flex;align-items:center;gap:8px;
+}
+.sectionTitle::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(0,200,255,0.3),transparent)}
+body.light .sectionTitle{color:#2563eb;text-shadow:none}
+body.light .sectionTitle::after{background:linear-gradient(90deg,#2563eb44,transparent)}
+
+/* ── FLOOR GRID ── */
+.floorGrid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+  margin-bottom:16px;
+}
+
+.floorBox{
+  background:linear-gradient(135deg,rgba(7,21,40,0.97),rgba(10,28,53,0.92));
+  border:1px solid rgba(0,200,255,0.2);
+  border-radius:16px;
+  padding:14px;
+  box-shadow:var(--shadow);
+  position:relative;overflow:hidden;
+  transition:transform 0.2s,border-color 0.2s,box-shadow 0.2s;
+}
+.floorBox:hover{
+  transform:translateY(-3px);
+  border-color:rgba(0,200,255,0.5);
+  box-shadow:0 0 28px rgba(0,200,255,0.18),var(--shadow);
+}
+body.light .floorBox{background:linear-gradient(135deg,#fff,#f1f5f9);border-color:#e2e8f0;box-shadow:0 8px 20px rgba(15,23,42,0.08)}
+body.light .floorBox:hover{border-color:#2563eb;box-shadow:0 0 20px rgba(37,99,235,0.15),0 8px 20px rgba(15,23,42,0.1)}
+
+.floorBox::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--blue),transparent);
+  opacity:0.7;
+}
+body.light .floorBox::before{background:linear-gradient(90deg,transparent,#2563eb,transparent)}
+
+/* Low stock floor */
+.floorBox.low-stock{border-color:rgba(255,51,102,0.45)}
+.floorBox.low-stock::before{background:linear-gradient(90deg,transparent,var(--red),transparent)}
+.floorBox.low-stock:hover{border-color:rgba(255,51,102,0.7);box-shadow:0 0 28px rgba(255,51,102,0.18),var(--shadow)}
+body.light .floorBox.low-stock{border-color:#fca5a5}
+body.light .floorBox.low-stock:hover{border-color:#dc2626}
+
+/* Corner decorations */
+.corner-tl,.corner-br{position:absolute;width:14px;height:14px}
+.corner-tl{top:8px;left:8px;border-top:2px solid var(--blue);border-left:2px solid var(--blue);opacity:0.5}
+.corner-br{bottom:8px;right:8px;border-bottom:2px solid var(--blue);border-right:2px solid var(--blue);opacity:0.5}
+.floorBox.low-stock .corner-tl,.floorBox.low-stock .corner-br{border-color:var(--red)}
+body.light .corner-tl,body.light .corner-br{opacity:0.3}
+
+.floorBox h3{
+  margin:0 0 10px 0;
+  font-family:'Orbitron',monospace;
+  font-size:10px;font-weight:800;
+  color:var(--blue);letter-spacing:1.2px;
+  text-transform:uppercase;
+  text-shadow:0 0 8px rgba(0,200,255,0.4);
+  line-height:1.3;
+}
+.floorBox.low-stock h3{color:var(--red);text-shadow:0 0 8px rgba(255,51,102,0.4)}
+body.light .floorBox h3{color:#2563eb;text-shadow:none}
+body.light .floorBox.low-stock h3{color:#dc2626}
+
+.type-tag{
+  display:inline-block;padding:1px 7px;border-radius:8px;
+  font-size:9px;font-weight:900;margin-bottom:8px;letter-spacing:0.5px;
+}
+.tag-new{background:rgba(0,255,136,0.15);border:1px solid rgba(0,255,136,0.35);color:var(--green)}
+.tag-run{background:rgba(0,200,255,0.15);border:1px solid rgba(0,200,255,0.35);color:var(--blue)}
+body.light .tag-new{background:#f0fdf4;border-color:#bbf7d0;color:#16a34a}
+body.light .tag-run{background:#eff6ff;border-color:#bfdbfe;color:#2563eb}
+
+.row{
+  display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid rgba(0,100,200,0.2);
+  padding:5px 0;font-size:11px;font-weight:700;
+  letter-spacing:0.2px;
+}
+.row:last-of-type{border-bottom:none}
+.row span:first-child{color:var(--muted);text-transform:uppercase;font-size:9.5px;letter-spacing:0.7px}
+.row span:last-child{font-weight:900;font-family:'Orbitron',monospace;font-size:11px;letter-spacing:0.5px}
+body.light .row{border-bottom-color:#e2e8f0}
+
+.ok{color:var(--green);text-shadow:0 0 8px rgba(0,255,136,0.3)}
+.low{color:var(--red);text-shadow:0 0 8px rgba(255,51,102,0.3)}
+body.light .ok{color:#16a34a;text-shadow:none}
+body.light .low{color:#dc2626;text-shadow:none}
+
+/* Stock mini bar */
+.stockMini{height:5px;background:rgba(0,100,200,0.2);border-radius:30px;overflow:hidden;margin:10px 0 8px}
+.stockMiniFill{
+  height:100%;border-radius:30px;
+  background:linear-gradient(90deg,var(--green),var(--blue),var(--purple));
+  box-shadow:0 0 8px rgba(0,200,255,0.35);
+  transition:width 1s ease;
+}
+.floorBox.low-stock .stockMiniFill{background:linear-gradient(90deg,var(--red),#ff8844);box-shadow:0 0 8px rgba(255,51,102,0.35)}
+body.light .stockMini{background:#e2e8f0}
+body.light .stockMiniFill{box-shadow:none}
+
+.status-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 9px;border-radius:20px;
+  font-size:9.5px;font-weight:900;letter-spacing:0.4px;
+}
+.badge-ok{background:rgba(0,255,136,0.12);border:1px solid rgba(0,255,136,0.3);color:var(--green)}
+.badge-low{background:rgba(255,51,102,0.12);border:1px solid rgba(255,51,102,0.3);color:var(--red)}
+body.light .badge-ok{background:#f0fdf4;border-color:#bbf7d0;color:#16a34a}
+body.light .badge-low{background:#fef2f2;border-color:#fca5a5;color:#dc2626}
+
+/* ── LOADING ── */
+.loadingWrap{
+  text-align:center;padding:50px 20px;
+  color:var(--muted);font-size:14px;font-weight:800;
+}
+.spinner{
+  display:inline-block;width:40px;height:40px;
+  border:3px solid rgba(0,200,255,0.2);
+  border-top-color:var(--blue);
+  border-radius:50%;
+  animation:spin 1s linear infinite;margin-bottom:14px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.kpiCard,.chartCard,.floorBox{animation:fadeInUp 0.45s ease both}
+
+/* ── RESPONSIVE ── */
+@media print{
+  button,.controls,.btn-group,.buildingTabs,.scanline{display:none!important}
+  body{background:#fff!important;color:#000!important;padding:8px}
+  .header,.kpiCard,.chartCard,.floorBox{background:#fff!important;box-shadow:none!important}
+  .header-title,.kpiCard .value,.chartCard h3,.floorBox h3{
+    -webkit-text-fill-color:#000!important;color:#000!important;text-shadow:none!important
+  }
+  .floorGrid{grid-template-columns:repeat(4,1fr)!important}
+  .scanline{display:none!important}
+}
+@media(max-width:1100px){
+  .kpi{grid-template-columns:repeat(3,1fr)}
+  .floorGrid{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:900px){
+  .header{display:block;text-align:center}
+  .btn-group{margin-top:10px;justify-content:center}
+  .kpi{grid-template-columns:repeat(2,1fr)}
+  .chartGrid,.chartGrid2{grid-template-columns:1fr}
+  .chartCard{height:260px}
+  .floorGrid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:500px){
+  .kpi{grid-template-columns:1fr 1fr}
+  .floorGrid{grid-template-columns:1fr 1fr}
+  .header-title{font-size:16px}
+}
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+<div class="page-wrap">
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <div class="header-title">⬡ NEEDLE FLOOR DASHBOARD</div>
+    <div class="header-sub">
+      <span class="live-dot"></span>
+      <span id="subInfo">LIVE • Supabase • 28 Floors • GMS Composite</span>
+    </div>
+  </div>
+  <div class="btn-group right">
+    <button class="btn-refresh" onclick="loadDashboard()">↻ REFRESH</button>
+    <button onclick="window.print()">⊞ PDF</button>
+    <button onclick="exportExcel()">⊟ EXCEL</button>
+    <button class="btn-theme" onclick="toggleTheme()">◐ THEME</button>
+    <button class="btn-home" onclick="location.href='index.html'">⌂ HOME</button>
+  </div>
+</div>
+
+<!-- MONTH -->
+<div class="controls">
+  MONTH &nbsp;<input type="month" id="monthInput" onchange="loadDashboard()">
+</div>
+
+<!-- ALERTS -->
+<div id="alertArea"></div>
+
+<!-- KPI -->
+<div class="kpi">
+  <div class="kpiCard">
+    <span class="kpi-icon">🪡</span>
+    <div class="label">Total Present Stock</div>
+    <div class="value" id="kpiStock">—</div>
+  </div>
+  <div class="kpiCard">
+    <span class="kpi-icon">📥</span>
+    <div class="label">Monthly Receive</div>
+    <div class="value" id="kpiReceive">—</div>
+  </div>
+  <div class="kpiCard">
+    <span class="kpi-icon">📤</span>
+    <div class="label">Monthly Delivery</div>
+    <div class="value" id="kpiDelivery">—</div>
+  </div>
+  <div class="kpiCard">
+    <span class="kpi-icon">⚠️</span>
+    <div class="label">Low Stock Floors</div>
+    <div class="value" id="kpiLow">—</div>
+  </div>
+  <div class="kpiCard">
+    <span class="kpi-icon">🏢</span>
+    <div class="label">Total Floors</div>
+    <div class="value" id="kpiFloors">28</div>
+  </div>
+</div>
+
+<!-- CHARTS ROW 1 -->
+<div class="chartGrid">
+  <div class="chartCard">
+    <h3>▣ Floor Wise Present Stock — NEW Floors</h3>
+    <canvas id="chartNewFloors"></canvas>
+  </div>
+  <div class="chartCard">
+    <h3>◎ Monthly Receive / Delivery</h3>
+    <canvas id="chartMonthly"></canvas>
+  </div>
+</div>
+
+<!-- CHARTS ROW 2 -->
+<div class="chartGrid2">
+  <div class="chartCard">
+    <h3>▣ Floor Wise Present Stock — RUNNING Floors</h3>
+    <canvas id="chartRunFloors"></canvas>
+  </div>
+  <div class="chartCard">
+    <h3>◈ Building Wise Stock Distribution</h3>
+    <canvas id="chartBuilding"></canvas>
+  </div>
+</div>
+
+<!-- BUILDING TABS -->
+<div class="buildingTabs" id="buildingTabs"></div>
+
+<!-- FLOOR CARDS -->
+<div id="floorArea">
+  <div class="loadingWrap">
+    <div class="spinner"></div><br>
+    Loading data from Supabase...
+  </div>
+</div>
+
+</div><!-- /page-wrap -->
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+/* ── Supabase ── */
+const SUPABASE_URL = 'https://hmatleeearcaltguosiz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_VA7UkQqRwCxdeVwHuxzsjw_dQxOPiIj';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const COMPANY_CODE = 'composite';
+const LOW_LIMIT = 350;
+
+/* ── 28 Floors by Building ── */
+const BUILDINGS = {
+  "BUILDING 02": [
+    "A-FLOOR(BUILDING NO-02)_NEW",
+    "A-FLOOR(BUILDING NO-02)_RUNNING",
+    "B-FLOOR(BUILDING NO-02)_NEW",
+    "B-FLOOR(BUILDING NO-02)_RUNNING"
+  ],
+  "BUILDING 04": [
+    "C-FLOOR ( BUILDING NO-04)_NEW",
+    "C-FLOOR ( BUILDING NO-04)_RUNNING",
+    "D-FLOOR ( BUILDING NO -04)_NEW",
+    "D-FLOOR ( BUILDING NO -04)_RUNNING"
+  ],
+  "BUILDING 03": [
+    "E-FLOOR ( BUILDING NO-03)_NEW",
+    "E-FLOOR ( BUILDING NO-03)_RUNNING"
+  ],
+  "BUILDING 01": [
+    "EMB-(BUILDING NO-01)_NEW",
+    "EMB-(BUILDING NO-01)_RUNNING",
+    "TRAINING CENTRE-(BUILDING NO-01)_NEW",
+    "TRAINING CENTRE-(BUILDING NO-01)_RUNNING"
+  ],
+  "BUILDING 6A": [
+    "F-FLOOR (BUILDING NO-6A)_NEW",
+    "F-FLOOR (BUILDING NO-6A)_RUNNING",
+    "G-FLOOR ( BUILDING NO-6A)_NEW",
+    "G-FLOOR ( BUILDING NO-6A)_RUNNING"
+  ],
+  "BUILDING 6B": [
+    "H-FLOOR (BUILDING NO-6B)_NEW",
+    "H-FLOOR (BUILDING NO-6B)_RUNNING",
+    "I-FLOOR (BUILDING NO-06 B)_NEW",
+    "I-FLOOR (BUILDING NO-06 B)_RUNNING"
+  ],
+  "BUILDING 09": [
+    "J-FLOOR(BUILDING NO-09)_NEW",
+    "J-FLOOR(BUILDING NO-09)_RUNNING",
+    "K-FLOOR(BUILDING NO-09)_NEW",
+    "K-FLOOR(BUILDING NO-09)_RUNNING"
+  ],
+  "BUILDING 03 (SAMPLE)": [
+    "SAMPLE-(BUILDING NO-03)_NEW",
+    "SAMPLE-(BUILDING NO-03)_RUNNING"
+  ]
+};
+
+const ALL_FLOORS = Object.values(BUILDINGS).flat();
+
+/* ── Helpers ── */
+function fmt(n){ return Number(n||0).toLocaleString('en-US'); }
+
+function shortName(floor){
+  return floor
+    .replace(/\s*\(BUILDING NO[-\s]?\d+[AB]?\)/gi,'')
+    .replace(/BUILDING NO[-\s]?\d+[AB]?/gi,'')
+    .replace(/_NEW$/,'▸N').replace(/_RUNNING$/,'▸R')
+    .replace(/\s+/g,' ').trim();
+}
+
+function cText(){
+  return document.body.classList.contains('light') ? '#0f172a' : '#c8e8ff';
+}
+function cGrid(){
+  return document.body.classList.contains('light') ? 'rgba(15,23,42,0.12)' : 'rgba(0,180,255,0.12)';
+}
+
+/* ── Chart palette ── */
+const PALETTE = [
+  "#00c8ff","#00ff88","#9933ff","#ffcc00","#ff3366","#00e5ff",
+  "#44ffaa","#cc44ff","#ffaa00","#ff6688","#33ddff","#88ffcc",
+  "#0088ff","#55ff99","#bb44ff","#ffbb22","#ff4477","#22ccff",
+  "#66ffaa","#9944ff","#ffcc44","#ff5566","#44ddff","#aaff88",
+  "#2266ff","#77ffbb","#aa33ff","#ffdd00","#ff3355","#11ccee"
+];
+
+/* ── Custom Chart Plugins ── */
+const valueLabelPlugin = {
+  id:'valueLabelPlugin',
+  afterDatasetsDraw(chart){
+    const {ctx} = chart;
+    ctx.save();
+    ctx.textAlign='center';
+    ctx.fillStyle = cText();
+    ctx.font = "bold 9px 'Orbitron', monospace";
+    chart.data.datasets.forEach((ds,di)=>{
+      chart.getDatasetMeta(di).data.forEach((bar,i)=>{
+        const v = ds.data[i];
+        if(!v) return;
+        if(bar.x && bar.y) ctx.fillText(fmt(v), bar.x, bar.y - 6);
+      });
+    });
+    ctx.restore();
+  }
+};
+
+const doughnutCenterPlugin = {
+  id:'doughnutCenterPlugin',
+  afterDraw(chart){
+    if(chart.config.type !== 'doughnut') return;
+    const {ctx, chartArea:{left,right,top,bottom}} = chart;
+    const total = (chart.data.datasets[0].data||[]).reduce((a,b)=>a+Number(b||0),0);
+    ctx.save();
+    ctx.fillStyle = document.body.classList.contains('light') ? '#0f172a' : '#00c8ff';
+    ctx.textAlign = 'center';
+    ctx.font = "bold 17px 'Orbitron', monospace";
+    ctx.fillText(fmt(total),(left+right)/2,(top+bottom)/2);
+    ctx.font = "700 9px 'Inter', sans-serif";
+    ctx.fillStyle = '#6a9bc3';
+    ctx.fillText('TOTAL',(left+right)/2,(top+bottom)/2+15);
+    ctx.restore();
+  }
+};
+
+function barOpts(){
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:'rgba(4,13,26,0.95)',
+        titleColor:'#00c8ff',bodyColor:'#c8e8ff',
+        borderColor:'rgba(0,200,255,0.3)',borderWidth:1,
+        titleFont:{family:'Orbitron',size:10},
+        bodyFont:{family:'Inter',size:12,weight:'bold'}
+      }
+    },
+    scales:{
+      y:{
+        beginAtZero:true,
+        grid:{color:cGrid()},
+        ticks:{color:cText(),font:{family:'Orbitron',size:8,weight:'bold'}}
+      },
+      x:{
+        grid:{display:false},
+        ticks:{color:cText(),font:{family:'Inter',size:9,weight:'bold'},maxRotation:35}
+      }
+    }
+  };
+}
+
+/* ── State ── */
+let charts = {};
+let dashData = {};
+let activeBuildingFilter = 'ALL';
+
+/* ── Supabase ── */
+async function getCompanyId(){
+  const {data} = await supabase.from('companies').select('id').eq('code',COMPANY_CODE).single();
+  return data?.id || null;
+}
+
+function getMonth(){
+  const el = document.getElementById('monthInput');
+  if(!el.value){
+    const d = new Date();
+    el.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }
+  return el.value;
+}
+
+function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+/* ── MAIN LOAD ── */
+async function loadDashboard(){
+  document.getElementById('floorArea').innerHTML =
+    '<div class="loadingWrap"><div class="spinner"></div><br>Loading from Supabase...</div>';
+
+  const month = getMonth();
+  document.getElementById('subInfo').textContent =
+    `LIVE • Supabase • 28 Floors • Low Stock ≤ ${LOW_LIMIT} • Month: ${month}`;
+
+  const companyId = await getCompanyId();
+  if(!companyId){
+    document.getElementById('floorArea').innerHTML =
+      '<div class="loadingWrap" style="color:#ff3366">❌ Company config error</div>';
+    return;
+  }
+
+  const {data:allReports, error} = await supabase
+    .from('needle_reports')
+    .select('floor,report_date,rows,summary')
+    .eq('company_id', companyId)
+    .order('report_date',{ascending:false});
+
+  if(error){
+    document.getElementById('floorArea').innerHTML =
+      `<div class="loadingWrap" style="color:#ff3366">❌ Load error: ${error.message}</div>`;
+    return;
+  }
+
+  /* Process */
+  const latestByFloor = {};
+  const receiveMap = {};
+  const deliveryMap = {};
+  ALL_FLOORS.forEach(f=>{ receiveMap[f]=0; deliveryMap[f]=0; });
+
+  (allReports||[]).forEach(rec=>{
+    const f = rec.floor;
+    if(!ALL_FLOORS.includes(f)) return;
+    if(!latestByFloor[f]) latestByFloor[f] = rec;
+    if(rec.report_date && rec.report_date.slice(0,7) === month && Array.isArray(rec.rows)){
+      rec.rows.forEach(r=>{
+        receiveMap[f]  += Number(r.receive)  || 0;
+        deliveryMap[f] += Number(r.delivery) || 0;
+      });
+    }
+  });
+
+  dashData = {};
+  ALL_FLOORS.forEach(f=>{
+    let stock = 0, lastDate = '—';
+    const rec = latestByFloor[f];
+    if(rec && Array.isArray(rec.rows)){
+      rec.rows.forEach(r=> stock += Number(r.present)||0);
+      lastDate = rec.report_date || '—';
+    }
+    dashData[f] = { stock, receive: receiveMap[f], delivery: deliveryMap[f], lastDate };
+  });
+
+  renderKPIs();
+  renderAlerts();
+  renderCharts();
+  renderBuildingTabs();
+  renderFloors();
+}
+
+/* ── KPIs ── */
+function renderKPIs(){
+  let totalStock=0, totalRcv=0, totalDel=0, lowCount=0;
+  ALL_FLOORS.forEach(f=>{
+    totalStock += dashData[f].stock;
+    totalRcv   += dashData[f].receive;
+    totalDel   += dashData[f].delivery;
+    if(dashData[f].stock <= LOW_LIMIT) lowCount++;
+  });
+  document.getElementById('kpiStock').textContent   = fmt(totalStock);
+  document.getElementById('kpiReceive').textContent = fmt(totalRcv);
+  document.getElementById('kpiDelivery').textContent= fmt(totalDel);
+  document.getElementById('kpiLow').textContent     = lowCount;
+  document.getElementById('kpiFloors').textContent  = '28';
+}
+
+/* ── Alerts ── */
+function renderAlerts(){
+  const lowFloors = ALL_FLOORS.filter(f=> dashData[f].stock <= LOW_LIMIT);
+  const box = document.getElementById('alertArea');
+  if(!lowFloors.length){
+    box.innerHTML = '<div class="alertBox alert-ok">✅ ALL FLOOR STOCK STATUS NORMAL — No Critical Alerts</div>';
+    return;
+  }
+  box.innerHTML = lowFloors.map(f=>`
+    <div class="alertBox alert-low">
+      ⚠ <b>${f}</b> — Present: <b>${fmt(dashData[f].stock)}</b> pcs &nbsp;|&nbsp; Minimum Limit: ${LOW_LIMIT}
+    </div>
+  `).join('');
+}
+
+/* ── Charts ── */
+function renderCharts(){
+  const newFloors = ALL_FLOORS.filter(f=>f.endsWith('_NEW'));
+  const runFloors = ALL_FLOORS.filter(f=>f.endsWith('_RUNNING'));
+
+  // Chart 1 — NEW floor bars
+  destroyChart('newFloors');
+  charts['newFloors'] = new Chart(document.getElementById('chartNewFloors'),{
+    type:'bar',
+    data:{
+      labels: newFloors.map(shortName),
+      datasets:[{
+        label:'Present Stock',
+        data: newFloors.map(f=>dashData[f].stock),
+        backgroundColor: PALETTE.slice(0,newFloors.length).map(c=>c+'55'),
+        borderColor: PALETTE.slice(0,newFloors.length),
+        borderWidth:2, borderRadius:8,
+        hoverBackgroundColor: PALETTE.slice(0,newFloors.length).map(c=>c+'99')
+      }]
+    },
+    options: barOpts(),
+    plugins:[valueLabelPlugin]
+  });
+
+  // Chart 2 — Doughnut Receive vs Delivery
+  const totalRcv = ALL_FLOORS.reduce((a,f)=>a+dashData[f].receive,0);
+  const totalDel = ALL_FLOORS.reduce((a,f)=>a+dashData[f].delivery,0);
+  destroyChart('monthly');
+  charts['monthly'] = new Chart(document.getElementById('chartMonthly'),{
+    type:'doughnut',
+    data:{
+      labels:['Receive','Delivery'],
+      datasets:[{
+        data:[totalRcv, totalDel],
+        backgroundColor:['rgba(0,255,136,0.2)','rgba(255,51,102,0.2)'],
+        borderColor:['#00ff88','#ff3366'],
+        borderWidth:2,
+        hoverBackgroundColor:['rgba(0,255,136,0.4)','rgba(255,51,102,0.4)']
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'65%',
+      plugins:{
+        legend:{
+          position:'bottom',
+          labels:{color:cText(),font:{family:'Orbitron',size:10,weight:'bold'},boxWidth:12,padding:14}
+        },
+        tooltip:{
+          backgroundColor:'rgba(4,13,26,0.95)',
+          titleColor:'#00c8ff',bodyColor:'#c8e8ff',
+          borderColor:'rgba(0,200,255,0.3)',borderWidth:1
+        }
+      }
+    },
+    plugins:[doughnutCenterPlugin]
+  });
+
+  // Chart 3 — RUNNING floor bars
+  destroyChart('runFloors');
+  charts['runFloors'] = new Chart(document.getElementById('chartRunFloors'),{
+    type:'bar',
+    data:{
+      labels: runFloors.map(shortName),
+      datasets:[{
+        label:'Present Stock',
+        data: runFloors.map(f=>dashData[f].stock),
+        backgroundColor: PALETTE.slice(0,runFloors.length).map(c=>c+'55'),
+        borderColor: PALETTE.slice(0,runFloors.length),
+        borderWidth:2, borderRadius:8,
+        hoverBackgroundColor: PALETTE.slice(0,runFloors.length).map(c=>c+'99')
+      }]
+    },
+    options: barOpts(),
+    plugins:[valueLabelPlugin]
+  });
+
+  // Chart 4 — Building distribution doughnut
+  const buildingNames = Object.keys(BUILDINGS);
+  const buildingStocks = buildingNames.map(b=>
+    BUILDINGS[b].reduce((s,f)=>s+(dashData[f]?.stock||0),0)
+  );
+  destroyChart('building');
+  charts['building'] = new Chart(document.getElementById('chartBuilding'),{
+    type:'doughnut',
+    data:{
+      labels: buildingNames,
+      datasets:[{
+        data: buildingStocks,
+        backgroundColor: PALETTE.slice(0,buildingNames.length).map(c=>c+'44'),
+        borderColor: PALETTE.slice(0,buildingNames.length),
+        borderWidth:2,
+        hoverBackgroundColor: PALETTE.slice(0,buildingNames.length).map(c=>c+'88')
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'60%',
+      plugins:{
+        legend:{
+          position:'bottom',
+          labels:{color:cText(),font:{family:'Orbitron',size:9,weight:'bold'},boxWidth:10,padding:8}
+        },
+        tooltip:{
+          backgroundColor:'rgba(4,13,26,0.95)',
+          titleColor:'#00c8ff',bodyColor:'#c8e8ff',
+          borderColor:'rgba(0,200,255,0.3)',borderWidth:1
+        }
+      }
+    },
+    plugins:[doughnutCenterPlugin]
+  });
+}
+
+/* ── Building Tabs ── */
+function renderBuildingTabs(){
+  const container = document.getElementById('buildingTabs');
+  const allBuildings = ['ALL', ...Object.keys(BUILDINGS)];
+  container.innerHTML = allBuildings.map(b=>`
+    <div class="bTab ${b===activeBuildingFilter?'active':''}" onclick="window._setFilter('${b}')">
+      ${b==='ALL' ? '⬡ ALL' : '🏢 '+b}
+    </div>
+  `).join('');
+}
+
+window._setFilter = function(b){
+  activeBuildingFilter = b;
+  renderBuildingTabs();
+  renderFloors();
+};
+
+/* ── Floor Cards ── */
+function renderFloors(){
+  const grouped = activeBuildingFilter === 'ALL'
+    ? BUILDINGS
+    : { [activeBuildingFilter]: BUILDINGS[activeBuildingFilter] || [] };
+
+  let html = '';
+  Object.entries(grouped).forEach(([building, floors], gi)=>{
+    html += `<div class="sectionTitle">⬡ ${building}</div>`;
+    html += `<div class="floorGrid">`;
+    floors.forEach((floor, idx)=>{
+      const d = dashData[floor];
+      const isLow = d.stock <= LOW_LIMIT;
+      const pct = Math.min(100, Math.max(5, d.stock / 20));
+      const isNew = floor.endsWith('_NEW');
+      const delay = ((gi*4+idx)*0.05).toFixed(2);
+      const cleanName = floor.replace(/_NEW$/,'').replace(/_RUNNING$/,'').replace(/\s+/g,' ').trim();
+
+      html += `
+        <div class="floorBox${isLow?' low-stock':''}" style="animation-delay:${delay}s">
+          <div class="corner-tl"></div>
+          <div class="corner-br"></div>
+          <div>
+            <span class="type-tag ${isNew?'tag-new':'tag-run'}">${isNew?'▸ NEW':'▸ RUNNING'}</span>
+          </div>
+          <h3>${cleanName}</h3>
+          <div class="row">
+            <span>Present</span>
+            <span class="${isLow?'low':'ok'}">${fmt(d.stock)}</span>
+          </div>
+          <div class="row">
+            <span>Receive</span>
+            <span style="color:var(--text)">${fmt(d.receive)}</span>
+          </div>
+          <div class="row">
+            <span>Delivery</span>
+            <span style="color:var(--text)">${fmt(d.delivery)}</span>
+          </div>
+          <div class="row">
+            <span>Last Post</span>
+            <span style="color:var(--muted);font-size:9px;font-family:'Inter'">${d.lastDate}</span>
+          </div>
+          <div class="stockMini">
+            <div class="stockMiniFill" style="width:${pct}%"></div>
+          </div>
+          <span class="status-badge ${isLow?'badge-low':'badge-ok'}">
+            ${isLow ? '⚠ LOW STOCK' : '✔ NORMAL'}
+          </span>
+        </div>
+      `;
+    });
+    html += `</div>`;
+  });
+
+  document.getElementById('floorArea').innerHTML = html;
+}
+
+/* ── Theme ── */
+window.toggleTheme = function(){
+  document.body.classList.toggle('light');
+  localStorage.setItem('ndTheme', document.body.classList.contains('light')?'light':'dark');
+  setTimeout(()=>renderCharts(), 80);
+};
+if(localStorage.getItem('ndTheme')==='light') document.body.classList.add('light');
+
+/* ── Excel Export ── */
+window.exportExcel = function(){
+  const month = getMonth();
+  let rows = `<tr>
+    <th>Floor</th><th>Type</th><th>Building</th>
+    <th>Present Stock</th><th>Monthly Receive</th><th>Monthly Delivery</th>
+    <th>Last Posted</th><th>Status</th>
+  </tr>`;
+  ALL_FLOORS.forEach(f=>{
+    const d = dashData[f];
+    const building = Object.entries(BUILDINGS).find(([,v])=>v.includes(f))?.[0]||'';
+    rows += `<tr>
+      <td>${f.replace(/_NEW$/,'').replace(/_RUNNING$/,'')}</td>
+      <td>${f.endsWith('_NEW')?'NEW':'RUNNING'}</td>
+      <td>${building}</td>
+      <td>${d.stock}</td><td>${d.receive}</td><td>${d.delivery}</td>
+      <td>${d.lastDate}</td>
+      <td>${d.stock<=LOW_LIMIT?'LOW STOCK':'OK'}</td>
+    </tr>`;
+  });
+  const blob = new Blob([`<html><body><table border="1">${rows}</table></body></html>`],
+    {type:'application/vnd.ms-excel'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `needle-dashboard-${month}.xls`;
+  a.click();
+};
+
+window.loadDashboard = loadDashboard;
+
+/* ── Init ── */
+(function(){ getMonth(); loadDashboard(); })();
+</script>
+</body>
+</html>

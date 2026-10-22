@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>User Profile</title>
+
+<style>
+:root{
+  --bg:#07111f;--card:#101b2d;--card2:#14233a;
+  --text:#fff;--muted:#9fb0c7;--border:#263855;
+  --blue:#2563eb;--green:#22c55e;--red:#ef4444;
+}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:Segoe UI,Arial,sans-serif;
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;
+}
+.box{
+  width:380px;max-width:92%;
+  background:linear-gradient(135deg,var(--card),var(--card2));
+  border:1px solid var(--border);
+  border-radius:22px;
+  padding:26px;
+  text-align:center;
+  box-shadow:0 15px 35px rgba(0,0,0,.35);
+}
+.profileImg{
+  width:120px;height:120px;
+  border-radius:50%;
+  object-fit:cover;
+  border:4px solid var(--green);
+  background:white;
+}
+h2{margin:12px 0 4px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+input{
+  width:100%;
+  padding:12px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:#0b1220;
+  color:white;
+  box-sizing:border-box;
+  margin-top:10px;
+}
+.btn{
+  width:100%;
+  padding:13px;
+  border:0;
+  border-radius:12px;
+  background:var(--blue);
+  color:white;
+  font-weight:900;
+  margin-top:12px;
+  cursor:pointer;
+}
+.btn.green{background:var(--green)}
+.btn.red{background:var(--red)}
+.info{
+  margin-top:14px;
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:12px;
+  text-align:left;
+  font-size:13px;
+  line-height:1.8;
+}
+.msg{
+  margin-top:12px;
+  font-weight:900;
+  color:var(--green);
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+  <img id="profileImg" class="profileImg" src="logo.png">
+
+  <h2 id="userName">User Profile</h2>
+  <div class="sub" id="userRole">Loading...</div>
+
+  <input id="photoUrl" placeholder="Photo image URL paste koro">
+
+  <button class="btn green" onclick="savePhoto()">💾 Save Profile Photo</button>
+  <button class="btn" onclick="location.href='change-password.html'">🔐 Change Password</button>
+  <button class="btn" onclick="location.href='index.html'">🏠 Back Dashboard</button>
+  <button class="btn red" onclick="logout()">🚪 Logout</button>
+
+  <div class="info">
+    <b>Email:</b> <span id="email"></span><br>
+    <b>Role:</b> <span id="role"></span><br>
+    <b>MCD Access:</b> <span id="mcd"></span><br>
+    <b>Needle Access:</b> <span id="needle"></span>
+  </div>
+
+  <div id="msg" class="msg"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain: "gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId: "gms-warehouse-tracker-7f57e",
+  storageBucket: "gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId: "992250313291",
+  appId: "1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let user = JSON.parse(localStorage.getItem("gmsUser") || "null");
+
+if(!user){
+  window.location.href="login.html";
+}
+
+function loadProfile(){
+  document.getElementById("userName").innerText = user.name || "User";
+  document.getElementById("userRole").innerText = (user.role || "user").toUpperCase();
+  document.getElementById("email").innerText = user.email || "";
+  document.getElementById("role").innerText = user.role || "";
+  document.getElementById("mcd").innerText = Array.isArray(user.mcdAccess) ? user.mcdAccess.join(", ") : (user.mcd || "");
+  document.getElementById("needle").innerText = user.needleAccess ? "Yes" : "No";
+
+  if(user.photoUrl){
+    document.getElementById("profileImg").src = user.photoUrl;
+    document.getElementById("photoUrl").value = user.photoUrl;
+  }
+}
+
+window.savePhoto = async function(){
+  let url = document.getElementById("photoUrl").value.trim();
+
+  if(!url){
+    alert("Photo URL lagbe");
+    return;
+  }
+
+  await updateDoc(doc(db,"users",user.id),{
+    photoUrl:url,
+    updatedAt:new Date().toISOString()
+  });
+
+  user.photoUrl = url;
+  localStorage.setItem("gmsUser",JSON.stringify(user));
+
+  document.getElementById("profileImg").src = url;
+  document.getElementById("msg").innerText = "Profile Photo Saved ✅";
+};
+
+window.logout=function(){
+  localStorage.removeItem("gmsUser");
+  window.location.href="login.html";
+};
+
+loadProfile();
+</script>
+
+</body>
+</html>

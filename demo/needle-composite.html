@@ -1,0 +1,2763 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>GMS Composite - Needle Daily Posting</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta charset="UTF-8">
+<style>
+*{box-sizing:border-box}
+html,body{width:100%;max-width:100%;overflow-x:hidden;margin:0;padding:0;background:#0f172a;color:white;font-family:'Poppins',Arial,sans-serif;touch-action:manipulation}
+body.light{background:#f8fafc;color:#0f172a}
+body{padding:2px}
+h2{text-align:center;font-size:16px;margin:4px 0 6px;background:linear-gradient(135deg,#8b5cf6,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+body.light h2{background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.topControls{text-align:center;margin-bottom:6px!important;font-size:11px;background:rgba(30,41,59,0.8);padding:6px;border-radius:8px}
+body.light .topControls{background:rgba(241,245,249,0.9)}
+button{padding:6px 8px;border:0;border-radius:6px;color:white;font-weight:bold;cursor:pointer;margin:2px;font-size:10px;transition:all 0.3s}
+button:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+button:active{transform:translateY(0)}
+.deleteBtn{background:#dc2626}.excelBtn{background:#16a34a}.pdfBtn{background:#7c3aed}.homeBtn{background:#2563eb}.saveBtn{background:#10b981}.themeBtn{background:#64748b}.refreshBtn{background:#f59e0b}.addRowBtn{background:#0891b2}
+.allExcelBtn{background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;font-weight:900;border:2px solid #92400e}
+input,select,textarea,button{font-size:13px}
+select,input[type="date"],input[type="text"]{padding:4px;border-radius:6px;border:1px solid #475569;max-width:150px;background:#1e293b;color:white}
+body.light select,body.light input[type="date"],body.light input[type="text"]{background:#f1f5f9;color:#0f172a;border-color:#cbd5e1}
+.tableWrap{width:100%;max-width:100%;overflow-x:hidden;margin:6px 0}
+#reportTable{width:100%;max-width:100%;margin:0 auto;border-collapse:collapse;table-layout:fixed;background:white;color:black}
+#reportTable th,#reportTable td{border:1px solid #000;padding:1px;text-align:center;font-size:9px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#reportTable thead{background:#1e293b;color:white;position:sticky;top:0}
+body.light #reportTable thead{background:#334155}
+#reportTable tfoot{background:#334155;color:white;font-weight:bold}
+.col-sl{width:3.5%}.col-code{width:8%}.col-type{width:11%}.col-size{width:6%}
+.col-brand{width:7%}.col-price{width:6%}.col-prev{width:8%}.col-rcvd{width:8%}.col-dvld{width:8%}
+.col-present{width:9%}.col-bn{width:7%}.col-transfer{width:8%}.col-del{width:3%}
+.transferBtn{background:#f59e0b;color:#000;border:none;border-radius:4px;padding:2px 4px;font-size:10px;font-weight:bold;cursor:pointer;width:100%;line-height:1.2}
+.transfer-tag{display:block;font-size:6.5px;color:#7c3aed;font-weight:700;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.req-tag{display:block;font-size:6px;color:#059669;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.del-row-btn{background:#dc2626;color:white;border:none;border-radius:3px;padding:1px 3px;font-size:9px;cursor:pointer;width:100%;line-height:1.3}
+.custom-row-indicator{background:#fef3c7;color:#92400e!important}
+#reqPopup,#transferPopup,#negativePopup,#reportPopup,#reqSearchPopup,#addRowPopup,#allExcelPopup{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.82);z-index:9998;justify-content:center;align-items:center}
+.popup-content{background:white;color:black;padding:18px;border-radius:12px;max-width:95%;width:380px;box-shadow:0 8px 30px rgba(0,0,0,0.4);position:relative;animation:popupSlide 0.25s}
+@keyframes popupSlide{from{transform:translateY(-40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.popup-close{position:absolute;top:10px;right:14px;font-size:22px;cursor:pointer;color:#666;font-weight:bold}
+.popup-close:hover{color:#dc2626}
+.popup-title{font-size:16px;font-weight:bold;margin-bottom:12px;color:#1e293b;text-align:center;display:flex;align-items:center;justify-content:center;gap:8px}
+.popup-field{margin:9px 0;text-align:left}
+.popup-field label{display:block;font-size:11px;font-weight:600;color:#334155;margin-bottom:3px}
+.popup-field input,.popup-field select{width:100%;max-width:100%;background:#f8fafc;color:#0f172a;border:1.5px solid #cbd5e1;padding:7px;border-radius:6px;font-size:13px}
+.popup-fix-btn{background:#2563eb;color:white;border:none;padding:10px 18px;border-radius:8px;font-weight:bold;cursor:pointer;width:100%;margin-top:12px;font-size:14px;transition:all 0.3s}
+.popup-fix-btn:hover{background:#1d4ed8;transform:translateY(-2px)}
+.popup-footer{text-align:center;font-size:10px;color:#64748b;margin-top:9px;padding-top:9px;border-top:1px solid #e2e8f0}
+.popup-item-info{background:#f1f5f9;border-radius:6px;padding:8px;margin-bottom:10px;font-size:11px;color:#334155;font-weight:600}
+.popup-title-danger{color:#dc2626}
+.popup-details{font-size:12px;line-height:1.8}
+.popup-details div{margin:4px 0;display:flex;justify-content:space-between;padding:5px;background:#f8fafc;border-radius:6px}
+.popup-details span.label{font-weight:bold;color:#334155}
+.popup-details span.value{color:#1e293b;font-weight:600}
+#reportPopup .popup-content,#reqSearchPopup .popup-content{width:98%;max-width:700px;max-height:90vh;overflow-y:auto}
+#allExcelPopup .popup-content{width:96%;max-width:500px}
+#reportTable2,#reqSearchTable{width:100%;border-collapse:collapse;font-size:10px;color:black}
+#reportTable2 th,#reqSearchTable th{background:#1e293b;color:white;padding:5px;border:1px solid #000}
+#reportTable2 td,#reqSearchTable td{border:1px solid #ccc;padding:4px;text-align:center}
+#reportTable2 tr:nth-child(even),#reqSearchTable tr:nth-child(even){background:#f1f5f9}
+#reportTable2 tfoot td,#reqSearchTable tfoot td{background:#334155;color:white;font-weight:bold}
+.floor-req-banner{display:none;background:linear-gradient(135deg,#059669,#10b981);color:white;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;text-align:center;margin:4px 0;cursor:pointer}
+body.light .floor-req-banner{background:linear-gradient(135deg,#047857,#059669)}
+.qtyInput{width:100%;height:24px;padding:1px;text-align:center;font-size:11px;font-weight:bold;border:1px solid #999;border-radius:3px;background:white;color:black}
+body.light .qtyInput{background:#f8fafc}
+.qtyInput:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,0.2)}
+.summaryWrap{width:100%;margin:10px auto;text-align:center;overflow-x:hidden}
+#summaryTable{width:100%;max-width:100%;margin:auto;text-align:center;border-collapse:collapse;background:white;color:black}
+#summaryTable th,#summaryTable td{border:1px solid #000;padding:4px;font-size:10px}
+#summaryTable thead{background:#1e293b;color:white}
+body.light #summaryTable thead{background:#334155}
+.negative-row{background:#fecaca!important}
+.negative-row td{color:#991b1b;font-weight:bold}
+.offline-indicator{position:fixed;top:0;left:0;right:0;background:#f59e0b;color:#000;padding:6px 10px;text-align:center;font-size:11px;font-weight:700;z-index:9999;display:none;animation:slideDown 0.3s}
+@keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+.floor-badge{display:inline-block;padding:2px 8px;background:linear-gradient(135deg,#8b5cf6,#3b82f6);color:white;border-radius:10px;font-size:10px;font-weight:600;margin-left:6px}
+.carry-badge{display:inline-block;padding:2px 8px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;border-radius:10px;font-size:9px;font-weight:700;margin-left:6px}
+.carry-info{display:block;margin-top:4px;font-size:10px;color:#fbbf24;text-align:center;font-weight:600}
+body.light .carry-info{color:#b45309}
+.loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.9);z-index:10000;display:none;justify-content:center;align-items:center;flex-direction:column}
+body.light .loading-overlay{background:rgba(248,250,252,0.9)}
+.loading-overlay.show{display:flex}
+.spinner{width:50px;height:50px;border:4px solid #334155;border-top-color:#3b82f6;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{margin-top:15px;font-size:14px;color:#cbd5e1;font-weight:600}
+body.light .loading-text{color:#475569}
+.theme-toggle{position:fixed;top:6px;right:6px;z-index:1000}
+.last-sync{text-align:center;font-size:9px;color:#94a3b8;margin-top:3px}
+body.light .last-sync{color:#64748b}
+.carry-source-bar{background:#1e3a5f;border:1px solid #3b82f6;border-radius:6px;padding:5px 10px;font-size:9px;color:#93c5fd;text-align:center;margin:3px 0;display:none}
+body.light .carry-source-bar{background:#dbeafe;color:#1e40af;border-color:#3b82f6}
+.excel-progress-bar{width:100%;background:#e2e8f0;border-radius:6px;height:14px;margin:8px 0;overflow:hidden}
+.excel-progress-fill{height:100%;background:linear-gradient(90deg,#f59e0b,#d97706);border-radius:6px;transition:width 0.3s;width:0%}
+.excel-floor-status{font-size:10px;color:#475569;margin:3px 0;padding:4px 8px;background:#f8fafc;border-radius:4px;text-align:left;max-height:180px;overflow-y:auto}
+.excel-floor-status div{padding:2px 0;border-bottom:1px solid #e2e8f0}
+.excel-floor-status div:last-child{border-bottom:none}
+.status-ok{color:#059669}
+.status-carry{color:#d97706}
+.status-empty{color:#94a3b8}
+.status-loading{color:#f59e0b}
+.autosave-pill{display:inline-flex;align-items:center;gap:4px;background:#022c22;color:#34d399;border:1px solid #059669;border-radius:14px;padding:2px 9px;font-size:9px;font-weight:700;margin-left:6px}
+body.light .autosave-pill{background:#ecfdf5;color:#047857;border-color:#10b981}
+.autosave-dot{width:6px;height:6px;border-radius:50%;background:#34d399;animation:pulseDot 1.4s infinite}
+@keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.3}}
+/* ✅ NEW: Print-only signature block (Prepared By / Checked By / Authorised By) */
+.printSignature{display:none}
+.printSignature .sigBox{flex:1;text-align:center;padding-top:46px}
+.printSignature .sigLine{border-top:1.5px solid #000;width:82%;margin:0 auto}
+.printSignature .sigLabel{margin-top:4px;font-weight:700;font-size:11px;letter-spacing:0.5px;color:#000}
+@media(max-width:480px){
+  body{padding:1px}
+  h2{font-size:11px;margin:2px 0 3px}
+  .topControls{font-size:9px;padding:4px;border-radius:6px}
+  .topControls > div{margin-bottom:4px!important;gap:3px!important}
+  button{padding:3px 4px;font-size:8px;margin:1px;border-radius:4px}
+  select,input[type="date"],input[type="text"]{max-width:75px;padding:2px;font-size:9px;border-radius:4px}
+  label{font-size:8px!important;margin-right:2px!important}
+  .floor-badge,.carry-badge{font-size:7px;padding:1px 4px;margin-left:3px}
+  .carry-info{font-size:8px;margin-top:2px}
+  .last-sync{font-size:7px;margin-top:2px}
+  .tableWrap{margin:3px 0}
+  #reportTable th,#reportTable td{font-size:6px;padding:0 1px;line-height:1.05;border-width:0.5px}
+  #reportTable td:nth-child(3),#reportTable th:nth-child(3),#reportTable td:nth-child(4),#reportTable th:nth-child(4){white-space:normal;word-break:break-word;overflow:visible;text-overflow:clip;vertical-align:middle}
+  .qtyInput{height:18px;font-size:8px;padding:0;border-radius:1px}
+  .popup-content{width:96%;padding:12px}
+  .popup-title{font-size:13px}
+  .col-sl{width:2%}.col-code{width:6%}.col-type{width:15%}.col-size{width:7%}
+  .col-brand{width:4%}.col-price{width:3.5%}.col-prev{width:5.5%}.col-rcvd{width:7%}
+  .col-dvld{width:7%}.col-present{width:7.5%}.col-bn{width:5.5%}.col-transfer{width:5.5%}.col-del{width:2.5%}
+  .transferBtn{padding:1px;font-size:7px}
+  .transfer-tag{font-size:5px}.req-tag{font-size:5px}
+  #summaryTable th,#summaryTable td{font-size:7px;padding:1.5px}
+  .summaryWrap{margin:6px auto}
+  h3{font-size:11px!important;margin:4px 0!important}
+  .floor-req-banner{font-size:8px;padding:3px 6px}
+}
+@media print{
+  html,body{background:white!important;color:black!important;overflow:visible!important}
+  button,input[type="date"],select,input[type="text"],.offline-indicator,.loading-overlay,.theme-toggle,.last-sync,.floor-req-banner,.carry-source-bar{display:none!important}
+  .tableWrap,.summaryWrap{overflow:visible!important}
+  #reportTable,#summaryTable{width:100%!important;color:black!important;background:white!important}
+  #reportTable th,#reportTable td{font-size:8px;padding:2px}
+  #negativePopup,#reqPopup,#transferPopup,#reportPopup,#reqSearchPopup,#addRowPopup,#allExcelPopup{display:none!important}
+  /* ✅ NEW: show the Prepared/Checked/Authorised By block only when printing */
+  .printSignature{display:flex!important;justify-content:space-between;gap:10px;margin-top:16px;page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<div class="offline-indicator" id="offlineIndicator">📴 Offline Mode - Data saved locally</div>
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Loading...</div>
+</div>
+<div class="theme-toggle">
+  <button class="themeBtn" onclick="toggleTheme()">🌙/☀️</button>
+</div>
+
+<h2>🪡 GMS COMPOSITE - NEEDLE DAILY POSTING</h2>
+
+<div class="topControls">
+<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;margin-bottom:6px">
+  <div>
+    <label style="font-weight:600;color:#cbd5e1;margin-right:4px">Operator:</label>
+    <input type="text" id="operatorName" placeholder="Name" style="max-width:110px" oninput="scheduleAutoSave()" onchange="scheduleAutoSave()">
+  </div>
+  <div>
+    <label style="font-weight:600;color:#cbd5e1;margin-right:4px">Date:</label>
+    <input type="date" id="postDate">
+  </div>
+  <div>
+    <label style="font-weight:600;color:#cbd5e1;margin-right:4px">Floor:</label>
+    <select id="floor" onchange="onFloorChange()">
+      <option value="">-- Select Floor --</option>
+      <optgroup label="BUILDING 02">
+        <option>A-FLOOR(BUILDING NO-02)_NEW</option>
+        <option>A-FLOOR(BUILDING NO-02)_RUNNING</option>
+        <option>B-FLOOR(BUILDING NO-02)_NEW</option>
+        <option>B-FLOOR(BUILDING NO-02)_RUNNING</option>
+      </optgroup>
+      <optgroup label="BUILDING 04">
+        <option>C-FLOOR ( BUILDING NO-04)_NEW</option>
+        <option>C-FLOOR ( BUILDING NO-04)_RUNNING</option>
+        <option>D-FLOOR ( BUILDING NO -04)_NEW</option>
+        <option>D-FLOOR ( BUILDING NO -04)_RUNNING</option>
+      </optgroup>
+      <optgroup label="BUILDING 03">
+        <option>E-FLOOR ( BUILDING NO-03)_NEW</option>
+        <option>E-FLOOR ( BUILDING NO-03)_RUNNING</option>
+      </optgroup>
+      <optgroup label="BUILDING 01">
+        <option>EMB-(BUILDING NO-01)_NEW</option>
+        <option>EMB-(BUILDING NO-01)_RUNNING</option>
+        <option>TRAINING CENTRE-(BUILDING NO-01)_NEW</option>
+        <option>TRAINING CENTRE-(BUILDING NO-01)_RUNNING</option>
+      </optgroup>
+      <optgroup label="BUILDING 6A">
+        <option>F-FLOOR (BUILDING NO-6A)_NEW</option>
+        <option>F-FLOOR (BUILDING NO-6A)_RUNNING</option>
+        <option>G-FLOOR ( BUILDING NO-6A)_NEW</option>
+        <option>G-FLOOR ( BUILDING NO-6A)_RUNNING</option>
+      </optgroup>
+      <optgroup label="BUILDING 6B">
+        <option>H-FLOOR (BUILDING NO-6B)_NEW</option>
+        <option>H-FLOOR (BUILDING NO-6B)_RUNNING</option>
+        <option>I-FLOOR (BUILDING NO-06 B)_NEW</option>
+        <option>I-FLOOR (BUILDING NO-06 B)_RUNNING</option>
+      </optgroup>
+      <optgroup label="BUILDING 09">
+        <option>J-FLOOR(BUILDING NO-09)_NEW</option>
+        <option>J-FLOOR(BUILDING NO-09)_RUNNING</option>
+        <option>K-FLOOR(BUILDING NO-09)_NEW</option>
+        <option>K-FLOOR(BUILDING NO-09)_RUNNING</option>
+      </optgroup>
+      <optgroup label="BUILDING 03 (SAMPLE)">
+        <option>SAMPLE-(BUILDING NO-03)_NEW</option>
+        <option>SAMPLE-(BUILDING NO-03)_RUNNING</option>
+      </optgroup>
+    </select>
+    <span class="floor-badge" id="categoryBadge">NEW</span>
+    <span class="carry-badge" id="carryBadge" style="display:none">⏪ Carried</span>
+  </div>
+  <span class="autosave-pill"><span class="autosave-dot"></span> AUTO-SAVE ON</span>
+</div>
+<div class="carry-info" id="carryInfo" style="display:none"></div>
+<div class="carry-source-bar" id="carrySourceBar"></div>
+
+<div class="floor-req-banner" id="floorReqBanner" onclick="changeFloorReqNo()">
+  📋 Floor Req No: <span id="floorReqNoDisplay"></span> &nbsp;(পরিবর্তন করতে ক্লিক করুন)
+</div>
+
+<div style="margin-top:6px">
+  <button class="saveBtn" onclick="saveData()">💾 Save Now</button>
+  <button class="refreshBtn" onclick="manualRefresh()">🔄 Refresh</button>
+  <button class="deleteBtn" onclick="deleteData()">🗑️ Delete</button>
+  <button class="addRowBtn" onclick="openAddRowPopup()">➕ Add Row</button>
+  <button class="excelBtn" onclick="exportExcel()">📊 Excel</button>
+  <button class="pdfBtn" onclick="exportPDF()">📄 PDF</button>
+  <button class="allExcelBtn" onclick="openAllExcelPopup()">📥 All Floors Excel</button>
+  <button class="themeBtn" style="background:#7c3aed" onclick="showTransferReport()">🚚 Transfers</button>
+  <button class="themeBtn" style="background:#0891b2" onclick="showReqSearch()">🔎 Req Search</button>
+  <button class="homeBtn" onclick="location.href='index.html'">🏠 Home</button>
+</div>
+<div class="last-sync" id="lastSync"></div>
+</div>
+
+<div class="tableWrap">
+<table id="reportTable" border="1">
+<thead>
+<tr>
+  <th class="col-sl">SL</th>
+  <th class="col-code">CODE</th>
+  <th class="col-type">TYPE</th>
+  <th class="col-size">SIZE</th>
+  <th class="col-brand">BRAND</th>
+  <th class="col-price">PRICE</th>
+  <th class="col-prev">Prev</th>
+  <th class="col-rcvd">Rcvd</th>
+  <th class="col-dvld">Dvld</th>
+  <th class="col-present">Present</th>
+  <th class="col-bn" id="bnHeader">BNR</th>
+  <th class="col-transfer">Trf</th>
+  <th class="col-del">Del</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+<tfoot>
+<tr>
+  <td colspan="6" style="text-align:right;font-weight:bold">TOTAL:</td>
+  <td id="totalPrevious">0</td>
+  <td id="totalReceive">0</td>
+  <td id="totalDelivery">0</td>
+  <td id="totalPresent">0</td>
+  <td id="totalBN">0</td>
+  <td colspan="2">-</td>
+</tr>
+</tfoot>
+</table>
+</div>
+
+<div class="summaryWrap">
+<h3 style="margin-bottom:8px;color:#cbd5e1;font-size:13px">📅 Monthly Summary</h3>
+<table id="summaryTable" border="1">
+<thead>
+<tr>
+  <th>Opening</th><th>Receive</th><th>Delivery</th><th>Present</th><th>BNR/BNF</th>
+</tr>
+</thead>
+<tbody>
+<tr style="background:#f1f5f9;font-weight:bold">
+  <td id="monthOpening">0</td>
+  <td id="monthReceive">0</td>
+  <td id="monthDelivery">0</td>
+  <td id="monthPresent">0</td>
+  <td id="monthBN">0</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<!-- ✅ NEW: Prepared By / Checked By / Authorised By — shown only when printing (Ctrl+P / PDF button) -->
+<div class="printSignature" id="printSignature">
+  <div class="sigBox"><div class="sigLine"></div><div class="sigLabel">PREPARED BY</div></div>
+  <div class="sigBox"><div class="sigLine"></div><div class="sigLabel">CHECKED BY</div></div>
+  <div class="sigBox"><div class="sigLine"></div><div class="sigLabel">AUTHORISED BY</div></div>
+</div>
+
+<!-- NEGATIVE POPUP -->
+<div id="negativePopup">
+  <div class="popup-content">
+    <span class="popup-close" onclick="closeNegPopup()">×</span>
+    <div class="popup-title popup-title-danger">⚠️ Negative Stock Detected!</div>
+    <div class="popup-details" id="popupDetails"></div>
+    <button class="popup-fix-btn" onclick="fixNegativeRow()">📍 Fix করুন</button>
+    <div class="popup-footer">Present Stock ≥ 0 করলে পপআপ অটো বন্ধ হবে</div>
+  </div>
+</div>
+
+<!-- REQUISITION POPUP -->
+<div id="reqPopup">
+  <div class="popup-content">
+    <span class="popup-close" onclick="cancelReqPopup()">×</span>
+    <div class="popup-title">📋 Requisition Number</div>
+    <div id="reqItemInfo" class="popup-item-info"></div>
+    <div class="popup-field">
+      <label>Requisition No. (বাধ্যতামূলক):</label>
+      <input type="text" id="reqNoInput" placeholder="যেমন: REQ-2026-0456" autocomplete="off">
+    </div>
+    <button class="popup-fix-btn" onclick="confirmReqNo()">✅ Confirm করুন</button>
+    <div class="popup-footer">⚠️ এই নম্বর এই floor এর সব row-এ apply হবে</div>
+  </div>
+</div>
+<!-- TRANSFER POPUP -->
+<div id="transferPopup">
+  <div class="popup-content">
+    <span class="popup-close" onclick="closeTransferPopup()">×</span>
+    <div class="popup-title">🔄 Floor Transfer</div>
+    <div id="transferItemInfo" class="popup-item-info"></div>
+    <div class="popup-field">
+      <label>To Floor:</label>
+      <select id="transferToFloor"></select>
+    </div>
+    <div class="popup-field">
+      <label>Qty:</label>
+      <input type="number" id="transferQty" min="1" step="1" placeholder="যেমন: 100">
+    </div>
+    <div class="popup-field">
+      <label>Receiver Name:</label>
+      <input type="text" id="transferReceiverName" placeholder="যিনি নেবেন তার নাম">
+    </div>
+    <div class="popup-field">
+      <label>Requisition No.:</label>
+      <input type="text" id="transferReqNo" placeholder="যেমন: REQ-2026-0456">
+    </div>
+    <button class="popup-fix-btn" onclick="confirmTransfer()">✅ Transfer করুন</button>
+    <div class="popup-footer">Save করলে এই floor এ Dvld বাড়বে, To Floor এ Rcvd যোগ হবে</div>
+  </div>
+</div>
+
+<!-- ADD ROW POPUP -->
+<div id="addRowPopup">
+  <div class="popup-content">
+    <span class="popup-close" onclick="closeAddRowPopup()">×</span>
+    <div class="popup-title">➕ নতুন Needle Row যোগ করুন</div>
+    <div class="popup-field">
+      <label>Item Code (যেমন: SN-999):</label>
+      <input type="text" id="newItemCode" placeholder="SN-XXX" autocomplete="off">
+    </div>
+    <div class="popup-field">
+      <label>Needle Type (যেমন: DB X 1):</label>
+      <input type="text" id="newNeedleType" placeholder="DB X 1" autocomplete="off">
+    </div>
+    <div class="popup-field">
+      <label>Size (যেমন: 9):</label>
+      <input type="text" id="newSize" placeholder="9" autocomplete="off">
+    </div>
+    <div class="popup-field">
+      <label>Brand (যেমন: ORGAN):</label>
+      <input type="text" id="newBrand" placeholder="ORGAN" autocomplete="off">
+    </div>
+    <div class="popup-field">
+      <label>Unit Price (যেমন: 0.0655):</label>
+      <input type="number" id="newPrice" placeholder="0.0000" step="0.0001" min="0" autocomplete="off">
+    </div>
+    <div class="popup-field">
+      <label>Opening Stock (Previous qty):</label>
+      <input type="number" id="newOpening" placeholder="0" step="1" min="0" autocomplete="off">
+    </div>
+    <button class="popup-fix-btn" onclick="confirmAddRow()">✅ Row যোগ করুন</button>
+    <div class="popup-footer">⚠️ নতুন row যোগ করলে শুধু এই তারিখের জন্য থাকবে। Save করলে পরের দিনেও Carry হবে।</div>
+  </div>
+</div>
+
+<!-- TRANSFER REPORT POPUP -->
+<div id="reportPopup">
+  <div class="popup-content">
+    <span class="popup-close" onclick="closeReportPopup()">×</span>
+    <div class="popup-title">🚚 Transfer Report</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+      <input type="date" id="rpFrom" style="flex:1;min-width:110px;max-width:none;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;padding:5px;border-radius:6px">
+      <input type="date" id="rpTo" style="flex:1;min-width:110px;max-width:none;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;padding:5px;border-radius:6px">
+      <button onclick="loadTransferReport()" style="background:#2563eb;padding:5px 10px;border-radius:6px;white-space:nowrap">🔍 Search</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table id="reportTable2">
+        <thead>
+          <tr>
+            <th>Date</th><th>From Floor</th><th>To Floor</th>
+            <th>Code</th><th>Type</th><th>Size</th>
+            <th>Qty</th><th>Receiver</th><th>Req No</th>
+          </tr>
+        </thead>
+        <tbody id="reportBody2"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="6" style="text-align:right;padding:4px">Grand Total:</td>
+            <td id="reportGrandTotal">0</td>
+            <td colspan="2">-</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="popup-footer" id="reportFooter"></div>
+  </div>
+</div>
+
+<!-- REQUISITION SEARCH POPUP -->
+<div id="reqSearchPopup">
+  <div class="popup-content">
+    <span class="popup-close" onclick="closeReqSearchPopup()">×</span>
+    <div class="popup-title">🔎 Requisition Search</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+      <input type="text" id="reqSearchInput" placeholder="Requisition No লিখুন (যেমন: REQ-2026-0456)" style="flex:2;min-width:180px;max-width:none;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;padding:6px;border-radius:6px">
+      <button onclick="searchRequisition()" style="background:#0891b2;padding:6px 12px;border-radius:6px;white-space:nowrap">🔍 Search</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table id="reqSearchTable">
+        <thead>
+          <tr>
+            <th>Date</th><th>Floor</th><th>Source</th>
+            <th>Code</th><th>Type</th><th>Size</th><th>Qty</th><th>Detail</th>
+          </tr>
+        </thead>
+        <tbody id="reqSearchBody"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="6" style="text-align:right;padding:4px">Grand Total:</td>
+            <td id="reqSearchGrandTotal">0</td>
+            <td>-</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="popup-footer" id="reqSearchFooter">Requisition Number লিখে Search চাপুন</div>
+  </div>
+</div>
+
+<!-- ALL FLOORS EXCEL POPUP -->
+<div id="allExcelPopup">
+  <div class="popup-content">
+    <span class="popup-close" onclick="closeAllExcelPopup()">×</span>
+    <div class="popup-title">📥 All Floors Excel Download</div>
+    <div class="popup-field">
+      <label>📅 Date নির্বাচন করুন:</label>
+      <input type="date" id="allExcelDate" style="width:100%;max-width:none;background:#f8fafc;color:#0f172a;border:1.5px solid #cbd5e1;padding:8px;border-radius:6px;font-size:14px">
+    </div>
+    <div id="allExcelInfo" style="font-size:11px;color:#475569;margin:6px 0;padding:8px;background:#f1f5f9;border-radius:6px;line-height:1.6">
+      ✅ সব <b>28টি Floor</b> এর data একটি Excel এ download হবে<br>
+      📋 প্রতিটি floor আলাদা <b>Sheet</b> এ থাকবে<br>
+      📊 একটি <b>SUMMARY</b> sheet সব floor এর total সহ থাকবে<br>
+      ⏪ Data না থাকলে <b>সবচেয়ে কাছের আগের দিনের Present Stock</b> দেখাবে
+    </div>
+    <div id="allExcelProgressWrap" style="display:none">
+      <div style="font-size:11px;font-weight:600;color:#334155;margin-bottom:4px" id="allExcelProgressLabel">Loading floors...</div>
+      <div class="excel-progress-bar"><div class="excel-progress-fill" id="allExcelProgressFill"></div></div>
+      <div class="excel-floor-status" id="allExcelFloorStatus"></div>
+    </div>
+    <button class="popup-fix-btn" id="allExcelDownloadBtn" onclick="exportAllFloorsExcel()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;font-weight:900;font-size:15px">
+      📥 Download All Floors Excel
+    </button>
+    <div class="popup-footer">⏪ Data না থাকলে আগের দিনের Present Stock carry হয়ে দেখাবে</div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+// =========================================
+// 🔐 SUPABASE CONFIG
+// =========================================
+const SUPABASE_URL = 'https://hmatleeearcaltguosiz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_VA7UkQqRwCxdeVwHuxzsjw_dQxOPiIj';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const COMPANY_CODE = 'composite';
+const OFFLINE_KEY = 'composite_needle_offline_v5';
+
+// =========================================
+// 🏢 COMPANY LETTERHEAD (used on every exported sheet)
+// =========================================
+const COMPANY_NAME = 'GMS COMPOSITE KNITTING IND LTD';
+const COMPANY_ADDRESS = 'SHARDAGONJ, KASHIMPUR, GAZIPUR';
+const COMPANY_DEPT = 'ACCESSORIES MCD';
+const REPORT_TITLE = 'DAILY SEWING NEEDLE PRESENT BALANCE REPORT';
+const DOCUMENT_NO = 'QA/03/310';
+const VERSION_NO = '01/2026';
+
+// =========================================
+// 📦 FLOOR DATA
+// =========================================
+const floorData = {
+  "A-FLOOR(BUILDING NO-02)_NEW": [
+    [1,"SN-003","DB X 1","7","ORGAN",0.03985072,8],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,18],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,86],[4,"SN-056","DB X 1","11","ORGAN",0.06131768,22],
+    [5,"SN-065","DB X 1","12","ORGAN",0.00616,15],[6,"SN-094","DC X 1-KN","8","ORGAN",0.096,77],
+    [7,"SN-107","DC X 1","9","ORGAN",0.10728008,144],[8,"SN-126","DC X 1","11","ORGAN",0.10620288,16],
+    [9,"SN-147","UY X 128","8","ORGAN",0.08,13],[10,"SN-163","UY X 128","9","ORGAN",0.16077616,74],
+    [11,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,34],[12,"SN-183","UY X 128","10","ORGAN",0.13031448,109],
+    [13,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,33],[14,"SN-203","UY X 128","11","ORGAN",0.13286432,45],
+    [15,"SN-237","DP X 5","7","ORGAN",0.056,9],[16,"SN-261","DP X 5","11","ORGAN",0.06874008,50],
+    [17,"SN-263","DP X 5-KN","11","ORGAN",0.06,6],[18,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,55],
+    [19,"SN-308","DP X 17","11","ORGAN",0.15784,33],[20,"SN-320","DV X 57","14","ORGAN",0.14264,20]
+  ],
+  "A-FLOOR(BUILDING NO-02)_RUNNING": [
+    [1,"SN-003","DB X 1","7","ORGAN",0.03985072,31],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,46],
+    [3,"SN-014","DB X 1 SF","8","ORGAN",0.05984984,20],[4,"SN-029","DB X 1","9","ORGAN",0.06552784,174],
+    [5,"SN-032","DB X 1-SF","9","ORGAN",0.072,19],[6,"SN-043","DB X 1","10","ORGAN",0.06118872,32],
+    [7,"SN-056","DB X 1","11","ORGAN",0.06131768,43],[8,"SN-065","DB X 1","12","ORGAN",0.00616,20],
+    [9,"SN-085","DC X 1","7","ORGAN",0.07969632,19],[10,"SN-092","DC X 1","8","ORGAN",0.10636168,50],
+    [11,"SN-094","DC X 1-KN","8","ORGAN",0.096,131],[12,"SN-107","DC X 1","9","ORGAN",0.10728008,197],
+    [13,"SN-126","DC X 1","11","ORGAN",0.10620288,39],[14,"SN-147","UY X 128","8","ORGAN",0.08,37],
+    [15,"SN-156","UY X 128- GAS SF","8 LP","ORGAN",0.0856,20],[16,"SN-163","UY X 128","9","ORGAN",0.16077616,199],
+    [17,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,9],[18,"SN-183","UY X 128","10","ORGAN",0.13031448,100],
+    [19,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,51],[20,"SN-203","UY X 128","11","ORGAN",0.13286432,94],
+    [21,"SN-212","UY X 128-KK-KN","11","ORGAN",0.0835932,47],[22,"SN-220","UY X 128","12","ORGAN",0.7621176,37],
+    [23,"SN-261","DP X 5","11","ORGAN",0.06874008,28],[24,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,57],
+    [25,"SN-308","DP X 17","11","ORGAN",0.15784,21],[26,"SN-320","DV X 57","14","ORGAN",0.14264,30],
+    [27,"SN-480","LWX1669E","14","GROZ",0.4864,30],[28,"SN-481","LWX1669E","12","GROZ",0.4864,50]
+  ],
+  "B-FLOOR(BUILDING NO-02)_NEW": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,21],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,74],
+    [3,"SN-043","DB X 1","10","ORGAN",0.06118872,62],[4,"SN-056","DB X 1","11","ORGAN",0.06131768,85],
+    [5,"SN-065","DB X 1","12","ORGAN",0.00616,8],[6,"SN-092","DC X 1","8","ORGAN",0.10636168,22],
+    [7,"SN-107","DC X 1","9","ORGAN",0.10728008,146],[8,"SN-120","DC X 1 27 SAN 10","10","GROZ(FFG)",0.0904,43],
+    [9,"SN-126","DC X 1","11","ORGAN",0.10620288,33],[10,"SN-163","UY X 128","9","ORGAN",0.16077616,62],
+    [11,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,61],[12,"SN-183","UY X 128","10","ORGAN",0.13031448,43],
+    [13,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,79],[14,"SN-203","UY X 128","11","ORGAN",0.13286432,49],
+    [15,"SN-223","UYX 128-KN","12","ORGAN",0.0688,27],[16,"SN-261","DP X 5","11","ORGAN",0.06874008,39],
+    [17,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,8],[18,"SN-297","UO X 163","12","GROZ(FFG)",0.08448,2],
+    [19,"SN-308","DP X 17","11","ORGAN",0.15784,39],[20,"SN-318","DV X 57","12","ORGAN",0.16,6]
+  ],
+  "B-FLOOR(BUILDING NO-02)_RUNNING": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,13],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,26],
+    [3,"SN-043","DB X 1","10","ORGAN",0.06118872,49],[4,"SN-056","DB X 1","11","ORGAN",0.06131768,37],
+    [5,"SN-065","DB X 1","12","ORGAN",0.00616,15],[6,"SN-085","DC X 1","7","ORGAN",0.07969632,55],
+    [7,"SN-092","DC X 1","8","ORGAN",0.10636168,28],[8,"SN-107","DC X 1","9","ORGAN",0.10728008,86],
+    [9,"SN-119","DC X 1","10","ORGAN",0.0904,61],[10,"SN-126","DC X 1","11","ORGAN",0.10620288,34],
+    [11,"SN-147","UY X 128","8","ORGAN",0.08,24],[12,"SN-163","UY X 128","9","ORGAN",0.16077616,30],
+    [13,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,15],[14,"SN-183","UY X 128","10","ORGAN",0.13031448,49],
+    [15,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,39],[16,"SN-203","UY X 128","11","ORGAN",0.13286432,32],
+    [17,"SN-220","UY X 128","12","ORGAN",0.7621176,39],[18,"SN-261","DP X 5","11","ORGAN",0.06874008,32],
+    [19,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,13],[20,"SN-308","DP X 17","11","ORGAN",0.15784,119],
+    [21,"SN-317","DV X 57","11","ORGAN",0.00872,5],[22,"SN-320","DV X 57","14","ORGAN",0.14264,20]
+  ],
+  "C-FLOOR ( BUILDING NO-04)_NEW": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,85],[2,"SN-043","DB X 1","10","ORGAN",0.06118872,66],
+    [3,"SN-056","DB X 1","11","ORGAN",0.06131768,60],[4,"SN-092","DC X 1","8","ORGAN",0.10636168,8],
+    [5,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,24],[6,"SN-107","DC X 1","9","ORGAN",0.10728008,65],
+    [7,"SN-126","DC X 1","11","ORGAN",0.10620288,20],[8,"SN-163","UY X 128","9","ORGAN",0.16077616,79],
+    [9,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,10],[10,"SN-183","UY X 128","10","ORGAN",0.13031448,70],
+    [11,"SN-203","UY X 128","11","ORGAN",0.13286432,43],[12,"SN-220","UY X 128","12","ORGAN",0.7621176,25],
+    [13,"SN-250","DP X 5","9","ORGAN",0.03824,16],[14,"SN-261","DP X 5","11","ORGAN",0.06874008,53],
+    [15,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,48],[16,"SN-300","DP X 17","9","GROZ(FFG)",0.03544,7],
+    [17,"SN-308","DP X 17","11","ORGAN",0.15784,54]
+  ],
+  "C-FLOOR ( BUILDING NO-04)_RUNNING": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,25],[2,"SN-014","DB X 1 SF","8","ORGAN",0.05984984,118],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,263],[4,"SN-032","DB X 1-SF","9","ORGAN",0.072,4],
+    [5,"SN-043","DB X 1","10","ORGAN",0.06118872,150],[6,"SN-045","DB X K5 KK","10","GROZ(FFG)",0.0344,49],
+    [7,"SN-056","DB X 1","11","ORGAN",0.06131768,102],[8,"SN-058","DB X K5 KK","11","ORGAN",0.0344,37],
+    [9,"SN-065","DB X 1","12","ORGAN",0.00616,22],[10,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,45],
+    [11,"SN-092","DC X 1","8","ORGAN",0.10636168,92],[12,"SN-095","DC X 1-SF","8","ORGAN",0.18658816,5],
+    [13,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,180],[14,"SN-107","DC X 1","9","ORGAN",0.10728008,476],
+    [15,"SN-126","DC X 1","11","ORGAN",0.10620288,21],[16,"SN-133","DC X 1","12","ORGAN",0.08432,22],
+    [17,"SN-140","UY X 128","7","ORGAN",0.0584,30],[18,"SN-147","UY X 128","8","ORGAN",0.08,20],
+    [19,"SN-163","UY X 128","9","ORGAN",0.16077616,149],[20,"SN-169","UY X 128- KK - KN","9","ORGAN",0.08226448,40],
+    [21,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,150],[22,"SN-183","UY X 128","10","ORGAN",0.13031448,115],
+    [23,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,115],[24,"SN-203","UY X 128","11","ORGAN",0.13286432,190],
+    [25,"SN-220","UY X 128","12","ORGAN",0.7621176,22],[26,"SN-222","UY X 128 NY2 SPD","12","ORGAN",0.0688,62],
+    [27,"SN-231","UY X 128","14","ORGAN",0.06392,10],[28,"SN-248","DP X 5","9","GROZ(FFG)",0.03432,54],
+    [29,"SN-261","DP X 5","11","ORGAN",0.06874008,42],[30,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,22],
+    [31,"SN-308","DP X 17","11","ORGAN",0.15784,77]
+  ],
+  "D-FLOOR ( BUILDING NO -04)_NEW": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,35],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,137],
+    [3,"SN-056","DB X 1","11","ORGAN",0.06131768,70],[4,"SN-095","DC X 1-SF","8","ORGAN",0.18658816,10],
+    [5,"SN-107","DC X 1","9","ORGAN",0.10728008,112],[6,"SN-126","DC X 1","11","ORGAN",0.10620288,94],
+    [7,"SN-163","UY X 128","9","ORGAN",0.16077616,42],[8,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,54],
+    [9,"SN-183","UY X 128","10","ORGAN",0.13031448,62],[10,"SN-203","UY X 128","11","ORGAN",0.13286432,58],
+    [11,"SN-220","UY X 128","12","ORGAN",0.7621176,95],[12,"SN-222","UY X 128 NY2 SPD","12","ORGAN",0.0688,64],
+    [13,"SN-261","DP X 5","11","ORGAN",0.06874008,42],[14,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,18],
+    [15,"SN-308","DP X 17","11","ORGAN",0.15784,43]
+  ],
+  "D-FLOOR ( BUILDING NO -04)_RUNNING": [
+    [1,"SN-003","DB X 1","7","ORGAN",0.03985072,24],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,59],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,168],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,38],
+    [5,"SN-056","DB X 1","11","ORGAN",0.06131768,41],[6,"SN-058","DB X K5 KK","11","ORGAN",0.0344,27],
+    [7,"SN-065","DB X 1","12","ORGAN",0.00616,35],[8,"SN-085","DC X 1","7","ORGAN",0.07969632,11],
+    [9,"SN-092","DC X 1","8","ORGAN",0.10636168,62],[10,"SN-107","DC X 1","9","ORGAN",0.10728008,327],
+    [11,"SN-126","DC X 1","11","ORGAN",0.10620288,67],[12,"SN-133","DC X 1","12","ORGAN",0.08432,44],
+    [13,"SN-147","UY X 128","8","ORGAN",0.08,49],[14,"SN-163","UY X 128","9","ORGAN",0.16077616,53],
+    [15,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,86],[16,"SN-183","UY X 128","10","ORGAN",0.13031448,158],
+    [17,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,32],[18,"SN-203","UY X 128","11","ORGAN",0.13286432,37],
+    [19,"SN-220","UY X 128","12","ORGAN",0.7621176,41],[20,"SN-222","UY X 128 NY2 SPD","12","ORGAN",0.0688,77],
+    [21,"SN-231","UY X 128","14","ORGAN",0.06392,45],[22,"SN-261","DP X 5","11","ORGAN",0.06874008,56],
+    [23,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,62],[24,"SN-308","DP X 17","11","ORGAN",0.15784,32]
+  ],
+  "E-FLOOR ( BUILDING NO-03)_NEW": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,118],[2,"SN-107","DC X 1","9","ORGAN",0.10728008,167],
+    [3,"SN-163","UY X 128","9","ORGAN",0.16077616,134],[4,"SN-183","UY X 128","10","ORGAN",0.13031448,46],
+    [5,"SN-203","UY X 128","11","ORGAN",0.13286432,19],[6,"SN-261","DP X 5","11","ORGAN",0.06874008,23],
+    [7,"SN-308","DP X 17","11","ORGAN",0.15784,19]
+  ],
+  "E-FLOOR ( BUILDING NO-03)_RUNNING": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,85],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,74],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,211],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,170],
+    [5,"SN-056","DB X 1","11","ORGAN",0.06131768,21],[6,"SN-085","DC X 1","7","ORGAN",0.07969632,47],
+    [7,"SN-092","DC X 1","8","ORGAN",0.10636168,15],[8,"SN-095","DC X 1-SF","8","ORGAN",0.18658816,182],
+    [9,"SN-107","DC X 1","9","ORGAN",0.10728008,547],[10,"SN-113","DC X 1 KN","9 LP","ORGAN",0.19304736,15],
+    [11,"SN-126","DC X 1","11","ORGAN",0.10620288,7],[12,"SN-140","UY X 128","7","ORGAN",0.0584,33],
+    [13,"SN-147","UY X 128","8","ORGAN",0.08,42],[14,"SN-155","UY X 128- SF","8","ORGAN",0.1388436,10],
+    [15,"SN-156","UY X 128- GAS SF","8 LP","ORGAN",0.0856,10],[16,"SN-163","UY X 128","9","ORGAN",0.16077616,396],
+    [17,"SN-172","UY X 128 GAS SPD","9","ORGAN",0.1307632,14],[18,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,5],
+    [19,"SN-176","UY X 128 SF","9","ORGAN",0.13350376,16],[20,"SN-183","UY X 128","10","ORGAN",0.13031448,162],
+    [21,"SN-194","UY X 128 SF","10","ORGAN",0.24,9],[22,"SN-203","UY X 128","11","ORGAN",0.13286432,102],
+    [23,"SN-261","DP X 5","11","ORGAN",0.06874008,28]
+  ],
+  "EMB-(BUILDING NO-01)_NEW": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,10],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,97],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,78],[4,"SN-056","DB X 1","11","ORGAN",0.06131768,37],
+    [5,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,28],[6,"SN-079","PH - C70 -","14","ORGAN",0.76981432,32],
+    [7,"SN-082","PH - C70 -","16","ORGAN",0.27975952,43]
+  ],
+  "EMB-(BUILDING NO-01)_RUNNING": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,346],[2,"SN-003","DB X 1","7","ORGAN",0.03985072,93],
+    [3,"SN-013","DB X 1","8","ORGAN",0.32559112,417],[4,"SN-014","DB X 1 SF","8","ORGAN",0.05984984,30],
+    [5,"SN-029","DB X 1","9","ORGAN",0.06552784,349],[6,"SN-056","DB X 1","11","ORGAN",0.06131768,64],
+    [7,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,101],[8,"SN-079","PH - C70 -","14","ORGAN",0.76981432,35],
+    [9,"SN-082","PH - C70 -","16","ORGAN",0.27975952,119]
+  ],
+  "F-FLOOR (BUILDING NO-6A)_NEW": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,19],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,93],
+    [3,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,17],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,22],
+    [5,"SN-056","DB X 1","11","ORGAN",0.06131768,40],[6,"SN-065","DB X 1","12","ORGAN",0.00616,6],
+    [7,"SN-092","DC X 1","8","ORGAN",0.10636168,30],[8,"SN-107","DC X 1","9","ORGAN",0.10728008,65],
+    [9,"SN-113","DC X 1 KN","9 LP","ORGAN",0.19304736,24],[10,"SN-126","DC X 1","11","ORGAN",0.10620288,9],
+    [11,"SN-147","UY X 128","8","ORGAN",0.08,24],[12,"SN-163","UY X 128","9","ORGAN",0.16077616,45],
+    [13,"SN-183","UY X 128","10","ORGAN",0.13031448,108],[14,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,20],
+    [15,"SN-203","UY X 128","11","ORGAN",0.13286432,7],[16,"SN-209","UY X 128 KN","11 HP","ORGAN",0.0856,37],
+    [17,"SN-220","UY X 128","12","ORGAN",0.7621176,26],[18,"SN-231","UY X 128","14","ORGAN",0.06392,10],
+    [19,"SN-250","DP X 5","9","ORGAN",0.03824,8],[20,"SN-261","DP X 5","11","ORGAN",0.06874008,51],
+    [21,"SN-278","UO X 113(UO X 1)","9","ORGAN",0.08336,50],[22,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,6],
+    [23,"SN-308","DP X 17","11","ORGAN",0.15784,59],[24,"SN-317","DV X 57","11","ORGAN",0.00872,5]
+  ],
+  "F-FLOOR (BUILDING NO-6A)_RUNNING": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,67],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,66],
+    [3,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,17],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,127],
+    [5,"SN-056","DB X 1","11","ORGAN",0.06131768,20],[6,"SN-058","DB X K5 KK","11","ORGAN",0.0344,36],
+    [7,"SN-065","DB X 1","12","ORGAN",0.00616,29],[8,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,20],
+    [9,"SN-092","DC X 1","8","ORGAN",0.10636168,93],[10,"SN-107","DC X 1","9","ORGAN",0.10728008,534],
+    [11,"SN-113","DC X 1 KN","9 LP","ORGAN",0.19304736,53],[12,"SN-119","DC X 1","10","ORGAN",0.0904,200],
+    [13,"SN-126","DC X 1","11","ORGAN",0.10620288,49],[14,"SN-133","DC X 1","12","ORGAN",0.08432,85],
+    [15,"SN-136","DC X 1","14","ORGAN",0.10672496,22],[16,"SN-163","UY X 128","9","ORGAN",0.16077616,45],
+    [17,"SN-183","UY X 128","10","ORGAN",0.13031448,166],[18,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,87],
+    [19,"SN-203","UY X 128","11","ORGAN",0.13286432,130],[20,"SN-209","UY X 128 KN","11 HP","ORGAN",0.0856,185],
+    [21,"SN-222","UY X 128 NY2 SPD","12","ORGAN",0.0688,61],[22,"SN-224","UY X 128-KN","12 LP","ORGAN",0.07704976,100],
+    [23,"SN-231","UY X 128","14","ORGAN",0.06392,20],[24,"SN-248","DP X 5","9","GROZ(FFG)",0.03432,100],
+    [25,"SN-261","DP X 5","11","ORGAN",0.06874008,38],[26,"SN-287","UO X 113(UO X 1)","11","GROZ(FFG)",0.12056,36],
+    [27,"SN-308","DP X 17","11","ORGAN",0.15784,67],[28,"SN-317","DV X 57","11","ORGAN",0.00872,20]
+  ],
+  "G-FLOOR ( BUILDING NO-6A)_NEW": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,65],[2,"SN-019","DB X 1 KN","8 LP","ORGAN",0.1,30],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,79],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,45],
+    [5,"SN-056","DB X 1","11","ORGAN",0.06131768,44],[6,"SN-065","DB X 1","12","ORGAN",0.00616,10],
+    [7,"SN-071","DB X 1","14","GROZ(GEBEDUR)",0.0344,31],[8,"SN-092","DC X 1","8","ORGAN",0.10636168,32],
+    [9,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,38],[10,"SN-107","DC X 1","9","ORGAN",0.10728008,73],
+    [11,"SN-126","DC X 1","11","ORGAN",0.10620288,61],[12,"SN-147","UY X 128","8","ORGAN",0.08,42],
+    [13,"SN-163","UY X 128","9","ORGAN",0.16077616,34],[14,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,23],
+    [15,"SN-183","UY X 128","10","ORGAN",0.13031448,81],[16,"SN-203","UY X 128","11","ORGAN",0.13286432,66],
+    [17,"SN-220","UY X 128","12","ORGAN",0.7621176,33],[18,"SN-250","DP X 5","9","ORGAN",0.03824,14],
+    [19,"SN-261","DP X 5","11","ORGAN",0.06874008,16],[20,"SN-308","DP X 17","11","ORGAN",0.15784,78],
+    [21,"SN-317","DV X 57","11","ORGAN",0.00872,103],[22,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,25]
+  ],
+  "G-FLOOR ( BUILDING NO-6A)_RUNNING": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,62],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,89],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,110],[4,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,15],
+    [5,"SN-043","DB X 1","10","ORGAN",0.06118872,136],[6,"SN-048","DB X 1-KN","10 LP","ORGAN",0.132536,50],
+    [7,"SN-056","DB X 1","11","ORGAN",0.06131768,48],[8,"SN-065","DB X 1","12","ORGAN",0.00616,39],
+    [9,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,40],[10,"SN-092","DC X 1","8","ORGAN",0.10636168,60],
+    [11,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,65],[12,"SN-107","DC X 1","9","ORGAN",0.10728008,433],
+    [13,"SN-119","DC X 1","10","ORGAN",0.0904,78],[14,"SN-126","DC X 1","11","ORGAN",0.10620288,20],
+    [15,"SN-133","DC X 1","12","ORGAN",0.08432,77],[16,"SN-147","UY X 128","8","ORGAN",0.08,58],
+    [17,"SN-163","UY X 128","9","ORGAN",0.16077616,62],[18,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,32],
+    [19,"SN-183","UY X 128","10","ORGAN",0.13031448,73],[20,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,23],
+    [21,"SN-203","UY X 128","11","ORGAN",0.13286432,65],[22,"SN-220","UY X 128","12","ORGAN",0.7621176,22],
+    [23,"SN-225","UY X 128","12","GROZ(GEBEDUR)",0.07405864,18],[24,"SN-231","UY X 128","14","ORGAN",0.06392,40],
+    [25,"SN-250","DP X 5","9","ORGAN",0.03824,3],[26,"SN-261","DP X 5","11","ORGAN",0.06874008,37],
+    [27,"SN-263","DP X 5-KN","11","ORGAN",0.06,33],[28,"SN-265","DP X 5","14","GROZ(FFG)",0.03272,20],
+    [29,"SN-308","DP X 17","11","ORGAN",0.15784,14],[30,"SN-317","DV X 57","11","ORGAN",0.00872,25],
+    [31,"SN-318","DV X 57","12","ORGAN",0.16,16],[32,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,60]
+  ],
+  "H-FLOOR (BUILDING NO-6B)_NEW": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,45],[2,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,7],
+    [3,"SN-043","DB X 1","10","ORGAN",0.06118872,69],[4,"SN-045","DB X K5 KK","10","GROZ(FFG)",0.0344,9],
+    [5,"SN-056","DB X 1","11","ORGAN",0.06131768,77],[6,"SN-107","DC X 1","9","ORGAN",0.10728008,114],
+    [7,"SN-126","DC X 1","11","ORGAN",0.10620288,71],[8,"SN-163","UY X 128","9","ORGAN",0.16077616,126],
+    [9,"SN-183","UY X 128","10","ORGAN",0.13031448,98],[10,"SN-203","UY X 128","11","ORGAN",0.13286432,94],
+    [11,"SN-206","UY X 128 SPD","11","ORGAN",0.20594336,19],[12,"SN-220","UY X 128","12","ORGAN",0.7621176,56],
+    [13,"SN-261","DP X 5","11","ORGAN",0.06874008,79],[14,"SN-308","DP X 17","11","ORGAN",0.15784,66],
+    [15,"SN-317","DV X 57","11","ORGAN",0.00872,90],[16,"SN-351","LW X 6 T/1669 E","14","GROZ(FFG)",0.2684,5]
+  ],
+  "H-FLOOR (BUILDING NO-6B)_RUNNING": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,76],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,30],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,252],[4,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,30],
+    [5,"SN-043","DB X 1","10","ORGAN",0.06118872,32],[6,"SN-045","DB X K5 KK","10","GROZ(FFG)",0.0344,118],
+    [7,"SN-056","DB X 1","11","ORGAN",0.06131768,25],[8,"SN-058","DB X K5 KK","11","ORGAN",0.0344,17],
+    [9,"SN-065","DB X 1","12","ORGAN",0.00616,35],[10,"SN-085","DC X 1","7","ORGAN",0.07969632,26],
+    [11,"SN-092","DC X 1","8","ORGAN",0.10636168,21],[12,"SN-107","DC X 1","9","ORGAN",0.10728008,342],
+    [13,"SN-126","DC X 1","11","ORGAN",0.10620288,81],[14,"SN-146","UY X 128","8","GROZ(FFG)",0.08,30],
+    [15,"SN-163","UY X 128","9","ORGAN",0.16077616,37],[16,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,16],
+    [17,"SN-177","UY X 128 SAN 10 XS","9","GROZ(FFG)",0.08305976,15],[18,"SN-183","UY X 128","10","ORGAN",0.13031448,128],
+    [19,"SN-203","UY X 128","11","ORGAN",0.13286432,32],[20,"SN-206","UY X 128 SPD","11","ORGAN",0.20594336,16],
+    [21,"SN-225","UY X 128","12","GROZ(GEBEDUR)",0.07405864,30],[22,"SN-230","UY X 128","14","GROZ(GEBEDUR)",0.08835888,40],
+    [23,"SN-231","UY X 128","14","ORGAN",0.06392,70],[24,"SN-250","DP X 5","9","ORGAN",0.03824,14],
+    [25,"SN-261","DP X 5","11","ORGAN",0.06874008,108],[26,"SN-263","DP X 5-KN","11","ORGAN",0.06,68],
+    [27,"SN-308","DP X 17","11","ORGAN",0.15784,84],[28,"SN-317","DV X 57","11","ORGAN",0.00872,155],
+    [29,"SN-318","DV X 57","12","ORGAN",0.16,71],[30,"SN-324","DV X 57","10","ORGAN",0.2048,58],
+    [31,"SN-352","LW X 6 T/1669 E","16","GROZ(FFG)",0.2684,30],[32,"SN-418","DB X 1-GEBEDURE-FFG ,NO-08,GROZ","8","GROZ",0.0496,65],
+    [33,"SN-479","DV X 43","14","ORGAN",0.13288,55]
+  ],
+  "I-FLOOR (BUILDING NO-06 B)_NEW": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,52],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,60],
+    [3,"SN-043","DB X 1","10","ORGAN",0.06118872,76],[4,"SN-056","DB X 1","11","ORGAN",0.06131768,29],
+    [5,"SN-092","DC X 1","8","ORGAN",0.10636168,62],[6,"SN-107","DC X 1","9","ORGAN",0.10728008,52],
+    [7,"SN-126","DC X 1","11","ORGAN",0.10620288,8],[8,"SN-163","UY X 128","9","ORGAN",0.16077616,71],
+    [9,"SN-183","UY X 128","10","ORGAN",0.13031448,50],[10,"SN-203","UY X 128","11","ORGAN",0.13286432,71],
+    [11,"SN-261","DP X 5","11","ORGAN",0.06874008,60],[12,"SN-308","DP X 17","11","ORGAN",0.15784,37],
+    [13,"SN-317","DV X 57","11","ORGAN",0.00872,36]
+  ],
+  "I-FLOOR (BUILDING NO-06 B)_RUNNING": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,130],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,140],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,85],[4,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,14],
+    [5,"SN-043","DB X 1","10","ORGAN",0.06118872,128],[6,"SN-045","DB X K5 KK","10","GROZ(FFG)",0.0344,123],
+    [7,"SN-056","DB X 1","11","ORGAN",0.06131768,7],[8,"SN-058","DB X K5 KK","11","ORGAN",0.0344,18],
+    [9,"SN-065","DB X 1","12","ORGAN",0.00616,78],[10,"SN-085","DC X 1","7","ORGAN",0.07969632,55],
+    [11,"SN-092","DC X 1","8","ORGAN",0.10636168,141],[12,"SN-107","DC X 1","9","ORGAN",0.10728008,268],
+    [13,"SN-126","DC X 1","11","ORGAN",0.10620288,53],[14,"SN-146","UY X 128","8","GROZ(FFG)",0.08,5],
+    [15,"SN-163","UY X 128","9","ORGAN",0.16077616,60],[16,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,20],
+    [17,"SN-183","UY X 128","10","ORGAN",0.13031448,89],[18,"SN-203","UY X 128","11","ORGAN",0.13286432,33],
+    [19,"SN-220","UY X 128","12","ORGAN",0.7621176,9],[20,"SN-225","UY X 128","12","GROZ(GEBEDUR)",0.07405864,5],
+    [21,"SN-231","UY X 128","14","ORGAN",0.06392,42],[22,"SN-248","DP X 5","9","GROZ(FFG)",0.03432,23],
+    [23,"SN-261","DP X 5","11","ORGAN",0.06874008,59],[24,"SN-263","DP X 5-KN","11","ORGAN",0.06,45],
+    [25,"SN-265","DP X 5","14","GROZ(FFG)",0.03272,23],[26,"SN-308","DP X 17","11","ORGAN",0.15784,77],
+    [27,"SN-317","DV X 57","11","ORGAN",0.00872,41],[28,"SN-318","DV X 57","12","ORGAN",0.16,40],
+    [29,"SN-320","DV X 57","14","ORGAN",0.14264,49],[30,"SN-343","DM X 13","10","GROZ(FFG)",0.06,24],
+    [31,"SN-418","DB X 1-GEBEDURE-FFG ,NO-08,GROZ","8","GROZ",0.0496,84],[32,"SN-479","DV X 43","14","ORGAN",0.13288,13]
+  ],
+  "J-FLOOR(BUILDING NO-09)_NEW": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,72],[2,"SN-107","DC X 1","9","ORGAN",0.10728008,66],
+    [3,"SN-163","UY X 128","9","ORGAN",0.16077616,72],[4,"SN-183","UY X 128","10","ORGAN",0.13031448,41],
+    [5,"SN-197","UY X 128 GAS SF","10 LP","ORGAN",0.1744,30],[6,"SN-203","UY X 128","11","ORGAN",0.13286432,25],
+    [7,"SN-261","DP X 5","11","ORGAN",0.06874008,21],[8,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,33],
+    [9,"SN-308","DP X 17","11","ORGAN",0.15784,17]
+  ],
+  "J-FLOOR(BUILDING NO-09)_RUNNING": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,92],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,86],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,190],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,51],
+    [5,"SN-056","DB X 1","11","ORGAN",0.06131768,66],[6,"SN-085","DC X 1","7","ORGAN",0.07969632,58],
+    [7,"SN-092","DC X 1","8","ORGAN",0.10636168,62],[8,"SN-107","DC X 1","9","ORGAN",0.10728008,215],
+    [9,"SN-119","DC X 1","10","ORGAN",0.0904,42],[10,"SN-126","DC X 1","11","ORGAN",0.10620288,57],
+    [11,"SN-140","UY X 128","7","ORGAN",0.0584,34],[12,"SN-147","UY X 128","8","ORGAN",0.08,29],
+    [13,"SN-163","UY X 128","9","ORGAN",0.16077616,110],[14,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,123],
+    [15,"SN-183","UY X 128","10","ORGAN",0.13031448,79],[16,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,30],
+    [17,"SN-203","UY X 128","11","ORGAN",0.13286432,86],[18,"SN-220","UY X 128","12","ORGAN",0.7621176,25],
+    [19,"SN-261","DP X 5","11","ORGAN",0.06874008,39],[20,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,20],
+    [21,"SN-308","DP X 17","11","ORGAN",0.15784,44],[22,"SN-332","FLX 118-GCS","10","ORGAN",0.27132,50],
+    [23,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,38],[24,"SN-338","FLX 118-GCS NY2","9","ORGAN",0.3005824,17]
+  ],
+  "K-FLOOR(BUILDING NO-09)_NEW": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,86],[2,"SN-071","DB X 1","14","GROZ(GEBEDUR)",0.0344,5],
+    [3,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,28],[4,"SN-107","DC X 1","9","ORGAN",0.10728008,170],
+    [5,"SN-147","UY X 128","8","ORGAN",0.08,5],[6,"SN-156","UY X 128- GAS SF","8 LP","ORGAN",0.0856,16],
+    [7,"SN-163","UY X 128","9","ORGAN",0.16077616,99],[8,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,104],
+    [9,"SN-183","UY X 128","10","ORGAN",0.13031448,92],[10,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,109],
+    [11,"SN-203","UY X 128","11","ORGAN",0.13286432,124],[12,"SN-206","UY X 128 SPD","11","ORGAN",0.20594336,30],
+    [13,"SN-220","UY X 128","12","ORGAN",0.7621176,5],[14,"SN-263","DP X 5-KN","11","ORGAN",0.06,59],
+    [15,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,46],[16,"SN-301","DP X 17","9","ORGAN",0.056,3],
+    [17,"SN-308","DP X 17","11","ORGAN",0.15784,30],[18,"SN-330","FLX 118-GCS","9","ORGAN",0.28,26],
+    [19,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,101]
+  ],
+  "K-FLOOR(BUILDING NO-09)_RUNNING": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,74],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,53],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,112],[4,"SN-032","DB X 1-SF","9","ORGAN",0.072,31],
+    [5,"SN-043","DB X 1","10","ORGAN",0.06118872,81],[6,"SN-056","DB X 1","11","ORGAN",0.06131768,17],
+    [7,"SN-065","DB X 1","12","ORGAN",0.00616,20],[8,"SN-085","DC X 1","7","ORGAN",0.07969632,19],
+    [9,"SN-092","DC X 1","8","ORGAN",0.10636168,36],[10,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,48],
+    [11,"SN-107","DC X 1","9","ORGAN",0.10728008,234],[12,"SN-126","DC X 1","11","ORGAN",0.10620288,24],
+    [13,"SN-163","UY X 128","9","ORGAN",0.16077616,74],[14,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,36],
+    [15,"SN-183","UY X 128","10","ORGAN",0.13031448,51],[16,"SN-191","UY X 128-KK-KN","10","ORGAN",0.13284256,6],
+    [17,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,36],[18,"SN-203","UY X 128","11","ORGAN",0.13286432,76],
+    [19,"SN-206","UY X 128 SPD","11","ORGAN",0.20594336,15],[20,"SN-220","UY X 128","12","ORGAN",0.7621176,46],
+    [21,"SN-231","UY X 128","14","ORGAN",0.06392,7],[22,"SN-250","DP X 5","9","ORGAN",0.03824,5],
+    [23,"SN-261","DP X 5","11","ORGAN",0.06874008,25],[24,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,11],
+    [25,"SN-300","DP X 17","9","GROZ(FFG)",0.03544,30],[26,"SN-308","DP X 17","11","ORGAN",0.15784,41],
+    [27,"SN-330","FLX 118-GCS","9","ORGAN",0.28,50],[28,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,246]
+  ],
+  "SAMPLE-(BUILDING NO-03)_NEW": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,38],[2,"SN-056","DB X 1","11","ORGAN",0.06131768,25],
+    [3,"SN-107","DC X 1","9","ORGAN",0.10728008,44],[4,"SN-126","DC X 1","11","ORGAN",0.10620288,65],
+    [5,"SN-163","UY X 128","9","ORGAN",0.16077616,27],[6,"SN-203","UY X 128","11","ORGAN",0.13286432,56],
+    [7,"SN-261","DP X 5","11","ORGAN",0.06874008,29],[8,"SN-287","UO X 113(UO X 1)","11","GROZ(FFG)",0.12056,29],
+    [9,"SN-308","DP X 17","11","ORGAN",0.15784,33],[10,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,49],
+    [11,"SN-351","LW X 6 T/1669 E","14","GROZ(FFG)",0.2684,5]
+  ],
+  "SAMPLE-(BUILDING NO-03)_RUNNING": [
+    [1,"SN-003","DB X 1","7","ORGAN",0.03985072,73],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,100],
+    [3,"SN-056","DB X 1","11","ORGAN",0.06131768,22],[4,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,30],
+    [5,"SN-085","DC X 1","7","ORGAN",0.07969632,51],[6,"SN-107","DC X 1","9","ORGAN",0.10728008,222],
+    [7,"SN-126","DC X 1","11","ORGAN",0.10620288,50],[8,"SN-140","UY X 128","7","ORGAN",0.0584,46],
+    [9,"SN-147","UY X 128","8","ORGAN",0.08,34],[10,"SN-163","UY X 128","9","ORGAN",0.16077616,94],
+    [11,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,67],[12,"SN-183","UY X 128","10","ORGAN",0.13031448,47],
+    [13,"SN-191","UY X 128-KK-KN","10","ORGAN",0.13284256,38],[14,"SN-203","UY X 128","11","ORGAN",0.13286432,94],
+    [15,"SN-225","UY X 128","12","GROZ(GEBEDUR)",0.07405864,94],[16,"SN-248","DP X 5","9","GROZ(FFG)",0.03432,23],
+    [17,"SN-250","DP X 5","9","ORGAN",0.03824,10],[18,"SN-261","DP X 5","11","ORGAN",0.06874008,115],
+    [19,"SN-265","DP X 5","14","GROZ(FFG)",0.03272,10],[20,"SN-277","UO X 113(UO X 1)","9","GROZ(FFG)",0.086,60],
+    [21,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,31],[22,"SN-299","UO X 113(UO X 1)","14","ORGAN",0.17488,22],
+    [23,"SN-308","DP X 17","11","ORGAN",0.15784,75],[24,"SN-312","DP X 17 kk(DPxN31)","11 J","ORGAN",0.05704,45],
+    [25,"SN-320","DV X 57","14","ORGAN",0.14264,62],[26,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,68],
+    [27,"SN-351","LW X 6 T/1669 E","14","GROZ(FFG)",0.2684,20]
+  ],
+  "TRAINING CENTRE-(BUILDING NO-01)_NEW": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,26],[2,"SN-107","DC X 1","9","ORGAN",0.10728008,20],
+    [3,"SN-120","DC X 1 27 SAN 10","10","GROZ(FFG)",0.0904,9],[4,"SN-163","UY X 128","9","ORGAN",0.16077616,27]
+  ],
+  "TRAINING CENTRE-(BUILDING NO-01)_RUNNING": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,37],[2,"SN-043","DB X 1","10","ORGAN",0.06118872,13],
+    [3,"SN-107","DC X 1","9","ORGAN",0.10728008,59],[4,"SN-119","DC X 1","10","ORGAN",0.0904,4],
+    [5,"SN-163","UY X 128","9","ORGAN",0.16077616,34],[6,"SN-183","UY X 128","10","ORGAN",0.13031448,12],
+    [7,"SN-261","DP X 5","11","ORGAN",0.06874008,21],[8,"SN-308","DP X 17","11","ORGAN",0.15784,6]
+  ]
+};
+
+const ALL_FLOORS = Object.keys(floorData);
+
+// =========================================
+// 🌐 GLOBAL STATE
+// =========================================
+let negativeRowIndex = -1;
+let currentFloorData = [];
+let rowReqNo = {};
+let floorReqNo = null;
+let rowTransferOut = {};
+let rowTransferIn = {};
+let pendingReqIndex = null;
+let pendingReqValue = null;
+let pendingTransferIndex = null;
+let autoSaveTimer = null;
+let autoSaveInFlight = false;
+let suppressAutoSave = false;
+let lastAutoSaveTime = 0; // ✅ Track last successful cloud save time (for status display)
+let isDirty = false; // ✅ NEW: true হলে বোঝায় এখনো Save না-হওয়া কিছু পরিবর্তন আছে
+let activeFloor = null; // ✅ NEW: বর্তমানে টেবিলে যে Floor-এর data লোড আছে
+let activePostDate = null; // ✅ NEW: বর্তমানে টেবিলে যে Date-এর data লোড আছে
+
+// =========================================
+// 💾 OFFLINE STORAGE
+// =========================================
+function saveOffline(floor, date, operator, rows, forceSynced = false){
+  try{
+    const data = JSON.parse(localStorage.getItem(OFFLINE_KEY)||'{}');
+    const key = `${floor}__${date}`;
+    // ✅ FIX: If already synced, keep it synced. Don't reset to false!
+    const existing = data[key];
+    const shouldBeSynced = forceSynced || (existing && existing.synced);
+    
+    data[key] = {
+      operator, 
+      rows, 
+      savedAt: new Date().toISOString(), 
+      synced: shouldBeSynced
+    };
+    localStorage.setItem(OFFLINE_KEY, JSON.stringify(data));
+  }catch(e){ console.error('saveOffline error', e); }
+}
+function getOffline(floor, date){
+  try{
+    const data = JSON.parse(localStorage.getItem(OFFLINE_KEY)||'{}');
+    return data[`${floor}__${date}`] || null;
+  }catch(e){ return null; }
+}
+function markOfflineSynced(floor, date){
+  try{
+    const data = JSON.parse(localStorage.getItem(OFFLINE_KEY)||'{}');
+    const key = `${floor}__${date}`;
+    if(data[key]){
+      data[key].synced = true;
+      data[key].savedAt = new Date().toISOString(); // Update timestamp
+    }
+    localStorage.setItem(OFFLINE_KEY, JSON.stringify(data));
+  }catch(e){}
+}
+
+// =========================================
+// 🔌 SUPABASE FUNCTIONS
+// =========================================
+async function getCompanyId(){
+  const {data,error} = await supabase.from('companies').select('id').eq('code',COMPANY_CODE).single();
+  if(error||!data){ console.error('Company not found'); return null; }
+  return data.id;
+}
+
+async function saveToSupabase(floor, date, operator, rows, showSuccess=true){
+  const companyId = await getCompanyId();
+  if(!companyId){ if(showSuccess) alert('❌ Company config error!'); return {error:'no company'}; }
+  const summary = {
+    total_opening: rows.reduce((s,r)=>s+(r.opening||0),0),
+    total_receive: rows.reduce((s,r)=>s+(r.receive||0),0),
+    total_delivery: rows.reduce((s,r)=>s+(r.delivery||0),0),
+    total_present: rows.reduce((s,r)=>s+(r.present||0),0),
+    total_bn: rows.reduce((s,r)=>s+(r.bn||0),0)
+  };
+  const {error} = await supabase.from('needle_reports').upsert({
+    company_id:companyId, floor, report_date:date, operator, rows, summary,
+    updated_at: new Date().toISOString()
+  },{onConflict:'company_id,floor,report_date'});
+  if(error){ console.error(error); if(showSuccess) alert('❌ Save failed: '+error.message); return {error}; }
+  if(showSuccess) showToast('✅ Supabase এ Save হয়েছে');
+  return {success:true};
+}
+
+async function loadFromSupabase(floor, date){
+  const companyId = await getCompanyId();
+  if(!companyId) return null;
+  const {data,error} = await supabase.from('needle_reports').select('*')
+    .eq('company_id',companyId).eq('floor',floor).eq('report_date',date).maybeSingle();
+  if(error){ console.error('loadFromSupabase error:', error); return null; }
+  return data;
+}
+
+async function findLastSavedBefore(floor, date){
+  const companyId = await getCompanyId();
+  if(!companyId) return null;
+  const {data,error} = await supabase.from('needle_reports')
+    .select('floor, report_date, rows, operator')
+    .eq('company_id',companyId)
+    .eq('floor',floor)
+    .lt('report_date', date)
+    .order('report_date',{ascending:false})
+    .limit(1)
+    .maybeSingle();
+  if(error){ console.error('[CarryForward] Query error:', error); return null; }
+  return data;
+}
+
+function buildPrevMap(savedRows){
+  const map = {};
+  if(savedRows && Array.isArray(savedRows)){
+    savedRows.forEach(r => {
+      const key = `${r.itemCode}__${r.size}`;
+      map[key] = Number(r.present) || 0;
+    });
+  }
+  return map;
+}
+
+// =========================================
+// 📊 UI HELPERS
+// =========================================
+function updateCategoryBadge(){
+  const floor = document.getElementById('floor').value;
+  const badge = document.getElementById('categoryBadge');
+  if(floor.includes('_NEW')){ badge.textContent='NEW'; badge.style.background='linear-gradient(135deg,#10b981,#059669)'; }
+  else if(floor.includes('_RUNNING')){ badge.textContent='RUNNING'; badge.style.background='linear-gradient(135deg,#3b82f6,#2563eb)'; }
+  else { badge.textContent=''; }
+}
+
+function updateCarryIndicator(carried, prevDate){
+  const badge = document.getElementById('carryBadge');
+  const info = document.getElementById('carryInfo');
+  const bar = document.getElementById('carrySourceBar');
+  if(carried && prevDate){
+    badge.style.display='inline-block';
+    badge.textContent='⏪ Carried from '+prevDate;
+    info.style.display='block';
+    info.innerHTML=`✅ ${prevDate} তারিখের Present Stock আজকের Previous হিসেবে carry হয়েছে`;
+    bar.style.display='block';
+    bar.textContent=`🔍 Carry Source: ${prevDate} — সর্বশেষ save করা দিনের Present → আজকের Previous`;
+  }else{
+    badge.style.display='none';
+    info.style.display='none';
+    bar.style.display='none';
+  }
+}
+
+function updateFloorReqBanner(){
+  const banner = document.getElementById('floorReqBanner');
+  const display = document.getElementById('floorReqNoDisplay');
+  if(floorReqNo){
+    banner.style.display='block';
+    display.textContent=floorReqNo;
+  }else{
+    banner.style.display='none';
+  }
+}
+
+function changeFloorReqNo(){
+  const newNo = prompt('নতুন Requisition Number দিন:', floorReqNo||'');
+  if(newNo && newNo.trim()){
+    floorReqNo = newNo.trim();
+    currentFloorData.forEach((_,i)=>{
+      const val = Number(document.getElementById(`r${i}`)?.value)||0;
+      if(val > 0){
+        rowReqNo[i] = floorReqNo;
+        const t = document.getElementById(`reqTag${i}`);
+        if(t) t.textContent = '📋 '+floorReqNo;
+      }
+    });
+    updateFloorReqBanner();
+    showToast('✅ Req No updated: '+floorReqNo);
+    scheduleAutoSave();
+  }
+}
+
+// =========================================
+// 🏗️ LOAD TABLE
+// =========================================
+function loadTable(prevMap={}, customRows=[], carried=false, prevDate=null){
+  const floor = document.getElementById('floor').value;
+  const baseItems = floorData[floor] || [];
+
+  currentFloorData = baseItems.map(item => ({
+    sl: item[0], itemCode: item[1], needleType: item[2], size: item[3],
+    brand: item[4], unitPrice: item[5], opening: item[6], isCustom: false
+  }));
+
+  if(Array.isArray(customRows)){
+    customRows.forEach(cr => {
+      if(!cr || !cr.itemCode) return;
+      const existsInCurrent = currentFloorData.find(r => r.itemCode===cr.itemCode && r.size===cr.size);
+      if(!existsInCurrent){
+        currentFloorData.push({
+          sl: currentFloorData.length+1,
+          itemCode: cr.itemCode,
+          needleType: cr.needleType||'',
+          size: cr.size,
+          brand: cr.brand||'',
+          unitPrice: cr.unitPrice||0,
+          opening: Number(cr.opening)||0,
+          isCustom: true
+        });
+      }
+    });
+  }
+
+  updateCategoryBadge();
+  rowReqNo={}; rowTransferOut={}; rowTransferIn={};
+  floorReqNo=null;
+  updateFloorReqBanner();
+  document.getElementById('bnHeader').innerText = floor.includes('_NEW') ? 'BNR' : 'BNF';
+
+  let html = '';
+  currentFloorData.forEach((item, i) => {
+    const key = `${item.itemCode}__${item.size}`;
+    const previous = prevMap.hasOwnProperty(key) ? prevMap[key] : item.opening;
+    const rowClass = item.isCustom ? 'class="custom-row-indicator"' : '';
+    html += `
+      <tr id="row${i}" ${rowClass}>
+        <td>${i+1}${item.isCustom?'<br><span style="font-size:5px;color:#92400e">NEW</span>':''}</td>
+        <td>${item.itemCode}</td><td>${item.needleType}</td><td>${item.size}</td>
+        <td>${item.brand}</td>
+        <td style="text-align:right">${Number(item.unitPrice).toFixed(4)}</td>
+        <td id="p${i}">${previous}</td>
+        <td id="rcvdCell${i}">
+          <input class="qtyInput" type="number" id="r${i}" oninput="calc(${i})" onblur="checkReqNo(${i})" step="1" min="0">
+          <span class="req-tag" id="reqTag${i}"></span>
+        </td>
+        <td id="dvldCell${i}">
+          <input class="qtyInput" type="number" id="d${i}" oninput="calc(${i})" step="1" min="0">
+          <span class="transfer-tag" id="trfOutTag${i}"></span>
+        </td>
+        <td id="b${i}" style="font-weight:bold">${previous}</td>
+        <td><input class="qtyInput" type="number" id="bn${i}" oninput="updateTotal();scheduleAutoSave()" step="1" min="0"></td>
+        <td>
+          <button class="transferBtn" onclick="openTransferPopup(${i})">🔄 Trf</button>
+          <span class="transfer-tag" id="trfInTag${i}"></span>
+        </td>
+        <td>${item.isCustom
+          ? `<button class="del-row-btn" onclick="deleteCustomRow(${i})" title="এই row মুছুন">✕</button>`
+          : '<span style="font-size:8px;color:#94a3b8">-</span>'}</td>
+      </tr>`;
+  });
+
+  document.getElementById('tableBody').innerHTML = html;
+  updateTotal();
+  updateCarryIndicator(carried, prevDate);
+  setTimeout(checkNegativeStock, 100);
+}
+
+// =========================================
+// ➕ ADD ROW
+// =========================================
+function openAddRowPopup(){
+  const floor = document.getElementById('floor').value;
+  if(!floor){ alert('❌ আগে Floor select করুন'); return; }
+  document.getElementById('newItemCode').value='';
+  document.getElementById('newNeedleType').value='';
+  document.getElementById('newSize').value='';
+  document.getElementById('newBrand').value='ORGAN';
+  document.getElementById('newPrice').value='';
+  document.getElementById('newOpening').value='0';
+  document.getElementById('addRowPopup').style.display='flex';
+  setTimeout(()=>document.getElementById('newItemCode').focus(),100);
+}
+function closeAddRowPopup(){ document.getElementById('addRowPopup').style.display='none'; }
+
+function confirmAddRow(){
+  const itemCode = document.getElementById('newItemCode').value.trim().toUpperCase();
+  const needleType = document.getElementById('newNeedleType').value.trim().toUpperCase();
+  const size = document.getElementById('newSize').value.trim();
+  const brand = document.getElementById('newBrand').value.trim().toUpperCase();
+  const unitPrice = parseFloat(document.getElementById('newPrice').value)||0;
+  // ✅ FIX: opening কে সরাসরি input থেকে parse করা হয় — "0" দিলে 0-ই থাকবে,
+  // কোনো fallback / localStorage / আগের data দিয়ে override হবে না।
+  const openingRaw = document.getElementById('newOpening').value;
+  const opening = openingRaw === '' ? 0 : (parseInt(openingRaw, 10) || 0);
+  if(!itemCode){ alert('❌ Item Code দিন'); return; }
+  if(!needleType){ alert('❌ Needle Type দিন'); return; }
+  if(!size){ alert('❌ Size দিন'); return; }
+  const dup = currentFloorData.find(r => r.itemCode===itemCode && r.size===size);
+  if(dup){ alert(`❌ ${itemCode} (Size ${size}) ইতিমধ্যে আছে!`); return; }
+  const newRow = { sl: currentFloorData.length+1, itemCode, needleType, size, brand, unitPrice, opening, isCustom: true };
+  currentFloorData.push(newRow);
+  const i = currentFloorData.length - 1;
+  const newTr = document.createElement('tr');
+  newTr.id = `row${i}`;
+  newTr.className = 'custom-row-indicator';
+  newTr.innerHTML = `
+    <td>${i+1}<br><span style="font-size:5px;color:#92400e">NEW</span></td>
+    <td>${itemCode}</td><td>${needleType}</td><td>${size}</td><td>${brand}</td>
+    <td style="text-align:right">${unitPrice.toFixed(4)}</td>
+    <td id="p${i}">${opening}</td>
+    <td id="rcvdCell${i}">
+      <input class="qtyInput" type="number" id="r${i}" oninput="calc(${i})" onblur="checkReqNo(${i})" step="1" min="0">
+      <span class="req-tag" id="reqTag${i}"></span>
+    </td>
+    <td id="dvldCell${i}">
+      <input class="qtyInput" type="number" id="d${i}" oninput="calc(${i})" step="1" min="0">
+      <span class="transfer-tag" id="trfOutTag${i}"></span>
+    </td>
+    <td id="b${i}" style="font-weight:bold">${opening}</td>
+    <td><input class="qtyInput" type="number" id="bn${i}" oninput="updateTotal();scheduleAutoSave()" step="1" min="0"></td>
+    <td>
+      <button class="transferBtn" onclick="openTransferPopup(${i})">🔄 Trf</button>
+      <span class="transfer-tag" id="trfInTag${i}"></span>
+    </td>
+    <td><button class="del-row-btn" onclick="deleteCustomRow(${i})" title="মুছুন">✕</button></td>`;
+  document.getElementById('tableBody').appendChild(newTr);
+  updateTotal();
+  closeAddRowPopup();
+  showToast(`✅ ${itemCode} (Size ${size}) যোগ হয়েছে!`);
+  newTr.scrollIntoView({behavior:'smooth',block:'center'});
+  newTr.style.boxShadow='0 0 0 3px #0891b2';
+  setTimeout(()=>newTr.style.boxShadow='',2000);
+  scheduleAutoSave();
+}
+
+// =========================================
+// 🗑️ DELETE CUSTOM ROW (FIXED — no more index-shift bug)
+// =========================================
+function deleteCustomRow(i){
+  if(!currentFloorData[i]?.isCustom){ showToast('❌ শুধু নতুন যোগ করা row মুছা যাবে'); return; }
+  if(!confirm(`⚠️ ${currentFloorData[i].itemCode} (Size ${currentFloorData[i].size}) মুছবেন?`)) return;
+
+  // ✅ আগে সব row-এর বর্তমান ভ্যালু OLD index অনুযায়ী capture করে নাও —
+  // এটাই আসল ফিক্স: delete করার আগে DOM থেকে প্রতিটি row-এর real value
+  // পুরনো index সহ snapshot নেওয়া হচ্ছে, যাতে splice করার পরে কোনো
+  // row-এর data অন্য row-এ shift হয়ে না যায়।
+  const oldVals = currentFloorData.map((_,idx) => ({
+    r: document.getElementById(`r${idx}`)?.value||'',
+    d: document.getElementById(`d${idx}`)?.value||'',
+    bn: document.getElementById(`bn${idx}`)?.value||'',
+    prev: document.getElementById(`p${idx}`)?.innerText||'0'
+  }));
+  const oldReqNo = {...rowReqNo};
+  const oldTrfOut = {...rowTransferOut};
+  const oldTrfIn = {...rowTransferIn};
+
+  oldVals.splice(i,1);
+  currentFloorData.splice(i,1);
+
+  // ✅ reqNo/transfer ম্যাপ re-index করো (i-এর পরের সব index এক ঘর কমাও)
+  rowReqNo = {}; rowTransferOut = {}; rowTransferIn = {};
+  Object.keys(oldReqNo).forEach(k=>{
+    const idx = Number(k);
+    if(idx < i) rowReqNo[idx] = oldReqNo[k];
+    else if(idx > i) rowReqNo[idx-1] = oldReqNo[k];
+  });
+  Object.keys(oldTrfOut).forEach(k=>{
+    const idx = Number(k);
+    if(idx < i) rowTransferOut[idx] = oldTrfOut[k];
+    else if(idx > i) rowTransferOut[idx-1] = oldTrfOut[k];
+  });
+  Object.keys(oldTrfIn).forEach(k=>{
+    const idx = Number(k);
+    if(idx < i) rowTransferIn[idx] = oldTrfIn[k];
+    else if(idx > i) rowTransferIn[idx-1] = oldTrfIn[k];
+  });
+
+  rebuildTableKeepingValues(oldVals);
+  showToast('✅ Row মুছা হয়েছে');
+  scheduleAutoSave();
+}
+
+function rebuildTableKeepingValues(providedVals){
+  // ✅ providedVals থাকলে সেটাই ব্যবহার করো (delete-এর পর সঠিক mapping),
+  // না থাকলে normal ভাবে বর্তমান DOM থেকে পড়ো
+  const vals = providedVals || currentFloorData.map((_,i) => ({
+    r: document.getElementById(`r${i}`)?.value||'',
+    d: document.getElementById(`d${i}`)?.value||'',
+    bn: document.getElementById(`bn${i}`)?.value||'',
+    prev: document.getElementById(`p${i}`)?.innerText||'0'
+  }));
+  const floor = document.getElementById('floor').value;
+  document.getElementById('bnHeader').innerText = floor.includes('_NEW') ? 'BNR' : 'BNF';
+  let html = '';
+  currentFloorData.forEach((item, i) => {
+    const v = vals[i]||{r:'',d:'',bn:'',prev:String(item.opening)};
+    const prev = Number(v.prev)||item.opening;
+    const rowClass = item.isCustom ? 'class="custom-row-indicator"' : '';
+    html += `
+      <tr id="row${i}" ${rowClass}>
+        <td>${i+1}${item.isCustom?'<br><span style="font-size:5px;color:#92400e">NEW</span>':''}</td>
+        <td>${item.itemCode}</td><td>${item.needleType}</td><td>${item.size}</td>
+        <td>${item.brand}</td>
+        <td style="text-align:right">${Number(item.unitPrice).toFixed(4)}</td>
+        <td id="p${i}">${prev}</td>
+        <td id="rcvdCell${i}">
+          <input class="qtyInput" type="number" id="r${i}" value="${v.r}" oninput="calc(${i})" onblur="checkReqNo(${i})" step="1" min="0">
+          <span class="req-tag" id="reqTag${i}">${rowReqNo[i]?'📋 '+rowReqNo[i]:''}</span>
+        </td>
+        <td id="dvldCell${i}">
+          <input class="qtyInput" type="number" id="d${i}" value="${v.d}" oninput="calc(${i})" step="1" min="0">
+          <span class="transfer-tag" id="trfOutTag${i}"></span>
+        </td>
+        <td id="b${i}" style="font-weight:bold">${prev + (Number(v.r)||0) - (Number(v.d)||0)}</td>
+        <td><input class="qtyInput" type="number" id="bn${i}" value="${v.bn}" oninput="updateTotal();scheduleAutoSave()" step="1" min="0"></td>
+        <td>
+          <button class="transferBtn" onclick="openTransferPopup(${i})">🔄 Trf</button>
+          <span class="transfer-tag" id="trfInTag${i}"></span>
+        </td>
+        <td>${item.isCustom
+          ? `<button class="del-row-btn" onclick="deleteCustomRow(${i})" title="মুছুন">✕</button>`
+          : '<span style="font-size:8px;color:#94a3b8">-</span>'}</td>
+      </tr>`;
+  });
+  document.getElementById('tableBody').innerHTML = html;
+  currentFloorData.forEach((_,i)=>{
+    if(rowTransferOut[i]) updateTransferOutTag(i);
+    if(rowTransferIn[i]) updateTransferInTag(i);
+  });
+  updateTotal();
+  checkNegativeStock();
+}
+
+// =========================================
+// 🧮 CALC & TOTAL
+// =========================================
+function calc(i){
+  const p = Number(document.getElementById(`p${i}`)?.innerText)||0;
+  const r = Number(document.getElementById(`r${i}`)?.value)||0;
+  const d = Number(document.getElementById(`d${i}`)?.value)||0;
+  const present = p + r - d;
+  document.getElementById(`b${i}`).innerText = present;
+  const row = document.getElementById(`row${i}`);
+  if(present<0) row.classList.add('negative-row');
+  else row.classList.remove('negative-row');
+  updateTotal();
+  checkNegativeStock();
+  scheduleAutoSave();
+}
+
+function updateTotal(){
+  let tp=0,tr=0,td=0,tb=0,tbn=0;
+  currentFloorData.forEach((_,i)=>{
+    tp += Number(document.getElementById(`p${i}`)?.innerText)||0;
+    tr += Number(document.getElementById(`r${i}`)?.value)||0;
+    td += Number(document.getElementById(`d${i}`)?.value)||0;
+    tb += Number(document.getElementById(`b${i}`)?.innerText)||0;
+    tbn += Number(document.getElementById(`bn${i}`)?.value)||0;
+  });
+  document.getElementById('totalPrevious').innerText = tp.toLocaleString();
+  document.getElementById('totalReceive').innerText = tr.toLocaleString();
+  document.getElementById('totalDelivery').innerText = td.toLocaleString();
+  document.getElementById('totalPresent').innerText = tb.toLocaleString();
+  document.getElementById('totalBN').innerText = tbn.toLocaleString();
+}
+
+// =========================================
+// ✅ REQUISITION POPUP
+// =========================================
+function checkReqNo(i){
+  const val = Number(document.getElementById(`r${i}`)?.value)||0;
+  if(val <= 0) return;
+  if(rowReqNo[i]) return;
+  if(floorReqNo){
+    rowReqNo[i] = floorReqNo;
+    const tag = document.getElementById(`reqTag${i}`);
+    if(tag) tag.textContent = '📋 '+floorReqNo;
+    scheduleAutoSave();
+    return;
+  }
+  pendingReqIndex = i;
+  pendingReqValue = val;
+  const item = currentFloorData[i];
+  document.getElementById('reqItemInfo').innerHTML =
+    `<b>${item.itemCode}</b> | ${item.needleType} | Size: ${item.size} | Rcvd Qty: <b>${val}</b><br>
+     <small style="color:#059669;font-weight:600">✅ এই নম্বর এই floor এর বাকি সব row-এও apply হবে</small>`;
+  document.getElementById('reqNoInput').value = '';
+  document.getElementById('reqPopup').style.display = 'flex';
+  setTimeout(()=>document.getElementById('reqNoInput').focus(), 100);
+}
+
+function confirmReqNo(){
+  const reqNo = document.getElementById('reqNoInput').value.trim();
+  if(!reqNo){ alert('❌ Requisition Number দিন!'); return; }
+  floorReqNo = reqNo;
+  rowReqNo[pendingReqIndex] = reqNo;
+  const tag = document.getElementById(`reqTag${pendingReqIndex}`);
+  if(tag) tag.textContent = '📋 '+reqNo;
+  currentFloorData.forEach((_,i)=>{
+    const val = Number(document.getElementById(`r${i}`)?.value)||0;
+    if(val > 0 && !rowReqNo[i]){
+      rowReqNo[i] = reqNo;
+      const t = document.getElementById(`reqTag${i}`);
+      if(t) t.textContent = '📋 '+reqNo;
+    }
+  });
+  updateFloorReqBanner();
+  document.getElementById('reqPopup').style.display = 'none';
+  pendingReqIndex = null; pendingReqValue = null;
+  showToast('✅ Req No saved!');
+  scheduleAutoSave();
+}
+
+function cancelReqPopup(){
+  if(pendingReqIndex !== null){
+    const inp = document.getElementById(`r${pendingReqIndex}`);
+    if(inp){ inp.value = ''; calc(pendingReqIndex); }
+  }
+  document.getElementById('reqPopup').style.display = 'none';
+  pendingReqIndex = null; pendingReqValue = null;
+}
+
+// =========================================
+// 🔄 TRANSFER POPUP
+// =========================================
+function openTransferPopup(i){
+  pendingTransferIndex = i;
+  const item = currentFloorData[i];
+  const floor = document.getElementById('floor').value;
+  const presentNow = Number(document.getElementById(`b${i}`)?.innerText)||0;
+  document.getElementById('transferItemInfo').innerHTML =
+    `<b>${item.itemCode}</b> | ${item.needleType} | Size ${item.size} | ${item.brand}<br>
+     Present Stock: <b style="color:${presentNow<0?'#dc2626':'#059669'}">${presentNow}</b>`;
+  const sel = document.getElementById('transferToFloor');
+  sel.innerHTML = '<option value="">-- To Floor নির্বাচন করুন --</option>';
+  Object.keys(floorData).filter(f=>f!==floor).forEach(f=>{
+    sel.innerHTML += `<option value="${f}">${f}</option>`;
+  });
+  document.getElementById('transferQty').value='';
+  document.getElementById('transferReceiverName').value='';
+  document.getElementById('transferReqNo').value='';
+  document.getElementById('transferPopup').style.display='flex';
+}
+
+function closeTransferPopup(){ document.getElementById('transferPopup').style.display='none'; pendingTransferIndex=null; }
+
+async function confirmTransfer(){
+  const i = pendingTransferIndex;
+  if(i===null) return;
+  const toFloor = document.getElementById('transferToFloor').value;
+  const qty = Number(document.getElementById('transferQty').value)||0;
+  const receiverName = document.getElementById('transferReceiverName').value.trim();
+  const reqNo = document.getElementById('transferReqNo').value.trim();
+  const fromFloor = document.getElementById('floor').value;
+  const date = document.getElementById('postDate').value;
+  const item = currentFloorData[i];
+  if(!toFloor){ alert('❌ To Floor নির্বাচন করুন!'); return; }
+  if(qty<=0){ alert('❌ Qty দিন!'); return; }
+  if(!receiverName){ alert('❌ Receiver Name দিন!'); return; }
+  if(!reqNo){ alert('❌ Requisition No. দিন!'); return; }
+  const presentNow = Number(document.getElementById(`b${i}`)?.innerText)||0;
+  if(qty > presentNow){
+    if(!confirm(`⚠️ Present Stock মাত্র ${presentNow}, আপনি ${qty} transfer করতে চান। Continue?`)) return;
+  }
+  showLoading('Transfer saving...');
+  closeTransferPopup();
+  const dEl = document.getElementById(`d${i}`);
+  const oldDvld = Number(dEl.value)||0;
+  dEl.value = oldDvld + qty;
+  calc(i);
+  if(!rowTransferOut[i]) rowTransferOut[i]=[];
+  rowTransferOut[i].push({toFloor, qty, receiverName, reqNo});
+  updateTransferOutTag(i);
+  if(navigator.onLine){
+    try{
+      const toItems = floorData[toFloor]||[];
+      const toFloorSaved = await loadFromSupabase(toFloor, date);
+      let toRows;
+      if(toFloorSaved && toFloorSaved.rows && toFloorSaved.rows.length){
+        toRows = JSON.parse(JSON.stringify(toFloorSaved.rows));
+      }else{
+        toRows = toItems.map(it=>({
+          sl:it[0],itemCode:it[1],needleType:it[2],size:it[3],
+          brand:it[4],unitPrice:it[5],opening:it[6],isCustom:false,
+          previous:it[6],receive:0,delivery:0,present:it[6],bn:0,
+          receiveReqNo:'',transferIn:[],transferOut:[]
+        }));
+      }
+      const toItemIdx = toRows.findIndex(r=>r.itemCode===item.itemCode && r.size===item.size);
+      if(toItemIdx>=0){
+        toRows[toItemIdx].receive=(Number(toRows[toItemIdx].receive)||0)+qty;
+        toRows[toItemIdx].present=(Number(toRows[toItemIdx].previous)||0)+(Number(toRows[toItemIdx].receive)||0)-(Number(toRows[toItemIdx].delivery)||0);
+        toRows[toItemIdx].receiveReqNo=reqNo;
+        if(!toRows[toItemIdx].transferIn) toRows[toItemIdx].transferIn=[];
+        toRows[toItemIdx].transferIn.push({fromFloor,qty,receiverName,reqNo,date});
+      }else{
+        showToast(`⚠️ To Floor তে ${item.itemCode} (Size ${item.size}) পাওয়া যায়নি`);
+      }
+      const toOperator = toFloorSaved?(toFloorSaved.operator||'Transfer'):'Transfer';
+      await saveToSupabase(toFloor, date, toOperator, toRows, false);
+    }catch(e){ console.error('Transfer to-floor update error:', e); }
+  }
+  hideLoading();
+  showToast(`✅ Transfer: ${qty} pcs ${item.itemCode} → ${toFloor.split('(')[0].trim()}`);
+}
+
+function updateTransferOutTag(i){
+  const tag = document.getElementById(`trfOutTag${i}`);
+  if(!tag||!rowTransferOut[i]||!rowTransferOut[i].length) return;
+  const last = rowTransferOut[i][rowTransferOut[i].length-1];
+  tag.textContent=`→${last.toFloor.split('(')[0].trim().substring(0,10)} (${last.qty})`;
+}
+function updateTransferInTag(i){
+  const tag = document.getElementById(`trfInTag${i}`);
+  if(!tag||!rowTransferIn[i]||!rowTransferIn[i].length) return;
+  const last = rowTransferIn[i][rowTransferIn[i].length-1];
+  tag.textContent=`←${last.fromFloor.split('(')[0].trim().substring(0,10)} (${last.qty})`;
+}
+
+// =========================================
+// 🚚 TRANSFER REPORT
+// =========================================
+function showTransferReport(){
+  const today=new Date().toISOString().slice(0,10);
+  const firstOfMonth=today.slice(0,8)+'01';
+  document.getElementById('rpFrom').value=firstOfMonth;
+  document.getElementById('rpTo').value=today;
+  document.getElementById('reportPopup').style.display='flex';
+  loadTransferReport();
+}
+function closeReportPopup(){ document.getElementById('reportPopup').style.display='none'; }
+
+async function loadTransferReport(){
+  const from=document.getElementById('rpFrom').value;
+  const to=document.getElementById('rpTo').value;
+  if(!from||!to){ alert('তারিখ দিন'); return; }
+  document.getElementById('reportBody2').innerHTML='<tr><td colspan="9" style="padding:10px;color:#64748b">Loading...</td></tr>';
+  let allTransfers=[];
+  if(navigator.onLine){
+    try{
+      const companyId=await getCompanyId();
+      if(companyId){
+        const {data,error}=await supabase.from('needle_reports').select('floor,report_date,rows').eq('company_id',companyId).gte('report_date',from).lte('report_date',to);
+        if(!error&&data){
+          data.forEach(rec=>{
+            if(rec.rows&&Array.isArray(rec.rows)){
+              rec.rows.forEach(row=>{
+                if(row.transferOut&&row.transferOut.length){
+                  row.transferOut.forEach(t=>{
+                    allTransfers.push({date:rec.report_date,fromFloor:rec.floor,toFloor:t.toFloor,itemCode:row.itemCode,needleType:row.needleType,size:row.size,qty:t.qty,receiverName:t.receiverName,reqNo:t.reqNo});
+                  });
+                }
+              });
+            }
+          });
+          allTransfers.sort((a,b)=>a.date.localeCompare(b.date));
+        }
+      }
+    }catch(e){ console.error(e); }
+  }
+  if(!allTransfers.length){
+    document.getElementById('reportBody2').innerHTML='<tr><td colspan="9" style="padding:10px;color:#94a3b8;text-align:center">এই period এ কোনো transfer নেই</td></tr>';
+    document.getElementById('reportGrandTotal').innerText='0';
+    document.getElementById('reportFooter').innerText='0 records found';
+    return;
+  }
+  let grandTotal=0,html='';
+  allTransfers.forEach(t=>{
+    const qty=Number(t.qty)||0; grandTotal+=qty;
+    html+=`<tr><td>${t.date}</td><td style="text-align:left;font-size:8px">${t.fromFloor.replace(/_NEW|_RUNNING/,'')}</td><td style="text-align:left;font-size:8px">${(t.toFloor||'').replace(/_NEW|_RUNNING/,'')}</td><td>${t.itemCode}</td><td style="font-size:8px">${t.needleType||''}</td><td>${t.size||''}</td><td><b>${qty}</b></td><td style="font-size:8px">${t.receiverName||''}</td><td style="font-size:8px">${t.reqNo||''}</td></tr>`;
+  });
+  document.getElementById('reportBody2').innerHTML=html;
+  document.getElementById('reportGrandTotal').innerText=grandTotal.toLocaleString();
+  document.getElementById('reportFooter').innerText=`${allTransfers.length} records | Total: ${grandTotal} pcs`;
+}
+
+// =========================================
+// 🔎 REQUISITION SEARCH
+// =========================================
+function showReqSearch(){
+  document.getElementById('reqSearchInput').value='';
+  document.getElementById('reqSearchBody').innerHTML='<tr><td colspan="8" style="padding:10px;color:#94a3b8;text-align:center">Requisition Number লিখে Search চাপুন</td></tr>';
+  document.getElementById('reqSearchGrandTotal').innerText='0';
+  document.getElementById('reqSearchPopup').style.display='flex';
+  setTimeout(()=>document.getElementById('reqSearchInput').focus(),100);
+}
+function closeReqSearchPopup(){ document.getElementById('reqSearchPopup').style.display='none'; }
+
+async function searchRequisition(){
+  const q=document.getElementById('reqSearchInput').value.trim();
+  if(!q){ alert('Requisition Number লিখুন'); return; }
+  if(!navigator.onLine){ showToast('Offline - Search করতে Online থাকতে হবে'); return; }
+  const tbody=document.getElementById('reqSearchBody');
+  tbody.innerHTML='<tr><td colspan="8" style="padding:10px;color:#64748b;text-align:center">Searching...</td></tr>';
+  document.getElementById('reqSearchGrandTotal').innerText='0';
+  document.getElementById('reqSearchFooter').innerText='Searching...';
+  try{
+    const companyId=await getCompanyId();
+    if(!companyId){ tbody.innerHTML='<tr><td colspan="8" style="color:red;padding:10px">Company error</td></tr>'; return; }
+    let allData=[]; let from=0; const pageSize=1000;
+    while(true){
+      const {data,error}=await supabase.from('needle_reports')
+        .select('floor,report_date,rows').eq('company_id',companyId)
+        .order('report_date',{ascending:false}).range(from,from+pageSize-1);
+      if(error){ tbody.innerHTML='<tr><td colspan="8" style="color:red;padding:10px">DB Error: '+error.message+'</td></tr>'; return; }
+      if(!data||data.length===0) break;
+      allData=allData.concat(data);
+      if(data.length<pageSize) break;
+      from+=pageSize;
+    }
+    const qLower=q.toLowerCase();
+    let results=[];
+    allData.forEach(rec=>{
+      if(!rec.rows||!Array.isArray(rec.rows)) return;
+      rec.rows.forEach(row=>{
+        if(row.receiveReqNo&&String(row.receiveReqNo).toLowerCase().includes(qLower)&&(Number(row.receive)||0)>0)
+          results.push({date:rec.report_date,floor:rec.floor,source:'Receive',itemCode:row.itemCode||'',needleType:row.needleType||'',size:row.size||'',qty:Number(row.receive)||0,detail:'Req:'+row.receiveReqNo});
+        (row.transferOut||[]).forEach(t=>{
+          if(t.reqNo&&String(t.reqNo).toLowerCase().includes(qLower))
+            results.push({date:rec.report_date,floor:rec.floor,source:'TrfOut->'+(t.toFloor||'').split('(')[0].trim().substring(0,10),itemCode:row.itemCode||'',needleType:row.needleType||'',size:row.size||'',qty:Number(t.qty)||0,detail:(t.receiverName||'-')});
+        });
+        (row.transferIn||[]).forEach(t=>{
+          if(t.reqNo&&String(t.reqNo).toLowerCase().includes(qLower))
+            results.push({date:rec.report_date,floor:rec.floor,source:'TrfIn<-'+(t.fromFloor||'').split('(')[0].trim().substring(0,10),itemCode:row.itemCode||'',needleType:row.needleType||'',size:row.size||'',qty:Number(t.qty)||0,detail:(t.receiverName||'-')});
+        });
+      });
+    });
+    results.sort((a,b)=>b.date.localeCompare(a.date));
+    if(!results.length){
+      tbody.innerHTML='<tr><td colspan="8" style="padding:14px;color:#94a3b8;text-align:center">No records found for "'+q+'" (searched '+allData.length+' reports)</td></tr>';
+      document.getElementById('reqSearchFooter').innerText='0 records found';
+      return;
+    }
+    let grandTotal=0,html='';
+    results.forEach(r=>{
+      const qty=Number(r.qty)||0; grandTotal+=qty;
+      html+='<tr><td>'+r.date+'</td><td style="text-align:left;font-size:8px">'+r.floor.replace(/(_NEW|_RUNNING)/g,'')+'</td><td style="font-size:8px">'+r.source+'</td><td>'+r.itemCode+'</td><td style="font-size:8px">'+r.needleType+'</td><td>'+r.size+'</td><td><b>'+qty+'</b></td><td style="font-size:8px">'+r.detail+'</td></tr>';
+    });
+    tbody.innerHTML=html;
+    document.getElementById('reqSearchGrandTotal').innerText=grandTotal.toLocaleString();
+    document.getElementById('reqSearchFooter').innerText=results.length+' records | Total: '+grandTotal+' pcs | Searched '+allData.length+' reports';
+  }catch(e){
+    console.error('searchRequisition error:',e);
+    tbody.innerHTML='<tr><td colspan="8" style="color:red;padding:10px">Error: '+e.message+'</td></tr>';
+  }
+}
+
+// =========================================
+// ⚠️ NEGATIVE STOCK
+// =========================================
+function checkNegativeStock(){
+  negativeRowIndex=-1;
+  for(let i=0;i<currentFloorData.length;i++){
+    const present=Number(document.getElementById(`b${i}`)?.innerText)||0;
+    const row=document.getElementById(`row${i}`);
+    if(present<0){
+      row&&row.classList.add('negative-row');
+      if(negativeRowIndex<0){ negativeRowIndex=i; showNegativeStockPopup(present); }
+    }else{
+      row&&row.classList.remove('negative-row');
+    }
+  }
+  if(negativeRowIndex<0) closeNegPopup();
+}
+
+function showNegativeStockPopup(present){
+  const floor=document.getElementById('floor').value;
+  const item=currentFloorData[negativeRowIndex];
+  document.getElementById('popupDetails').innerHTML=`
+    <div><span class="label">Floor:</span><span class="value">${floor.split('(')[0].trim()}</span></div>
+    <div><span class="label">Item Code:</span><span class="value">${item.itemCode}</span></div>
+    <div><span class="label">Type:</span><span class="value">${item.needleType} Size ${item.size}</span></div>
+    <div><span class="label">Present:</span><span class="value" style="color:#dc2626;font-weight:bold">${present}</span></div>`;
+  document.getElementById('negativePopup').style.display='flex';
+}
+function closeNegPopup(){ document.getElementById('negativePopup').style.display='none'; }
+function fixNegativeRow(){
+  if(negativeRowIndex>=0){
+    const row=document.getElementById(`row${negativeRowIndex}`);
+    if(row){ row.scrollIntoView({behavior:'smooth',block:'center'}); row.style.boxShadow='0 0 0 3px #dc2626'; setTimeout(()=>row.style.boxShadow='',2000); }
+    const d=document.getElementById(`d${negativeRowIndex}`);
+    if(d){ d.focus(); d.select(); }
+  }
+}
+
+// =========================================
+// 💾 BUILD ROWS FOR SAVE
+// =========================================
+function buildRows(){
+  return currentFloorData.map((item,i)=>({
+    sl:i+1, itemCode:item.itemCode, needleType:item.needleType, size:item.size,
+    brand:item.brand, unitPrice:item.unitPrice, opening:item.opening, isCustom:item.isCustom||false,
+    previous:Number(document.getElementById(`p${i}`)?.innerText)||0,
+    receive:Number(document.getElementById(`r${i}`)?.value)||0,
+    delivery:Number(document.getElementById(`d${i}`)?.value)||0,
+    present:Number(document.getElementById(`b${i}`)?.innerText)||0,
+    bn:Number(document.getElementById(`bn${i}`)?.value)||0,
+    receiveReqNo:rowReqNo[i]||'',
+    transferOut:rowTransferOut[i]||[],
+    transferIn:rowTransferIn[i]||[]
+  }));
+}
+
+// =========================================
+// 💾 MANUAL SAVE
+// =========================================
+async function saveData(){
+  const date=document.getElementById('postDate').value;
+  const floor=document.getElementById('floor').value;
+  const operator=document.getElementById('operatorName').value.trim()||localStorage.getItem('lastOperator')||'Unknown';
+  if(!date){ alert('❌ Date select করুন'); return; }
+  if(!floor){ alert('❌ Floor select করুন'); return; }
+  for(let i=0;i<currentFloorData.length;i++){
+    const r=Number(document.getElementById(`r${i}`)?.value)||0;
+    if(r>0&&!rowReqNo[i]){
+      if(floorReqNo){ rowReqNo[i]=floorReqNo; const t=document.getElementById(`reqTag${i}`); if(t) t.textContent='📋 '+floorReqNo; }
+      else{ alert(`❌ Row ${i+1} (${currentFloorData[i].itemCode}) এর Rcvd ${r} এর জন্য Requisition Number দিন!`); checkReqNo(i); return; }
+    }
+  }
+  const rows=buildRows();
+  localStorage.setItem('lastOperator', operator);
+  // ✅ ম্যানুয়াল Save করলেও আগে local এ guaranteed save করে রাখা হয়
+  saveOffline(floor, date, operator, rows, false);
+  if(navigator.onLine){
+    showLoading('Saving...');
+    const result=await saveToSupabase(floor, date, operator, rows);
+    hideLoading();
+    if(result.success){
+      // ✅ FIX: Save offline backup AND mark as synced
+      saveOffline(floor, date, operator, rows, true); // true = force synced
+      lastAutoSaveTime = Date.now();
+      isDirty = false;
+      updateLastSync(`☁️ Supabase এ Saved — ${new Date().toLocaleTimeString()}`);
+    }
+  }else{
+    showToast('📴 Offline — Local এ Save হয়েছে');
+    updateLastSync(`📴 Offline saved — ${new Date().toLocaleTimeString()}`);
+  }
+}
+
+// =========================================
+// ⚡ REAL-TIME AUTO-SAVE
+// =========================================
+function scheduleAutoSave(){
+  if(suppressAutoSave) return;
+  // ✅ NEW: প্রতিটা keystroke/change-এ dirty flag সেট হয় — data হারানো ঠেকানোর মূল চাবিকাঠি
+  isDirty = true;
+  clearTimeout(autoSaveTimer);
+  showAutoSaveStatus('⏳ Auto-saving...');
+  autoSaveTimer = setTimeout(autoSaveNow, 900);
+}
+
+async function autoSaveNow(){
+  if(autoSaveInFlight) { clearTimeout(autoSaveTimer); autoSaveTimer=setTimeout(autoSaveNow, 400); return; }
+  const date = document.getElementById('postDate').value;
+  const floor = document.getElementById('floor').value;
+  if(!date || !floor){ showAutoSaveStatus('⏸️ Date/Floor select করুন'); return; }
+
+  const operator = document.getElementById('operatorName').value.trim() || localStorage.getItem('lastOperator') || 'Unknown';
+  const rows = buildRows();
+  localStorage.setItem('lastOperator', operator);
+
+  // ✅ CRITICAL FIX: সবার আগে LOCAL (browser storage) এ save করে ফেলো —
+  // Requisition No থাকুক বা না থাকুক, Online থাকুক বা না থাকুক।
+  // এতে টাইপ করা কোনো ডাটা কখনো হারাবে না — ব্রাউজার বন্ধ/রিফ্রেশ/ক্র্যাশ হলেও
+  // local এ ঠিকই থেকে যাবে এবং পরে load করলে ফিরে পাওয়া যাবে।
+  try{ saveOffline(floor, date, operator, rows, false); }catch(e){ console.error('local save error', e); }
+
+  let blockedByReq = false;
+  for(let i=0;i<currentFloorData.length;i++){
+    const r = Number(document.getElementById(`r${i}`)?.value)||0;
+    if(r>0 && !rowReqNo[i]){
+      if(floorReqNo){
+        rowReqNo[i] = floorReqNo;
+        const t = document.getElementById(`reqTag${i}`); if(t) t.textContent = '📋 '+floorReqNo;
+      } else {
+        blockedByReq = true;
+      }
+    }
+  }
+  if(blockedByReq){
+    // ✅ Local এ data ইতিমধ্যে নিরাপদে save হয়ে গেছে (উপরে)।
+    // শুধু Cloud sync-টা Requisition No দেওয়া পর্যন্ত pending থাকবে — data হারাবে না।
+    showAutoSaveStatus('💾 Local এ Save হয়েছে | ⏸️ Requisition No দিলে Cloud এ sync হবে');
+    return;
+  }
+
+  // rowReqNo আপডেট হলে rows আবার fresh করে build করে নাও
+  const finalRows = buildRows();
+
+  autoSaveInFlight = true;
+  try{
+    if(navigator.onLine){
+      const result = await saveToSupabase(floor, date, operator, finalRows, false);
+      if(result.success){
+        showAutoSaveStatus('✅ Auto-saved — '+new Date().toLocaleTimeString());
+        // ✅ FIX: Mark as synced so beforeunload won't overwrite
+        saveOffline(floor, date, operator, finalRows, true);
+        lastAutoSaveTime = Date.now();
+        isDirty = false;
+      }else{
+        saveOffline(floor, date, operator, finalRows, false);
+        showAutoSaveStatus('📴 Local এ Saved (sync pending) — '+new Date().toLocaleTimeString());
+      }
+    }else{
+      saveOffline(floor, date, operator, finalRows, false);
+      showAutoSaveStatus('📴 Offline — Local এ Saved — '+new Date().toLocaleTimeString());
+    }
+  }catch(e){
+    console.error('autoSaveNow error:', e);
+    saveOffline(floor, date, operator, finalRows, false);
+    showAutoSaveStatus('⚠️ Save error — Local এ রাখা হয়েছে, ডাটা নিরাপদ');
+  }finally{
+    autoSaveInFlight = false;
+  }
+}
+
+// ✅ NEW: বর্তমানে load থাকা floor/date-এর জন্য কোনো unsaved (dirty) পরিবর্তন
+// থাকলে, floor/date পরিবর্তনের আগেই বাধ্যতামূলক ভাবে save করে দেওয়া হয়।
+// এটা ছাড়া floor পাল্টালে আগের floor-এ টাইপ করা শেষ মুহূর্তের পরিবর্তন
+// হারিয়ে যেতে পারতো (debounce timer শেষ হওয়ার আগেই user সুইচ করলে)।
+async function flushPendingSave(){
+  if(!isDirty || !activeFloor || !activePostDate) return;
+  clearTimeout(autoSaveTimer);
+  const operator = document.getElementById('operatorName').value.trim() || localStorage.getItem('lastOperator') || 'Unknown';
+  try{
+    const rows = buildRows();
+    saveOffline(activeFloor, activePostDate, operator, rows, false);
+    if(navigator.onLine){
+      const result = await saveToSupabase(activeFloor, activePostDate, operator, rows, false);
+      if(result.success){ saveOffline(activeFloor, activePostDate, operator, rows, true); lastAutoSaveTime = Date.now(); }
+    }
+    isDirty = false;
+  }catch(e){ console.error('flushPendingSave error:', e); }
+}
+
+function showAutoSaveStatus(msg){
+  const el = document.getElementById('lastSync');
+  if(el) el.textContent = msg;
+}
+
+// =========================================
+// ✅ MAIN loadData
+// =========================================
+async function loadData(){
+  const date=document.getElementById('postDate').value;
+  const floor=document.getElementById('floor').value;
+  suppressAutoSave = true;
+  if(!date||!floor){ loadTable({}, [], false, null); updateMonthlySummary([]); activeFloor=null; activePostDate=null; isDirty=false; suppressAutoSave=false; return; }
+  showLoading('Loading...');
+  rowReqNo={}; rowTransferOut={}; rowTransferIn={};
+  floorReqNo=null;
+  updateFloorReqBanner();
+  try{
+    let todayData=null, prevData=null, prevDateUsed=null;
+    if(navigator.onLine){
+      [todayData, prevData] = await Promise.all([loadFromSupabase(floor, date), findLastSavedBefore(floor, date)]);
+      if(prevData) prevDateUsed=prevData.report_date;
+    }else{
+      todayData=getOffline(floor, date);
+      showToast('📴 Offline — Local data দেখাচ্ছে');
+    }
+
+    // ✅ NEW: Cloud-এ data না থাকলেও local (offline) এ যদি এই floor+date-এর
+    // অসম্পূর্ণ/unsynced কোনো data পড়ে থাকে (যেমন reqNo না দেওয়ার কারণে
+    // আগে cloud-এ sync হতে পারেনি), সেটা যেন হারিয়ে না যায় — সেটাকেও
+    // todayData হিসেবে ব্যবহার করা হয়।
+    if(!todayData){
+      const localBackup = getOffline(floor, date);
+      if(localBackup && localBackup.rows && localBackup.rows.length){
+        todayData = { rows: localBackup.rows, operator: localBackup.operator };
+      }
+    }
+
+    const prevMap = prevData ? buildPrevMap(prevData.rows) : {};
+    const hasPrevData = !!(prevData && prevData.rows && prevData.rows.length > 0);
+    const baseKeys = new Set((floorData[floor]||[]).map(b => b[1]+'__'+b[3]));
+
+    const customRowMap = {};
+
+    if(prevData && prevData.rows){
+      prevData.rows.forEach(r=>{
+        const key = r.itemCode+'__'+r.size;
+        if(!baseKeys.has(key)){
+          customRowMap[key] = {
+            itemCode: r.itemCode,
+            needleType: r.needleType||'',
+            size: r.size,
+            brand: r.brand||'',
+            unitPrice: r.unitPrice||0,
+            opening: Number(r.present)||0,
+            isCustom: true
+          };
+        }
+      });
+    }
+
+    if(todayData && todayData.rows){
+      todayData.rows.forEach(r=>{
+        const key = r.itemCode+'__'+r.size;
+        if(!baseKeys.has(key)){
+          // ✅ BUG FIX: আগে ছিল Number(r.previous)||Number(r.present)||0
+          // সমস্যা: r.previous যদি সত্যিকারের 0 হয়, তাহলে JS 0 কে falsy ধরে
+          // পরের fallback (r.present) ব্যবহার করে ফেলতো, ফলে Opening 0 এর বদলে
+          // ভুলভাবে Present-এর ভ্যালু (যেমন 20) দেখাতো।
+          customRowMap[key] = {
+            itemCode: r.itemCode,
+            needleType: r.needleType||'',
+            size: r.size,
+            brand: r.brand||'',
+            unitPrice: r.unitPrice||0,
+            opening: (r.previous!==undefined && r.previous!==null) ? Number(r.previous) : (Number(r.present)||0),
+            isCustom: true
+          };
+        }
+      });
+    }
+
+    const allCustomRows = Object.values(customRowMap);
+    loadTable(prevMap, allCustomRows, hasPrevData, prevDateUsed);
+
+    if(todayData && todayData.rows && todayData.rows.length > 0){
+      todayData.rows.forEach(row=>{
+        const idx = currentFloorData.findIndex(r=>r.itemCode===row.itemCode && r.size===row.size);
+        if(idx<0) return;
+        const rEl=document.getElementById('r'+idx), dEl=document.getElementById('d'+idx), bnEl=document.getElementById('bn'+idx);
+        if(rEl) rEl.value=row.receive||'';
+        if(dEl) dEl.value=row.delivery||'';
+        if(bnEl) bnEl.value=row.bn||'';
+        const p=Number(document.getElementById(`p${idx}`)?.innerText)||0;
+        const rr=Number(rEl?.value)||0, dd=Number(dEl?.value)||0;
+        const presentEl=document.getElementById(`b${idx}`);
+        if(presentEl) presentEl.innerText = p+rr-dd;
+        if(row.receiveReqNo){ rowReqNo[idx]=row.receiveReqNo; const tag=document.getElementById('reqTag'+idx); if(tag) tag.textContent='📋 '+row.receiveReqNo; if(!floorReqNo) floorReqNo=row.receiveReqNo; }
+        if(row.transferOut&&row.transferOut.length){ rowTransferOut[idx]=row.transferOut; updateTransferOutTag(idx); }
+        if(row.transferIn&&row.transferIn.length){ rowTransferIn[idx]=row.transferIn; updateTransferInTag(idx); }
+      });
+      updateFloorReqBanner();
+      updateTotal();
+      checkNegativeStock();
+      if(todayData.operator) document.getElementById('operatorName').value=todayData.operator;
+      updateMonthlySummary(todayData.rows);
+      updateLastSync('☁️ Loaded | Prev: '+(prevDateUsed||'opening')+' | '+new Date().toLocaleTimeString());
+    }else{
+      updateMonthlySummary([]);
+      if(hasPrevData){ updateLastSync('⏪ '+prevDateUsed+' থেকে carry — '+new Date().toLocaleTimeString()); showToast('⏪ '+prevDateUsed+' তারিখ থেকে stock carry হয়েছে!'); }
+      else{ updateLastSync('📋 Opening stock — '+new Date().toLocaleTimeString()); showToast('📋 Opening stock দেখাচ্ছে'); }
+    }
+    // ✅ এই floor+date এখন "active" — flushPendingSave() ভবিষ্যতে দরকার হলে এটাই ব্যবহার করবে
+    activeFloor = floor;
+    activePostDate = date;
+    isDirty = false;
+  }catch(e){
+    console.error('loadData error:', e);
+    loadTable({}, [], false, null);
+    showToast('❌ Load error: '+e.message);
+  }
+  hideLoading();
+  suppressAutoSave = false;
+}
+
+async function manualRefresh(){
+  await flushPendingSave();
+  showLoading('Refreshing...');
+  if(navigator.onLine) await syncOfflineData();
+  await loadData();
+  showToast('🔄 Refreshed!');
+}
+
+// =========================================
+// 🔄 SYNC OFFLINE DATA (COMPLETELY FIXED)
+// =========================================
+async function syncOfflineData(){
+  try{
+    const data=JSON.parse(localStorage.getItem(OFFLINE_KEY)||'{}');
+    const keys=Object.keys(data);
+    let synced=0;
+    const companyId = await getCompanyId();
+    if(!companyId) return;
+
+    for(const key of keys){
+      const [floor,date]=key.split('__');
+      const entry=data[key];
+      
+      // ✅ FIX: Skip if already synced
+      if(!entry || entry.synced) continue;
+
+      // ✅ NEW: এই local entry-তে যদি এমন কোনো row থাকে যার Rcvd>0 কিন্তু
+      // Requisition No এখনো ফাঁকা, তাহলে Cloud sync স্কিপ করা হয় (কারণ ব্যবসায়িক
+      // নিয়ম অনুযায়ী Req No বাধ্যতামূলক) — কিন্তু ডাটা local এ ঠিকই সংরক্ষিত থাকে,
+      // হারায় না। User পরে Req No দিলে এটা নিজে থেকেই sync হয়ে যাবে।
+      const hasMissingReq = (entry.rows||[]).some(r => (Number(r.receive)||0) > 0 && !r.receiveReqNo);
+      if(hasMissingReq) continue;
+      
+      try {
+        // ✅ FIX: Check if Supabase has newer data
+        const {data: existing} = await supabase.from('needle_reports')
+          .select('updated_at')
+          .eq('company_id', companyId)
+          .eq('floor', floor)
+          .eq('report_date', date)
+          .maybeSingle();
+        
+        if(existing && existing.updated_at){
+          const supabaseTime = new Date(existing.updated_at).getTime();
+          const localTime = new Date(entry.savedAt).getTime();
+          
+          // ✅ If Supabase is newer, DON'T overwrite - just mark local as synced
+          if(supabaseTime > localTime){
+            console.log(`[Sync] Skipping ${floor} ${date} - Supabase is newer`);
+            data[key].synced = true;
+            continue;
+          }
+        }
+        
+        // ✅ Only upload if local is newer or Supabase has no data
+        const result = await saveToSupabase(floor, date, entry.operator, entry.rows, false);
+        if(result.success){ 
+          data[key].synced = true;
+          synced++; 
+        }
+      } catch(e) { 
+        console.error('Sync error for', key, e); 
+      }
+    }
+    
+    if(Object.keys(data).length > 0){
+      localStorage.setItem(OFFLINE_KEY, JSON.stringify(data));
+    }
+    
+    // ✅ No annoying popup - just silent status update
+    if(synced > 0) {
+        updateLastSync(`☁️ ${synced}টি offline data sync হয়েছে — ${new Date().toLocaleTimeString()}`);
+    }
+  }catch(e){ console.error('syncOfflineData error', e); }
+}
+
+// ✅ BUG FIX: আগে ছিল শুধু `function onFloorChange(){ loadData(); }`
+// সমস্যা: page load হওয়ার পর 2 সেকেন্ড ধরে background-এ syncOfflineData()
+// চলে (init() এ setTimeout দেখুন)। কেউ যদি সেই 2 সেকেন্ডের মধ্যেই Floor
+// select করে ফেলে, তাহলে loadData() সরাসরি Supabase থেকে data আনে —
+// আর local এ পড়ে থাকা unsynced (এখনো push না হওয়া) data উপেক্ষা হয়ে যায়।
+// ফলে "save করা data মাঝে মাঝে পাওয়া যাচ্ছে না" এমন মনে হয়।
+// Fix: Floor change করার সময় আগে flushPendingSave() + sync শেষ হতে দেওয়া, তারপর loadData().
+async function onFloorChange(){
+  await flushPendingSave();
+  if(navigator.onLine){
+    try{ await syncOfflineData(); }catch(e){}
+  }
+  await loadData();
+}
+
+async function deleteData(){
+  const date=document.getElementById('postDate').value;
+  const floor=document.getElementById('floor').value;
+  if(!date){ alert('❌ Date select করুন'); return; }
+  if(!confirm('⚠️ এই তারিখের ডাটা delete করবেন?')) return;
+  try{
+    const data=JSON.parse(localStorage.getItem(OFFLINE_KEY)||'{}');
+    delete data[`${floor}__${date}`];
+    localStorage.setItem(OFFLINE_KEY,JSON.stringify(data));
+  }catch(e){}
+  if(navigator.onLine){
+    const companyId=await getCompanyId();
+    if(companyId){
+      const {error}=await supabase.from('needle_reports').delete().eq('company_id',companyId).eq('floor',floor).eq('report_date',date);
+      if(error){ alert('❌ Delete failed: '+error.message); return; }
+    }
+  }
+  isDirty = false;
+  showToast('✅ Deleted');
+  loadData();
+}
+
+// =========================================
+// 📅 MONTHLY SUMMARY
+// =========================================
+function updateMonthlySummary(rows){
+  let o=0,r=0,d=0,p=0,bn=0;
+  rows.forEach(row=>{ o+=Number(row.opening)||0; r+=Number(row.receive)||0; d+=Number(row.delivery)||0; p+=Number(row.present)||0; bn+=Number(row.bn)||0; });
+  document.getElementById('monthOpening').innerText=o.toLocaleString();
+  document.getElementById('monthReceive').innerText=r.toLocaleString();
+  document.getElementById('monthDelivery').innerText=d.toLocaleString();
+  document.getElementById('monthPresent').innerText=p.toLocaleString();
+  document.getElementById('monthBN').innerText=bn.toLocaleString();
+}
+
+// =========================================
+// 📊 SINGLE FLOOR EXCEL EXPORT (styled letterhead)
+// =========================================
+function exportExcel(){
+  const floor=document.getElementById('floor').value;
+  const date=document.getElementById('postDate').value;
+  const operator=document.getElementById('operatorName').value||'-';
+  const category = floor.includes('_NEW') ? 'NEW' : (floor.includes('_RUNNING') ? 'RUNNING' : '-');
+
+  let html = `
+  <html><head><meta charset="UTF-8">
+  <!--[if gte mso 9]><xml>
+    <x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+      <x:Name>${(floor||'Sheet1').split('(')[0].trim().substring(0,28)}</x:Name>
+      <x:WorksheetOptions>
+        <x:PageSetup>
+          <x:Layout x:Orientation="Landscape"/>
+          <x:Header x:Margin="0.2"/>
+          <x:Footer x:Margin="0.2"/>
+          <x:PageMargins x:Bottom="0.3" x:Left="0.2" x:Right="0.2" x:Top="0.3"/>
+        </x:PageSetup>
+        <x:FitToPage/>
+        <x:Print>
+          <x:FitWidth>1</x:FitWidth>
+          <x:FitHeight>0</x:FitHeight>
+          <x:ValidPrinterInfo/>
+        </x:Print>
+        <x:Selected/>
+        <x:DoNotDisplayGridlines/>
+      </x:WorksheetOptions>
+    </x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook>
+  </xml><![endif]-->
+  </head><body>
+  <table border="1" style="border-collapse:collapse;font-family:Arial,sans-serif">
+    <tr>
+      <td colspan="8" rowspan="2" style="text-align:center;font-size:18px;font-weight:bold;padding:8px;border:none;text-decoration:underline;vertical-align:middle">${COMPANY_NAME}<br>
+        <span style="font-size:12px;font-weight:normal;font-style:italic;text-decoration:none">${COMPANY_ADDRESS}</span></td>
+      <td colspan="5" rowspan="2" style="text-align:center;font-size:10px;font-weight:bold;padding:6px;border:2px solid #2563eb;background:#eff6ff;vertical-align:middle">
+        DOCUMENT NO : ${DOCUMENT_NO}<br>VERSION NO : ${VERSION_NO}
+      </td>
+    </tr>
+    <tr></tr>
+    <tr>
+      <td colspan="8" style="text-align:center;font-size:12px;padding:2px 2px 6px;border:none;border-bottom:2px solid #d97706">${COMPANY_DEPT}</td>
+      <td colspan="5" style="border:none;border-bottom:2px solid #d97706"></td>
+    </tr>
+    <tr><td colspan="13" style="text-align:center;font-size:14px;font-weight:bold;padding:6px;border:none">${REPORT_TITLE}</td></tr>
+    <tr><td colspan="13" style="text-align:left;font-size:11px;padding:4px;border:none;color:#1e3a8a">
+      Floor: ${floor} &nbsp;|&nbsp; Date: ${date} &nbsp;|&nbsp; Category: ${category} &nbsp;|&nbsp; Operator: ${operator}
+    </td></tr>
+    <tr><td colspan="13" style="border:none;padding:2px"></td></tr>
+    <tr style="background:#1e293b;color:#ffffff;font-weight:bold">
+      <th style="border:1px solid #000;padding:4px">SL</th>
+      <th style="border:1px solid #000;padding:4px">CODE</th>
+      <th style="border:1px solid #000;padding:4px">TYPE</th>
+      <th style="border:1px solid #000;padding:4px">SIZE</th>
+      <th style="border:1px solid #000;padding:4px">BRAND</th>
+      <th style="border:1px solid #000;padding:4px">UNIT PRICE</th>
+      <th style="border:1px solid #000;padding:4px">PREVIOUS</th>
+      <th style="border:1px solid #000;padding:4px">RECEIVED</th>
+      <th style="border:1px solid #000;padding:4px">REQ NO</th>
+      <th style="border:1px solid #000;padding:4px">DELIVERY</th>
+      <th style="border:1px solid #000;padding:4px;background:#d97706;color:#000">PRESENT BALANCE</th>
+      <th style="border:1px solid #000;padding:4px">BNR/BNF</th>
+      <th style="border:1px solid #000;padding:4px">CUSTOM</th>
+    </tr>`;
+
+  currentFloorData.forEach((item,i)=>{
+    const rowBg = i%2===0 ? '#ffffff' : '#f1f5f9';
+    const customBg = item.isCustom ? '#fef3c7' : rowBg;
+    html+=`<tr style="background:${customBg}">
+    <td style="border:1px solid #000;padding:3px;text-align:center">${i+1}</td>
+    <td style="border:1px solid #000;padding:3px;text-align:center">${item.itemCode}</td>
+    <td style="border:1px solid #000;padding:3px;text-align:center">${item.needleType}</td>
+    <td style="border:1px solid #000;padding:3px;text-align:center">${item.size}</td>
+    <td style="border:1px solid #000;padding:3px;text-align:center">${item.brand}</td>
+    <td style="border:1px solid #000;padding:3px;text-align:right">${Number(item.unitPrice).toFixed(4)}</td>
+    <td style="border:1px solid #000;padding:3px;text-align:center">${document.getElementById(`p${i}`).innerText}</td>
+    <td style="border:1px solid #000;padding:3px;text-align:center">${document.getElementById(`r${i}`).value||0}</td>
+    <td style="border:1px solid #000;padding:3px;text-align:center">${rowReqNo[i]||''}</td>
+    <td style="border:1px solid #000;padding:3px;text-align:center">${document.getElementById(`d${i}`).value||0}</td>
+    <td style="border:1px solid #000;padding:3px;text-align:center;font-weight:bold;background:#fff7ed">${document.getElementById(`b${i}`).innerText}</td>
+    <td style="border:1px solid #000;padding:3px;text-align:center">${document.getElementById(`bn${i}`).value||0}</td>
+    <td style="border:1px solid #000;padding:3px;text-align:center">${item.isCustom?'YES':''}</td></tr>`;
+  });
+
+  html+=`<tr style="background:#334155;color:#ffffff;font-weight:bold">
+  <td colspan="6" style="border:1px solid #000;padding:4px;text-align:right">TOTAL:</td>
+  <td style="border:1px solid #000;padding:4px;text-align:center">${document.getElementById('totalPrevious').innerText}</td>
+  <td style="border:1px solid #000;padding:4px;text-align:center">${document.getElementById('totalReceive').innerText}</td>
+  <td style="border:1px solid #000;padding:4px"></td>
+  <td style="border:1px solid #000;padding:4px;text-align:center">${document.getElementById('totalDelivery').innerText}</td>
+  <td style="border:1px solid #000;padding:4px;text-align:center">${document.getElementById('totalPresent').innerText}</td>
+  <td style="border:1px solid #000;padding:4px;text-align:center">${document.getElementById('totalBN').innerText}</td>
+  <td style="border:1px solid #000;padding:4px"></td></tr>`;
+
+  // ✅ NEW: Prepared By / Checked By / Authorised By — signature footer
+  // (blank spacer rows first, matching the space shown in the reference screenshot,
+  //  then a signature line row, then the label row — all colspans add up to 13
+  //  columns so it always fits the sheet width even if some columns are later
+  //  hidden/deleted in Excel).
+  html+=`
+  <tr><td colspan="13" style="border:none;padding:10px 2px 2px"></td></tr>
+  <tr><td colspan="13" style="border:none;padding:0"></td></tr>
+  <tr><td colspan="13" style="border:none;padding:0"></td></tr>
+  <tr><td colspan="13" style="border:none;padding:0"></td></tr>
+  <tr><td colspan="13" style="border:none;padding:0"></td></tr>
+  <tr>
+    <td colspan="4" style="border:none;border-top:1.5px solid #000;padding:2px"></td>
+    <td style="border:none"></td>
+    <td colspan="4" style="border:none;border-top:1.5px solid #000;padding:2px"></td>
+    <td style="border:none"></td>
+    <td colspan="3" style="border:none;border-top:1.5px solid #000;padding:2px"></td>
+  </tr>
+  <tr>
+    <td colspan="4" style="border:none;text-align:center;font-weight:bold;font-size:11px;padding:2px">PREPARED BY</td>
+    <td style="border:none"></td>
+    <td colspan="4" style="border:none;text-align:center;font-weight:bold;font-size:11px;padding:2px">CHECKED BY</td>
+    <td style="border:none"></td>
+    <td colspan="3" style="border:none;text-align:center;font-weight:bold;font-size:11px;padding:2px">AUTHORISED BY</td>
+  </tr>
+  </table></body></html>`;
+
+  const blob=new Blob([html],{type:'application/vnd.ms-excel'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`GMS-Needle-PresentBalance-${floor.split('(')[0].trim()}-${date}.xls`; a.click();
+  showToast('✅ Excel exported');
+}
+
+function exportPDF(){ window.print(); }
+
+// =========================================
+// 📥 ALL FLOORS EXCEL — POPUP
+// =========================================
+function openAllExcelPopup(){
+  const currentDate = document.getElementById('postDate').value;
+  document.getElementById('allExcelDate').value = currentDate || new Date().toISOString().slice(0,10);
+  document.getElementById('allExcelProgressWrap').style.display='none';
+  document.getElementById('allExcelDownloadBtn').disabled=false;
+  document.getElementById('allExcelDownloadBtn').textContent='📥 Download All Floors Excel';
+  document.getElementById('allExcelFloorStatus').innerHTML='';
+  document.getElementById('allExcelPopup').style.display='flex';
+}
+function closeAllExcelPopup(){ document.getElementById('allExcelPopup').style.display='none'; }
+
+// =========================================
+// 🎨 ExcelJS STYLE HELPERS (smart / professional look)
+// =========================================
+const XLSX_COLORS = {
+  navy:    'FF1E293B',
+  navyDk:  'FF0F172A',
+  slate:   'FF334155',
+  gold:    'FFF59E0B',
+  goldDk:  'FFD97706',
+  green:   'FF059669',
+  greenLt: 'FFD1FAE5',
+  orangeLt:'FFFEF3C7',
+  grayLt:  'FFF1F5F9',
+  white:   'FFFFFFFF',
+  black:   'FF000000',
+  red:     'FFDC2626'
+};
+
+// Apply the same border to every individual cell inside a range (not just the merge's
+// top-left/master cell). Some spreadsheet viewers (e.g. Google Sheets) only render a
+// border correctly across a merged region if every cell in that region carries it —
+// relying on just the master cell can make the line look broken/crooked.
+function applyBorderToRange(ws, r1, c1, r2, c2, border){
+  for(let r=r1; r<=r2; r++){
+    for(let c=c1; c<=c2; c++){
+      ws.getCell(r,c).border = border;
+    }
+  }
+}
+
+function styleLetterheadSheet(ws, colCount, floorLine, category, operator, dataSource){
+  // Layout (left → right, rows 1-2):
+  //   [ COMPANY NAME / ADDRESS ]  [ DOCUMENT NO / VERSION NO BOX ]
+  const boxCols = colCount >= 12 ? 6 : 5;
+  const boxStart = Math.max(2, colCount - boxCols + 1);   // doc box start col
+  const leftEnd = boxStart - 1;                            // company text end col
+
+  ws.mergeCells(1,1,1,leftEnd);
+  ws.getCell(1,1).value = COMPANY_NAME;
+  ws.getCell(1,1).font = { name:'Calibri', size:18, bold:true, underline:true, color:{argb:XLSX_COLORS.navyDk} };
+  ws.getCell(1,1).alignment = { horizontal:'center', vertical:'middle' };
+  ws.getRow(1).height = 26;
+
+  ws.mergeCells(2,1,2,leftEnd);
+  ws.getCell(2,1).value = COMPANY_ADDRESS;
+  ws.getCell(2,1).font = { name:'Calibri', size:11, italic:true, color:{argb:XLSX_COLORS.slate} };
+  ws.getCell(2,1).alignment = { horizontal:'center' };
+  ws.getRow(2).height = 16;
+
+  // 📋 Document control box — DOCUMENT NO / VERSION NO — top-right corner, rows 1-2
+  ws.mergeCells(1, boxStart, 2, colCount);
+  const docBox = ws.getCell(1, boxStart);
+  docBox.value = `DOCUMENT NO : ${DOCUMENT_NO}\nVERSION NO : ${VERSION_NO}`;
+  docBox.font = { name:'Calibri', size:10, bold:true, color:{argb:XLSX_COLORS.navyDk} };
+  docBox.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+  docBox.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFEFF6FF'} };
+  applyBorderToRange(ws, 1, boxStart, 2, colCount, {
+    top:{style:'medium',color:{argb:'FF2563EB'}}, left:{style:'medium',color:{argb:'FF2563EB'}},
+    bottom:{style:'medium',color:{argb:'FF2563EB'}}, right:{style:'medium',color:{argb:'FF2563EB'}}
+  });
+
+  ws.mergeCells(3,1,3,leftEnd);
+  ws.getCell(3,1).value = COMPANY_DEPT;
+  ws.getCell(3,1).font = { name:'Calibri', size:11, bold:true, color:{argb:XLSX_COLORS.slate} };
+  ws.getCell(3,1).alignment = { horizontal:'center' };
+
+  // Keep the doc-box column area visually clean under itself on row 3 (no stray text)
+  ws.mergeCells(3, boxStart, 3, colCount);
+  ws.getCell(3, boxStart).value = '';
+
+  // 🎯 A single, clean, perfectly straight divider line under the whole letterhead
+  // block (company name + doc box), drawn cell-by-cell so it never looks crooked.
+  applyBorderToRange(ws, 3, 1, 3, colCount, {
+    bottom:{style:'medium',color:{argb:'FFD97706'}}
+  });
+
+  ws.mergeCells(4,1,4,colCount);
+  ws.getCell(4,1).value = REPORT_TITLE;
+  ws.getCell(4,1).font = { name:'Calibri', size:14, bold:true, color:{argb:XLSX_COLORS.white} };
+  ws.getCell(4,1).alignment = { horizontal:'center', vertical:'middle' };
+  ws.getCell(4,1).fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_COLORS.navy} };
+  ws.getRow(4).height = 22;
+
+  ws.mergeCells(5,1,5,colCount);
+  ws.getCell(5,1).value = floorLine + (category?`   |   Category: ${category}`:'') + `   |   Operator: ${operator}` + (dataSource?`   |   Source: ${dataSource}`:'');
+  ws.getCell(5,1).font = { name:'Calibri', size:10.5, bold:true, color:{argb:'FF1E3A8A'} };
+  ws.getCell(5,1).alignment = { horizontal:'left' };
+  ws.getCell(5,1).fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_COLORS.grayLt} };
+
+  // blank spacer row
+}
+
+function styleHeaderRow(row, boldWhite=true){
+  row.eachCell(cell=>{
+    cell.font = { name:'Calibri', size:10.5, bold:true, color:{argb:XLSX_COLORS.white} };
+    cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_COLORS.navy} };
+    cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+    cell.border = {
+      top:{style:'thin',color:{argb:XLSX_COLORS.black}}, left:{style:'thin',color:{argb:XLSX_COLORS.black}},
+      bottom:{style:'thin',color:{argb:XLSX_COLORS.black}}, right:{style:'thin',color:{argb:XLSX_COLORS.black}}
+    };
+  });
+  row.height = 20;
+}
+
+function styleDataRow(row, {zebra=false, custom=false, presentColIdx=null} = {}){
+  row.eachCell((cell, colNumber)=>{
+    cell.border = {
+      top:{style:'thin',color:{argb:'FFBBBBBB'}}, left:{style:'thin',color:{argb:'FFBBBBBB'}},
+      bottom:{style:'thin',color:{argb:'FFBBBBBB'}}, right:{style:'thin',color:{argb:'FFBBBBBB'}}
+    };
+    cell.alignment = { horizontal:'center', vertical:'middle' };
+    cell.font = { name:'Calibri', size:10 };
+    if(custom){
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_COLORS.orangeLt} };
+    }else if(zebra){
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_COLORS.grayLt} };
+    }
+    if(presentColIdx && colNumber===presentColIdx){
+      cell.font = { name:'Calibri', size:10, bold:true, color:{argb:'FF92400E'} };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFFFF3D6'} };
+    }
+  });
+}
+
+function styleTotalRow(row){
+  row.eachCell(cell=>{
+    cell.font = { name:'Calibri', size:10.5, bold:true, color:{argb:XLSX_COLORS.white} };
+    cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:XLSX_COLORS.slate} };
+    cell.alignment = { horizontal:'center', vertical:'middle' };
+    cell.border = {
+      top:{style:'double',color:{argb:XLSX_COLORS.black}}, left:{style:'thin',color:{argb:XLSX_COLORS.black}},
+      bottom:{style:'thin',color:{argb:XLSX_COLORS.black}}, right:{style:'thin',color:{argb:XLSX_COLORS.black}}
+    };
+  });
+  row.height = 20;
+}
+
+// ✅ NEW: Prepared By / Checked By / Authorised By signature footer for ExcelJS sheets.
+// Leaves real signing space (blank rows) above a clean signature line, then centers
+// the three labels underneath — matching the reference layout, and automatically
+// adapts to however many columns the sheet has (so it stays centered/fit even if
+// columns are later hidden or deleted in Excel).
+function addSignatureFooter(ws, colCount){
+  // spacer rows — actual room for a pen signature (matches the gap in the reference sheet)
+  for(let i=0;i<5;i++) ws.addRow([]);
+
+  const gap = 1;
+  const usable = colCount - gap*2;
+  const seg1 = Math.max(2, Math.ceil(usable/3));
+  const seg3 = Math.max(2, Math.ceil((usable-seg1)/2));
+  const seg2 = Math.max(2, usable - seg1 - seg3);
+
+  const seg1Start = 1, seg1End = seg1;
+  const seg2Start = seg1End + gap + 1, seg2End = seg2Start + seg2 - 1;
+  const seg3Start = seg2End + gap + 1, seg3End = Math.max(seg3Start, colCount);
+
+  const lineRow = ws.addRow([]);
+  applyBorderToRange(ws, lineRow.number, seg1Start, lineRow.number, seg1End, {top:{style:'medium',color:{argb:XLSX_COLORS.black}}});
+  applyBorderToRange(ws, lineRow.number, seg2Start, lineRow.number, seg2End, {top:{style:'medium',color:{argb:XLSX_COLORS.black}}});
+  applyBorderToRange(ws, lineRow.number, seg3Start, lineRow.number, seg3End, {top:{style:'medium',color:{argb:XLSX_COLORS.black}}});
+
+  const labelRow = ws.addRow([]);
+  labelRow.height = 18;
+  const labels = [
+    {s:seg1Start, e:seg1End, text:'PREPARED BY'},
+    {s:seg2Start, e:seg2End, text:'CHECKED BY'},
+    {s:seg3Start, e:seg3End, text:'AUTHORISED BY'}
+  ];
+  labels.forEach(({s,e,text})=>{
+    if(e>s) ws.mergeCells(labelRow.number, s, labelRow.number, e);
+    const cell = ws.getCell(labelRow.number, s);
+    cell.value = text;
+    cell.font = { name:'Calibri', size:10.5, bold:true, color:{argb:XLSX_COLORS.navyDk} };
+    cell.alignment = { horizontal:'center' };
+  });
+}
+
+// ✅ NEW: Fit-to-page print setup so the sheet always prints/fits on one page width,
+// even after columns get hidden or deleted in Excel later.
+function applyPrintPageSetup(ws){
+  ws.pageSetup = {
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    margins: { left:0.25, right:0.25, top:0.3, bottom:0.3, header:0.1, footer:0.1 },
+    horizontalCentered: true
+  };
+}
+
+async function loadExcelJS(){
+  if(typeof ExcelJS !== 'undefined') return;
+  showToast('📦 Excel engine loading...');
+  await new Promise((resolve, reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+    s.onload=resolve; s.onerror=()=>reject(new Error('ExcelJS load failed'));
+    document.head.appendChild(s);
+  });
+}
+
+async function downloadWorkbook(wb, fileName){
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {type:'application/octet-stream'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fileName; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+
+// =========================================
+// 📥 ALL FLOORS EXCEL — MAIN EXPORT (ExcelJS, styled, letterhead)
+// =========================================
+async function exportAllFloorsExcel(){
+  const date = document.getElementById('allExcelDate').value;
+  if(!date){ alert('❌ Date নির্বাচন করুন!'); return; }
+  if(!navigator.onLine){ alert('❌ Internet connection দরকার!'); return; }
+
+  await loadExcelJS();
+
+  const btn = document.getElementById('allExcelDownloadBtn');
+  btn.disabled=true; btn.textContent='⏳ Loading...';
+  document.getElementById('allExcelProgressWrap').style.display='block';
+  const statusDiv = document.getElementById('allExcelFloorStatus');
+  const progressFill = document.getElementById('allExcelProgressFill');
+  const progressLabel = document.getElementById('allExcelProgressLabel');
+  statusDiv.innerHTML='';
+
+  try{
+    const companyId = await getCompanyId();
+    if(!companyId){ alert('❌ Company config error!'); btn.disabled=false; btn.textContent='📥 Download All Floors Excel'; return; }
+
+    progressLabel.textContent = '🔄 সব floor এর data fetch করছি...';
+    progressFill.style.width='10%';
+
+    const {data: todayReports, error: todayError} = await supabase
+      .from('needle_reports')
+      .select('floor, report_date, rows, operator, summary')
+      .eq('company_id', companyId)
+      .eq('report_date', date);
+
+    if(todayError){ alert('❌ Data fetch error: '+todayError.message); btn.disabled=false; btn.textContent='📥 Download All Floors Excel'; return; }
+
+    const todayMap = {};
+    (todayReports||[]).forEach(r=>{ todayMap[r.floor]=r; });
+
+    progressFill.style.width='20%';
+
+    const floorsNeedingCarry = ALL_FLOORS.filter(f => !todayMap[f]);
+    progressLabel.textContent = `⏪ ${floorsNeedingCarry.length} floor এর আগের data খুঁজছি...`;
+
+    const carryMap = {};
+
+    if(floorsNeedingCarry.length > 0){
+      const {data: prevReports, error: prevError} = await supabase
+        .from('needle_reports')
+        .select('floor, report_date, rows, operator')
+        .eq('company_id', companyId)
+        .in('floor', floorsNeedingCarry)
+        .lt('report_date', date)
+        .order('report_date', {ascending: false});
+
+      if(!prevError && prevReports && prevReports.length){
+        const seenFloors = new Set();
+        prevReports.forEach(r=>{
+          if(!seenFloors.has(r.floor)){
+            seenFloors.add(r.floor);
+            carryMap[r.floor] = { rows: r.rows, report_date: r.report_date };
+          }
+        });
+      }
+    }
+
+    progressFill.style.width='35%';
+    progressLabel.textContent='📊 Excel workbook তৈরি করছি...';
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = COMPANY_NAME;
+    wb.created = new Date();
+
+    // ---------- SUMMARY SHEET ----------
+    const summaryColCount = 10;
+    const wsSummary = wb.addWorksheet('SUMMARY', { views:[{state:'frozen', ySplit:7}] });
+    applyPrintPageSetup(wsSummary);
+    styleLetterheadSheet(wsSummary, summaryColCount, `📅 Date: ${date}`, '', 'All Floors', `Generated: ${new Date().toLocaleString()}`);
+    wsSummary.addRow([]); // row 6 spacer
+    const summaryHeader = wsSummary.addRow(['SL','FLOOR NAME','CATEGORY','PREVIOUS','RECEIVED','DELIVERY','PRESENT BALANCE','BNR/BNF','ITEMS','DATA SOURCE']);
+    styleHeaderRow(summaryHeader);
+
+    let grandPrev=0, grandRcvd=0, grandDvld=0, grandPresent=0, grandBN=0;
+
+    for(let fi=0; fi<ALL_FLOORS.length; fi++){
+      const floorName = ALL_FLOORS[fi];
+      const category = floorName.includes('_NEW') ? 'NEW' : 'RUNNING';
+      const shortName = floorName.replace(/\s*\(BUILDING NO[^)]*\)/gi,'').replace(/_NEW|_RUNNING/g,'').trim();
+
+      let prev=0, rcvd=0, dvld=0, present=0, bn=0, itemCount=0, dataSource='';
+      let sourceKind = 'opening'; // ok | carry | opening
+
+      if(todayMap[floorName] && todayMap[floorName].rows && todayMap[floorName].rows.length){
+        const rows = todayMap[floorName].rows;
+        rows.forEach(r=>{
+          prev += Number(r.previous)||0;
+          rcvd += Number(r.receive)||0;
+          dvld += Number(r.delivery)||0;
+          present += Number(r.present)||0;
+          bn += Number(r.bn)||0;
+        });
+        itemCount = rows.length;
+        dataSource = '✅ ' + date;
+        sourceKind = 'ok';
+      } else if(carryMap[floorName]){
+        const rows = carryMap[floorName].rows;
+        const carryDate = carryMap[floorName].report_date;
+        rows.forEach(r=>{
+          const carryPresent = Number(r.present)||0;
+          prev += carryPresent;
+          present += carryPresent;
+        });
+        itemCount = rows.length;
+        dataSource = '⏪ Carry: ' + carryDate;
+        sourceKind = 'carry';
+      } else {
+        const baseItems = floorData[floorName]||[];
+        baseItems.forEach(it=>{
+          const opening = Number(it[6])||0;
+          prev += opening;
+          present += opening;
+        });
+        itemCount = baseItems.length;
+        dataSource = '📋 Opening Stock';
+        sourceKind = 'opening';
+      }
+
+      grandPrev+=prev; grandRcvd+=rcvd; grandDvld+=dvld; grandPresent+=present; grandBN+=bn;
+
+      const dataRow = wsSummary.addRow([fi+1, shortName, category, prev, rcvd, dvld, present, bn, itemCount, dataSource]);
+      styleDataRow(dataRow, { zebra: fi%2===1, presentColIdx: 7 });
+      const srcCell = dataRow.getCell(10);
+      if(sourceKind==='ok') srcCell.font = { name:'Calibri', size:10, bold:true, color:{argb:XLSX_COLORS.green} };
+      else if(sourceKind==='carry') srcCell.font = { name:'Calibri', size:10, bold:true, color:{argb:XLSX_COLORS.goldDk} };
+      else srcCell.font = { name:'Calibri', size:10, italic:true, color:{argb:'FF94A3B8'} };
+
+      let statusClass = sourceKind==='ok' ? 'status-ok' : (sourceKind==='carry' ? 'status-carry' : 'status-empty');
+      statusDiv.innerHTML += `<div class="${statusClass}"><b>${fi+1}. ${shortName}</b> (${category}) — ${dataSource} | Items: ${itemCount} | Present: ${present.toLocaleString()}</div>`;
+      progressFill.style.width = (35 + Math.round((fi+1)/ALL_FLOORS.length*30))+'%';
+      progressLabel.textContent = `Summary: ${fi+1}/${ALL_FLOORS.length}...`;
+      if(fi % 7 === 0) await new Promise(r=>setTimeout(r,5));
+    }
+
+    const summaryTotalRow = wsSummary.addRow(['', 'GRAND TOTAL (28 Floors)', '', grandPrev, grandRcvd, grandDvld, grandPresent, grandBN, '', '']);
+    styleTotalRow(summaryTotalRow);
+    wsSummary.mergeCells(summaryTotalRow.number, 2, summaryTotalRow.number, 3);
+
+    // ✅ NEW: Prepared By / Checked By / Authorised By footer on the SUMMARY sheet
+    addSignatureFooter(wsSummary, summaryColCount);
+
+    wsSummary.columns = [
+      {width:5},{width:44},{width:11},{width:11},{width:11},{width:11},{width:16},{width:11},{width:8},{width:22}
+    ];
+
+    // ---------- FLOOR SHEETS ----------
+    progressLabel.textContent = 'Floor sheets তৈরি করছি...';
+    progressFill.style.width='67%';
+
+    const usedSheetNames = new Set(['SUMMARY']);
+
+    for(let fi=0; fi<ALL_FLOORS.length; fi++){
+      const floorName = ALL_FLOORS[fi];
+      const category = floorName.includes('_NEW') ? 'NEW' : 'RUNNING';
+      const bnLabel = floorName.includes('_NEW') ? 'BNR' : 'BNF';
+      const colCount = 14;
+
+      let sheetName = floorName
+        .replace(/\s*\(BUILDING NO[^)]*\)/gi,'')
+        .replace(/_NEW/,'_N').replace(/_RUNNING/,'_R')
+        .replace(/[\/\\\?\*\[\]:]/g,'')
+        .trim()
+        .substring(0,31);
+      let uniqueName = sheetName, dupIdx=1;
+      while(usedSheetNames.has(uniqueName)){ uniqueName = (sheetName.substring(0,28)+'_'+(++dupIdx)); }
+      usedSheetNames.add(uniqueName);
+
+      const ws = wb.addWorksheet(uniqueName, { views:[{state:'frozen', ySplit:6}] });
+      applyPrintPageSetup(ws);
+
+      let operatorName = '-';
+      let dataSource = '';
+      let sourceKind = 'opening';
+      const rowsForSheet = [];
+
+      let tPrev=0, tRcvd=0, tDvld=0, tPresent=0, tBN=0;
+
+      if(todayMap[floorName] && todayMap[floorName].rows && todayMap[floorName].rows.length){
+        operatorName = todayMap[floorName].operator || '-';
+        dataSource = '✅ Actual data: ' + date;
+        sourceKind = 'ok';
+        todayMap[floorName].rows.forEach((row,idx)=>{
+          const p=Number(row.previous)||0, r=Number(row.receive)||0;
+          const d=Number(row.delivery)||0, ps=Number(row.present)||0, bn=Number(row.bn)||0;
+          tPrev+=p; tRcvd+=r; tDvld+=d; tPresent+=ps; tBN+=bn;
+          rowsForSheet.push([idx+1, row.itemCode||'', row.needleType||'', row.size||'', row.brand||'',
+            Number(row.unitPrice||0).toFixed(4), p, r, row.receiveReqNo||'', d, ps, bn,
+            row.isCustom?'YES':'', '']);
+        });
+      } else if(carryMap[floorName]){
+        const carryDate = carryMap[floorName].report_date;
+        operatorName = 'Carried from ' + carryDate;
+        dataSource = '⏪ Carry from: ' + carryDate;
+        sourceKind = 'carry';
+        carryMap[floorName].rows.forEach((row,idx)=>{
+          const carryPresent = Number(row.present)||0;
+          tPrev+=carryPresent; tPresent+=carryPresent;
+          rowsForSheet.push([idx+1, row.itemCode||'', row.needleType||'', row.size||'', row.brand||'',
+            Number(row.unitPrice||0).toFixed(4), carryPresent, 0, '', 0, carryPresent, 0,
+            row.isCustom?'YES':'', '⏪ Carry: '+carryDate]);
+        });
+      } else {
+        operatorName = 'Opening Stock';
+        dataSource = '📋 Opening stock (no saved data)';
+        sourceKind = 'opening';
+        const baseItems = floorData[floorName]||[];
+        baseItems.forEach((it,idx)=>{
+          const opening = Number(it[6])||0;
+          tPrev+=opening; tPresent+=opening;
+          rowsForSheet.push([idx+1, it[1], it[2], it[3], it[4], Number(it[5]).toFixed(4),
+            opening, 0, '', 0, opening, 0, '', '📋 Opening']);
+        });
+      }
+
+      styleLetterheadSheet(ws, colCount, `Floor: ${floorName}   |   Date: ${date}`, category, operatorName, dataSource);
+      ws.addRow([]); // spacer row 6
+
+      const properHeader = ws.addRow(['SL','CODE','TYPE','SIZE','BRAND','UNIT PRICE','PREVIOUS','RECEIVED','REQ NO','DELIVERY','PRESENT BALANCE',bnLabel,'CUSTOM','NOTE']);
+      styleHeaderRow(properHeader);
+
+      rowsForSheet.forEach((r,idx)=>{
+        const isCustomRow = r[12] === 'YES';
+        const dataRow = ws.addRow(r);
+        styleDataRow(dataRow, { zebra: idx%2===1, custom:isCustomRow, presentColIdx: 11 });
+      });
+
+      const totalRow = ws.addRow(['','','','','','TOTAL →', tPrev, tRcvd, '', tDvld, tPresent, tBN, '', '']);
+      styleTotalRow(totalRow);
+
+      // ✅ NEW: Prepared By / Checked By / Authorised By footer on every floor sheet
+      addSignatureFooter(ws, colCount);
+
+      ws.columns = [
+        {width:5},{width:11},{width:22},{width:8},{width:14},{width:11},
+        {width:11},{width:10},{width:16},{width:10},{width:15},{width:10},{width:8},{width:22}
+      ];
+
+      progressFill.style.width = (67 + Math.round((fi+1)/ALL_FLOORS.length*30))+'%';
+      if(fi % 7 === 0) await new Promise(r=>setTimeout(r,5));
+    }
+
+    progressFill.style.width='100%';
+    progressLabel.textContent='✅ Excel তৈরি সম্পন্ন! Downloading...';
+
+    const fileName = `GMS-Needle-PresentBalance-AllFloors-${date}.xlsx`;
+    await downloadWorkbook(wb, fileName);
+
+    btn.disabled=false;
+    btn.textContent='✅ Downloaded!';
+
+    const todayCount = ALL_FLOORS.filter(f=>todayMap[f]).length;
+    const carryCount = ALL_FLOORS.filter(f=>!todayMap[f]&&carryMap[f]).length;
+    const openingCount = ALL_FLOORS.filter(f=>!todayMap[f]&&!carryMap[f]).length;
+    showToast(`✅ Downloaded! ✅${todayCount} floors today | ⏪${carryCount} carry | 📋${openingCount} opening`);
+    setTimeout(()=>{ btn.textContent='📥 Download All Floors Excel'; }, 3500);
+
+  }catch(e){
+    console.error('exportAllFloorsExcel error:', e);
+    alert('❌ Export error: '+e.message);
+    btn.disabled=false;
+    btn.textContent='📥 Download All Floors Excel';
+  }
+}
+
+// =========================================
+// 🎨 UTILITIES
+// =========================================
+function showToast(msg){
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#10b981;color:#fff;padding:10px 20px;border-radius:8px;font-weight:600;font-size:12px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.3);max-width:90%;text-align:center';
+  t.innerText=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3000);
+}
+function showLoading(text='Loading...'){
+  document.getElementById('loadingText').innerText=text;
+  document.getElementById('loadingOverlay').classList.add('show');
+}
+function hideLoading(){ document.getElementById('loadingOverlay').classList.remove('show'); }
+function updateLastSync(t){ const el = document.getElementById('lastSync'); if(el) el.textContent=t; }
+function toggleTheme(){
+  document.body.classList.toggle('light');
+  localStorage.setItem('theme',document.body.classList.contains('light')?'light':'dark');
+}
+function updateOfflineIndicator(){
+  document.getElementById('offlineIndicator').style.display=navigator.onLine?'none':'block';
+}
+
+// =========================================
+// 🚀 INIT
+// =========================================
+(function init(){
+  document.getElementById('postDate').value=new Date().toISOString().slice(0,10);
+  const op=localStorage.getItem('lastOperator');
+  if(op) document.getElementById('operatorName').value=op;
+  if(localStorage.getItem('theme')==='light') document.body.classList.add('light');
+  updateOfflineIndicator();
+  updateCategoryBadge();
+  loadTable({}, [], false, null);
+  if(navigator.onLine) setTimeout(syncOfflineData,2000);
+  document.addEventListener('keydown',e=>{ if(e.ctrlKey&&e.key==='s'){e.preventDefault();saveData();} });
+
+  // ✅ CRITICAL FIX: এখন time-based আন্দাজ না করে, isDirty flag চেক করা হয়।
+  // কোনো unsaved change থাকলে (isDirty=true), page বন্ধ/hide হওয়ার আগে
+  // বাধ্যতামূলক ভাবে LOCAL এ save করে দেওয়া হয় — data কখনো হারাবে না।
+  function forceSaveOnExit(){
+    const date=document.getElementById('postDate').value;
+    const floor=document.getElementById('floor').value;
+    if(date && floor && currentFloorData.length && isDirty){
+      const operator=document.getElementById('operatorName').value.trim()||localStorage.getItem('lastOperator')||'Unknown';
+      try{
+        saveOffline(floor, date, operator, buildRows(), false);
+        isDirty = false;
+      }catch(e){}
+    }
+  }
+  window.addEventListener('beforeunload', forceSaveOnExit);
+  window.addEventListener('pagehide', forceSaveOnExit);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'hidden'){
+      forceSaveOnExit();
+    }
+  });
+
+  // ✅ SAFETY NET (একদম strong auto-save): প্রতি ১৫ সেকেন্ডে একবার চেক করা হয়,
+  // যদি কোনো কারণে (নেটওয়ার্ক গ্লিচ, ট্যাব ব্যাকগ্রাউন্ডে যাওয়া, ইত্যাদি)
+  // কোনো পরিবর্তন এখনো Save না হয়ে থাকে (isDirty=true), তাহলে জোর করে
+  // আবার auto-save চালানো হয়। এভাবেই "মাঝে মাঝে save বাদ যাওয়া" পুরোপুরি বন্ধ হয়।
+  setInterval(()=>{
+    if(isDirty && !autoSaveInFlight){
+      autoSaveNow();
+    }
+  }, 15000);
+})();
+
+window.addEventListener('online',()=>{ updateOfflineIndicator(); syncOfflineData(); });
+window.addEventListener('offline',()=>updateOfflineIndicator());
+// ✅ BUG FIX: date পরিবর্তনের সময়েও আগে flushPendingSave() + sync শেষ হতে দিয়ে তারপর loadData()
+document.getElementById('postDate').addEventListener('change', async ()=>{
+  await flushPendingSave();
+  if(navigator.onLine){ try{ await syncOfflineData(); }catch(e){} }
+  await loadData();
+});
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName!=='INPUT'||!e.target.id.match(/^(r|d|bn)\d+$/)) return;
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const col=e.target.id.replace(/[0-9]/g,'');
+    const row=Number(e.target.id.replace(/\D/g,''));
+    const next=document.getElementById(col+(row+1));
+    if(next){next.focus();next.select();}
+  }
+});
+
+// EXPOSE GLOBALS
+window.saveData=saveData; window.loadData=loadData; window.deleteData=deleteData;
+window.exportExcel=exportExcel; window.exportPDF=exportPDF;
+window.exportAllFloorsExcel=exportAllFloorsExcel;
+window.openAllExcelPopup=openAllExcelPopup; window.closeAllExcelPopup=closeAllExcelPopup;
+window.calc=calc; window.updateTotal=updateTotal;
+window.closeNegPopup=closeNegPopup; window.fixNegativeRow=fixNegativeRow;
+window.loadTable=loadTable; window.toggleTheme=toggleTheme;
+window.onFloorChange=onFloorChange; window.manualRefresh=manualRefresh;
+window.checkReqNo=checkReqNo; window.confirmReqNo=confirmReqNo; window.cancelReqPopup=cancelReqPopup;
+window.openTransferPopup=openTransferPopup; window.closeTransferPopup=closeTransferPopup; window.confirmTransfer=confirmTransfer;
+window.showTransferReport=showTransferReport; window.closeReportPopup=closeReportPopup; window.loadTransferReport=loadTransferReport;
+window.changeFloorReqNo=changeFloorReqNo;
+window.showReqSearch=showReqSearch; window.closeReqSearchPopup=closeReqSearchPopup; window.searchRequisition=searchRequisition;
+window.openAddRowPopup=openAddRowPopup; window.closeAddRowPopup=closeAddRowPopup; window.confirmAddRow=confirmAddRow;
+window.deleteCustomRow=deleteCustomRow;
+window.scheduleAutoSave=scheduleAutoSave;
+</script>
+</body>
+</html>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Needle Report View</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+<style>
+body{margin:0;background:#07111f;color:white;font-family:Arial,sans-serif}
+.header{text-align:center;padding:12px}
+.header h2,.header h3,.header h4{margin:3px}
+.controls{text-align:center;margin:10px}
+button{padding:10px 14px;border:0;border-radius:8px;color:white;font-weight:bold;margin:4px;cursor:pointer}
+.show{background:#2563eb}.excel{background:#059669}.print{background:#7c3aed}.home{background:#0f766e}.edit{background:#f59e0b}.del{background:#dc2626}.save{background:#16a34a}.add{background:#f59e0b}
+input,select{font-size:16px;padding:7px;border-radius:6px;border:1px solid #999}
+.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px}
+.kpiBox{background:#101b2d;border:1px solid #263855;border-radius:14px;padding:12px;text-align:center}
+.kpiBox span{font-size:12px;color:#9fb0c7;font-weight:bold}
+.kpiBox b{display:block;color:#22c55e;font-size:24px;margin-top:5px}
+.tableWrap{overflow-x:auto;width:100%}
+table{min-width:1450px;width:98%;margin:10px auto;border-collapse:collapse;background:white;color:black;font-size:12px}
+th,td{border:1px solid #000;padding:6px;text-align:center}
+th{background:#9fc5e8;font-weight:bold}
+td input{width:100%;box-sizing:border-box;border:0;outline:none;text-align:center;font-size:14px}
+.totalRow{background:#d9ead3;font-weight:bold}
+.totalCell{font-weight:bold;background:#e5e7eb}
+.reportBox{border:1px solid #263855;border-radius:14px;margin:14px;padding:8px;background:#101b2d}
+.chartBox{width:96%;margin:10px auto;background:white;color:black;border-radius:10px;padding:10px}
+.toast{position:fixed;right:15px;bottom:15px;background:#22c55e;color:white;padding:12px 18px;border-radius:10px;font-weight:bold;display:none}
+@page{size:A4 landscape;margin:6mm}
+@media print{
+  body{background:white;color:black}
+  .controls,.kpi,.noPrint{display:none!important}
+  .reportBox{border:0;margin:0;padding:0;background:white}
+  table{width:100%;min-width:0;font-size:8px;margin:3px 0}
+  th,td{padding:2px}
+  .chartBox{width:100%;margin:4px 0}
+}
+@media(max-width:700px){.kpi{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h2>GMS Textiles Ltd</h2>
+  <h4>Needle MCD</h4>
+  <h3>Needle Daily Report View</h3>
+</div>
+
+<div class="controls noPrint">
+  From: <input type="date" id="fromDate">
+  To: <input type="date" id="toDate">
+
+  Filter:
+  <select id="issueFilter">
+    <option value="">All</option>
+    <option value="broken">Broken Only</option>
+    <option value="missing">Missing Only</option>
+    <option value="change">Change Only</option>
+    <option value="all_issue">Any Issue</option>
+  </select>
+
+  <button class="show" onclick="loadReport()">🔍 Show</button>
+  <button class="excel" onclick="exportExcel()">📊 Excel</button>
+  <button class="print" onclick="window.print()">🖨 PDF / Print</button>
+  <button class="home" onclick="location.href='needle-report.html'">➕ Entry</button>
+  <button class="home" onclick="location.href='index.html'">🏠 Home</button>
+</div>
+
+<div class="kpi">
+  <div class="kpiBox"><span>🔧 Broken</span><b id="kpiBroken">0</b></div>
+  <div class="kpiBox"><span>❌ Missing</span><b id="kpiMissing">0</b></div>
+  <div class="kpiBox"><span>🔁 Change</span><b id="kpiChange">0</b></div>
+  <div class="kpiBox"><span>📌 Total Issue</span><b id="kpiIssue">0</b></div>
+</div>
+
+<div id="reportArea"></div>
+
+<div class="chartBox">
+  <canvas id="issueChart" height="90"></canvas>
+</div>
+
+<div id="toast" class="toast">Saved ✅</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId:"gms-warehouse-tracker-7f57e",
+  storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId:"992250313291",
+  appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+
+let rows=[];
+let chart;
+
+function today(){return new Date().toISOString().slice(0,10)}
+document.getElementById("fromDate").value=today();
+document.getElementById("toDate").value=today();
+
+function n(v){return Number(v)||0}
+
+function toast(msg){
+  let t=document.getElementById("toast");
+  t.innerText=msg;
+  t.style.display="block";
+  setTimeout(()=>t.style.display="none",1500);
+}
+
+function calcRow(r){
+  r.totalIssue=n(r.brokenNeedle)+n(r.missingNeedle)+n(r.changeNeedle);
+  r.avgUse=r.totalIssue>0 ? n(r.runningMachine)/r.totalIssue : 0;
+
+  if(!Array.isArray(r.floorRows)) r.floorRows=[];
+  r.floorRows.forEach(fr=>{
+    fr.presentStock=n(fr.previousQty)+n(fr.receivedQty)-n(fr.deliveryQty);
+  });
+
+  return r;
+}
+
+async function loadReport(){
+  let from=document.getElementById("fromDate").value;
+  let to=document.getElementById("toDate").value;
+  let filter=document.getElementById("issueFilter").value;
+
+  let snap=await getDocs(collection(db,"needleDailyReport"));
+  rows=[];
+
+  snap.forEach(d=>{
+    let r={id:d.id,edit:false,...d.data()};
+
+    if((!from || r.date>=from) && (!to || r.date<=to)){
+      calcRow(r);
+
+      let ok=true;
+      if(filter==="broken" && n(r.brokenNeedle)<=0) ok=false;
+      if(filter==="missing" && n(r.missingNeedle)<=0) ok=false;
+      if(filter==="change" && n(r.changeNeedle)<=0) ok=false;
+      if(filter==="all_issue" && r.totalIssue<=0) ok=false;
+
+      if(ok) rows.push(r);
+    }
+  });
+
+  rows.sort((a,b)=>a.date.localeCompare(b.date));
+  render();
+}
+window.loadReport=loadReport;
+
+function issueTable(r,i){
+  return `
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Needle Booth</th>
+        <th>Total Sewing Line</th>
+        <th>Machine Plan</th>
+        <th>Sewing Running Machine</th>
+        <th>Broken Needle</th>
+        <th>Missing Needle</th>
+        <th>Change Needle</th>
+        <th>Total Issue</th>
+        <th>Per Machine Avg. Needle Use</th>
+        <th>Reported By</th>
+        <th class="noPrint">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        ${r.edit ? `
+        <td><input type="date" value="${r.date||''}" onchange="rows[${i}].date=this.value"></td>
+        <td><input type="number" value="${r.needleBooth||0}" onchange="rows[${i}].needleBooth=this.value"></td>
+        <td><input type="number" value="${r.totalSewingLine||0}" onchange="rows[${i}].totalSewingLine=this.value"></td>
+        <td><input type="number" value="${r.machinePlan||0}" onchange="rows[${i}].machinePlan=this.value"></td>
+        <td><input type="number" value="${r.runningMachine||0}" onchange="rows[${i}].runningMachine=this.value;render()"></td>
+        <td><input type="number" value="${r.brokenNeedle||0}" onchange="rows[${i}].brokenNeedle=this.value;render()"></td>
+        <td><input type="number" value="${r.missingNeedle||0}" onchange="rows[${i}].missingNeedle=this.value;render()"></td>
+        <td><input type="number" value="${r.changeNeedle||0}" onchange="rows[${i}].changeNeedle=this.value;render()"></td>
+        <td class="totalCell">${r.totalIssue}</td>
+        <td class="totalCell">${Number(r.avgUse||0).toFixed(2)}</td>
+        <td>${r.reportedBy||""}</td>
+        <td class="noPrint"><button class="save" onclick="saveEdit(${i})">💾 Save</button><button class="del" onclick="cancelEdit()">Cancel</button></td>
+        ` : `
+        <td>${r.date||""}</td>
+        <td>${r.needleBooth||0}</td>
+        <td>${r.totalSewingLine||0}</td>
+        <td>${r.machinePlan||0}</td>
+        <td>${r.runningMachine||0}</td>
+        <td>${r.brokenNeedle||0}</td>
+        <td>${r.missingNeedle||0}</td>
+        <td>${r.changeNeedle||0}</td>
+        <td>${r.totalIssue||0}</td>
+        <td>${Number(r.avgUse||0).toFixed(2)}</td>
+        <td>${r.reportedBy||""}</td>
+        <td class="noPrint"><button class="edit" onclick="editRow(${i})">✏️ Edit</button><button class="del" onclick="deleteRow(${i})">🗑 Delete</button></td>
+        `}
+      </tr>
+    </tbody>
+  </table>`;
+}
+
+function floorTable(r,i){
+  let floorRows=r.floorRows||[];
+
+  let body=floorRows.map((fr,j)=>{
+    return `
+    <tr>
+      ${r.edit ? `
+      <td><input value="${fr.description||""}" onchange="rows[${i}].floorRows[${j}].description=this.value"></td>
+      <td><input value="${fr.floorName||""}" onchange="rows[${i}].floorRows[${j}].floorName=this.value"></td>
+      <td><input type="number" value="${fr.previousQty||""}" onchange="rows[${i}].floorRows[${j}].previousQty=this.value;render()"></td>
+      <td><input type="number" value="${fr.receivedQty||""}" onchange="rows[${i}].floorRows[${j}].receivedQty=this.value;render()"></td>
+      <td><input type="number" value="${fr.deliveryQty||""}" onchange="rows[${i}].floorRows[${j}].deliveryQty=this.value;render()"></td>
+      <td class="totalCell">${fr.presentStock||0}</td>
+      <td><input value="${fr.remarks||""}" onchange="rows[${i}].floorRows[${j}].remarks=this.value"></td>
+      <td class="noPrint"><button class="del" onclick="deleteFloorRow(${i},${j})">Delete</button></td>
+      ` : `
+      <td>${fr.description||""}</td>
+      <td>${fr.floorName||""}</td>
+      <td>${fr.previousQty||0}</td>
+      <td>${fr.receivedQty||""}</td>
+      <td>${fr.deliveryQty||""}</td>
+      <td>${fr.presentStock||0}</td>
+      <td>${fr.remarks||""}</td>
+      <td class="noPrint"></td>
+      `}
+    </tr>`;
+  }).join("");
+
+  let totalPrev=0,totalRcv=0,totalDlv=0,totalPresent=0;
+  floorRows.forEach(fr=>{
+    totalPrev+=n(fr.previousQty);
+    totalRcv+=n(fr.receivedQty);
+    totalDlv+=n(fr.deliveryQty);
+    totalPresent+=n(fr.presentStock);
+  });
+
+  return `
+  <table>
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th>Floor Name</th>
+        <th>Previous Qty</th>
+        <th>Received Qty</th>
+        <th>Delivery Qty</th>
+        <th>Present Stock</th>
+        <th>Remarks</th>
+        <th class="noPrint">Action</th>
+      </tr>
+    </thead>
+    <tbody>${body || `<tr><td colspan="8">No Floor Data</td></tr>`}</tbody>
+    <tfoot>
+      <tr class="totalRow">
+        <td colspan="2">Grand Total</td>
+        <td>${totalPrev}</td>
+        <td>${totalRcv}</td>
+        <td>${totalDlv}</td>
+        <td>${totalPresent}</td>
+        <td></td>
+        <td class="noPrint"></td>
+      </tr>
+    </tfoot>
+  </table>
+  ${r.edit ? `<div class="controls noPrint"><button class="add" onclick="addFloorRow(${i})">➕ Add Floor Row</button></div>` : ""}`;
+}
+
+function render(){
+  let html="";
+  let gtBroken=0,gtMissing=0,gtChange=0,gtIssue=0;
+
+  rows.forEach((r,i)=>{
+    calcRow(r);
+    gtBroken+=n(r.brokenNeedle);
+    gtMissing+=n(r.missingNeedle);
+    gtChange+=n(r.changeNeedle);
+    gtIssue+=n(r.totalIssue);
+
+    html+=`<div class="reportBox">${issueTable(r,i)}${floorTable(r,i)}</div>`;
+  });
+
+  document.getElementById("reportArea").innerHTML=html || `<div style="text-align:center;padding:30px;color:#9fb0c7;font-weight:bold">No Data Found</div>`;
+
+  document.getElementById("kpiBroken").innerText=gtBroken;
+  document.getElementById("kpiMissing").innerText=gtMissing;
+  document.getElementById("kpiChange").innerText=gtChange;
+  document.getElementById("kpiIssue").innerText=gtIssue;
+
+  renderChart(gtBroken,gtMissing,gtChange);
+}
+window.render=render;
+
+function renderChart(broken,missing,change){
+  if(chart) chart.destroy();
+
+  chart=new Chart(document.getElementById("issueChart"),{
+    type:"bar",
+    data:{labels:["Broken","Missing","Change"],datasets:[{label:"Needle Issue",data:[broken,missing,change],borderRadius:8,borderWidth:1}]},
+    options:{responsive:true,plugins:{legend:{display:false},title:{display:true,text:"Broken / Missing / Change Needle Chart"}},scales:{y:{beginAtZero:true}}}
+  });
+}
+
+window.editRow=function(i){rows[i].edit=true;render();}
+window.cancelEdit=function(){loadReport();}
+
+window.addFloorRow=function(i){
+  if(!rows[i].floorRows) rows[i].floorRows=[];
+  rows[i].floorRows.push({description:"",floorName:"",previousQty:"",receivedQty:"",deliveryQty:"",presentStock:"",remarks:""});
+  render();
+}
+
+window.deleteFloorRow=function(i,j){
+  rows[i].floorRows.splice(j,1);
+  render();
+}
+
+window.saveEdit=async function(i){
+  let r=calcRow(rows[i]);
+
+  await updateDoc(doc(db,"needleDailyReport",r.id),{
+    date:r.date,
+    needleBooth:n(r.needleBooth),
+    totalSewingLine:n(r.totalSewingLine),
+    machinePlan:n(r.machinePlan),
+    runningMachine:n(r.runningMachine),
+    brokenNeedle:n(r.brokenNeedle),
+    missingNeedle:n(r.missingNeedle),
+    changeNeedle:n(r.changeNeedle),
+    totalIssue:n(r.totalIssue),
+    avgUse:n(r.avgUse),
+    floorRows:r.floorRows||[],
+    reportedBy:r.reportedBy||"",
+    updatedAt:new Date().toISOString()
+  });
+
+  toast("Updated ✅");
+  loadReport();
+}
+
+window.deleteRow=async function(i){
+  if(!confirm("Delete this report?")) return;
+  await deleteDoc(doc(db,"needleDailyReport",rows[i].id));
+  toast("Deleted ✅");
+  loadReport();
+}
+
+window.exportExcel=function(){
+  let area=document.getElementById("reportArea").cloneNode(true);
+  area.querySelectorAll(".noPrint,.controls").forEach(x=>x.remove());
+
+  let html=`<html><head><meta charset="UTF-8"></head><body><h2>GMS Textiles Ltd</h2><h3>Needle Daily Report</h3>${area.innerHTML}</body></html>`;
+  let file=new Blob([html],{type:"application/vnd.ms-excel"});
+  let a=document.createElement("a");
+  a.href=URL.createObjectURL(file);
+  a.download="needle-daily-report.xls";
+  a.click();
+}
+
+document.addEventListener("keydown",function(e){
+  if(e.key==="Enter" && e.target.tagName==="INPUT"){
+    e.preventDefault();
+    let inputs=[...document.querySelectorAll("td input")];
+    let idx=inputs.indexOf(e.target);
+    if(inputs[idx+1]) inputs[idx+1].focus();
+  }
+});
+
+loadReport();
+</script>
+</body>
+</html>

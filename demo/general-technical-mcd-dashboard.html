@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GMS General Technical-MCD Daily Issue Smart Chart</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+:root{--bg:#0a1628;--card:#1e293b;--card2:#334155;--text:#f1f5f9;--muted:#cbd5e1;--border:#475569;--blue:#3b82f6;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--purple:#8b5cf6;--cyan:#06b6d4;--shadow:0 10px 40px rgba(0,0,0,.4)}
+body.light{--bg:#f8fafc;--card:#ffffff;--card2:#f1f5f9;--text:#1e293b;--muted:#64748b;--border:#cbd5e1;--shadow:0 10px 40px rgba(0,0,0,.1)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Poppins',sans-serif;line-height:1.6;transition:all .3s}
+.header{background:linear-gradient(135deg,var(--blue),var(--purple));padding:20px;text-align:center;color:#fff;box-shadow:var(--shadow)}
+.header h1{font-size:24px;font-weight:800}
+.header p{font-size:12px;opacity:.9;margin-top:4px}
+.container{max-width:1400px;margin:0 auto;padding:20px}
+.back-btn{position:fixed;top:20px;left:20px;background:var(--card);border:1px solid var(--border);padding:10px 16px;border-radius:10px;cursor:pointer;color:var(--text);font-weight:600;font-size:13px;z-index:1000;box-shadow:var(--shadow);text-decoration:none;display:flex;align-items:center;gap:6px}
+.theme-toggle{position:fixed;top:20px;right:20px;background:var(--card);border:1px solid var(--border);width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;z-index:1000;box-shadow:var(--shadow);color:var(--text)}
+.cacheStatusBar{display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 16px;font-size:12px;font-weight:700;background:linear-gradient(90deg,rgba(34,197,94,.1),rgba(59,130,246,.1));border:1px solid rgba(34,197,94,.2);border-radius:12px;color:var(--muted);flex-wrap:wrap;margin-bottom:20px}
+.cacheStatusBar .cacheDot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:livePulse 2s infinite;box-shadow:0 0 8px var(--green)}
+@keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.7);transform:scale(1)}70%{box-shadow:0 0 0 8px rgba(34,197,94,0);transform:scale(1.1)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0);transform:scale(1)}}
+.cacheStatusBar .cacheReadCount{color:var(--blue);font-weight:900;padding:4px 12px;background:rgba(37,99,235,.15);border-radius:12px;border:1px solid rgba(37,99,235,.3)}
+.cacheStatusBar .roiBadge{color:var(--purple);font-weight:900;padding:4px 12px;background:rgba(139,92,246,.15);border-radius:12px;border:1px solid rgba(139,92,246,.3)}
+.cacheStatusBar .syncStatus{color:var(--green);font-weight:900;padding:4px 12px;background:rgba(34,197,94,.15);border-radius:12px;border:1px solid rgba(34,197,94,.3)}
+.status-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:rgba(16,185,129,0.1);border-radius:10px;margin-bottom:20px;font-size:12px;font-weight:600;color:var(--green);flex-wrap:wrap;gap:8px}
+.status-bar.offline{background:rgba(245,158,11,0.1);color:var(--yellow)}
+.upload-box{border:2px dashed var(--blue);border-radius:12px;padding:16px;text-align:center;cursor:pointer;background:rgba(59,130,246,0.05);transition:all .3s;margin-bottom:12px}
+.upload-box:hover{background:rgba(59,130,246,0.1);border-color:var(--green)}
+.upload-box.dragover{background:rgba(16,185,129,0.1);border-color:var(--green)}
+.upload-box i{font-size:24px;color:var(--blue);margin-bottom:6px}
+.upload-box h3{font-size:13px;margin-bottom:4px}
+.upload-box p{color:var(--muted);font-size:10px}
+.upload-date-box{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:20px;font-size:12px}
+.upload-date-box label{font-weight:600;color:var(--muted);display:flex;align-items:center;gap:6px}
+.upload-date-box input[type="date"]{padding:8px 12px;border:2px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:12px;font-weight:600}
+.upload-date-box small{width:100%;text-align:center;color:var(--muted);display:block;margin-top:2px}
+.date-selection{display:flex;gap:12px;align-items:center;margin-bottom:20px;padding:14px;background:var(--card);border-radius:12px;box-shadow:var(--shadow);flex-wrap:wrap}
+.date-selection label{font-weight:600;color:var(--muted);font-size:12px;display:flex;align-items:center;gap:6px}
+.date-selection input[type="date"]{padding:8px 12px;border:2px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:12px;font-weight:600;cursor:pointer}
+.date-selection input[type="date"]:focus{outline:none;border-color:var(--blue)}
+.date-selection button{padding:8px 16px;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:12px;transition:all .3s}
+.btn-apply{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff}
+.btn-clear{background:var(--red);color:#fff}
+.btn-delete{background:linear-gradient(135deg,var(--red),#dc2626);color:#fff}
+.date-selection button:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.monthly-summary{background:linear-gradient(135deg,var(--card),var(--card2));border:2px solid var(--blue);border-radius:16px;padding:20px;margin-bottom:20px;box-shadow:var(--shadow)}
+.monthly-summary h3{font-size:16px;font-weight:700;margin-bottom:16px;color:var(--text);display:flex;align-items:center;gap:8px}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.summary-item{background:var(--bg);padding:14px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;border-left:3px solid var(--green)}
+.summary-item:nth-child(2){border-left-color:var(--blue)}
+.summary-item:nth-child(3){border-left-color:var(--yellow)}
+.summary-item:nth-child(4){border-left-color:var(--purple)}
+.summary-item:nth-child(5){border-left-color:var(--red)}
+.summary-item:nth-child(6){border-left-color:var(--cyan)}
+.summary-item span{color:var(--muted);font-size:11px;font-weight:600}
+.summary-item b{color:var(--green);font-size:16px;font-weight:800}
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center;background:var(--card);padding:16px;border-radius:12px;box-shadow:var(--shadow)}
+.filter-btn{padding:10px 16px;border:2px solid var(--border);background:var(--bg);border-radius:10px;cursor:pointer;font-size:11px;font-weight:600;color:var(--text);transition:all .2s;text-align:center;min-width:120px}
+.filter-btn:hover{border-color:var(--blue);transform:translateY(-2px)}
+.filter-btn.active{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border-color:transparent}
+.filter-btn small{display:block;font-size:10px;color:var(--green);margin-top:4px;font-weight:700}
+.filter-btn.active small{color:#fff}
+.action-bar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;justify-content:center}
+.btn{padding:12px 24px;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:13px;transition:all .3s;display:inline-flex;align-items:center;gap:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
+.btn-excel{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
+.btn-pdf{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff}
+.btn-home{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff}
+.btn-datewise{background:linear-gradient(135deg,#ec4899,#db2777);color:#fff}
+.btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.2)}
+#dashboard-content{background:var(--card);border-radius:16px;padding:24px;box-shadow:var(--shadow);margin-bottom:20px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+.stat-card{background:var(--bg);border-radius:12px;padding:20px;border-left:4px solid var(--blue);transition:all .3s;cursor:pointer}
+.stat-card:hover{transform:translateY(-4px)}
+.stat-card.green{border-left-color:var(--green)}
+.stat-card.orange{border-left-color:var(--yellow)}
+.stat-card.purple{border-left-color:var(--purple)}
+.stat-card.red{border-left-color:var(--red)}
+.stat-card h4{font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.stat-card .value{font-size:24px;font-weight:800}
+.chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;margin-bottom:20px}
+.chart-box{background:var(--bg);border-radius:16px;padding:20px;cursor:pointer;transition:all .3s;border-left:4px solid var(--blue)}
+.chart-box:hover{transform:translateY(-2px)}
+.chart-box.green{border-left-color:var(--green)}
+.chart-box.orange{border-left-color:var(--yellow)}
+.chart-box.purple{border-left-color:var(--purple)}
+.chart-box.cyan{border-left-color:var(--cyan)}
+.chart-box.red{border-left-color:var(--red)}
+.chart-box.full-width{grid-column:1 / -1}
+.chart-box h3{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.chart-box canvas{max-height:300px}
+.chart-total{margin-top:12px;padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;text-align:center;font-weight:700;color:var(--green);font-size:14px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px}
+.modal-overlay.active{display:flex}
+.modal-box{background:var(--bg);border-radius:16px;width:1122px;max-width:96vw;height:793px;max-height:94vh;padding:18px 24px;position:relative;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+.modal-close{position:absolute;top:14px;right:14px;background:var(--red);color:#fff;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;z-index:2}
+.dw-header{text-align:center;margin-bottom:12px;border-bottom:2px solid var(--border);padding-bottom:10px;flex-shrink:0}
+.dw-header h2{font-size:18px;font-weight:800;margin-bottom:2px}
+.dw-header p{font-size:12px;opacity:.85;margin:1px 0}
+.dw-header h3{font-size:14px;font-weight:700;margin-top:6px}
+.dw-body{display:flex;gap:22px;flex:1;min-height:0}
+.dw-table-wrap{flex:1;min-width:260px;height:100%;overflow-y:auto}
+.dw-chart-wrap{flex:1.5;min-width:340px;height:100%;overflow-y:auto;display:flex;flex-direction:column}
+.dw-chart-title{background:#ec4899;color:#fff;font-weight:700;text-align:center;padding:6px 10px;border-radius:8px;font-size:13px;margin-bottom:10px;flex-shrink:0}
+.dw-canvas-box{position:relative;width:100%;flex-shrink:0}
+table.dw-table{width:100%;border-collapse:collapse;font-size:12px}
+table.dw-table th{background:var(--green);color:#fff;padding:6px 8px;position:sticky;top:0}
+table.dw-table td{border:1px solid var(--border);padding:5px 8px;text-align:center}
+table.dw-table td.dw-left{text-align:left}
+table.dw-table td.dw-right{text-align:right}
+tr.dw-empty-row td{opacity:.4}
+tr.dw-total-row td{background:var(--green);color:#fff;font-weight:800}
+.dw-summary{margin-top:14px;background:var(--green);color:#fff;border-radius:10px;padding:12px 18px;display:flex;flex-wrap:wrap;gap:20px;justify-content:space-around;font-weight:700;font-size:13px;flex-shrink:0}
+.dw-summary div span{display:block;font-size:16px;margin-top:2px}
+.table-section{background:var(--card);border-radius:16px;padding:20px;box-shadow:var(--shadow);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{padding:10px 8px;text-align:left;font-weight:700;color:var(--muted);border-bottom:2px solid var(--border);text-transform:uppercase;font-size:10px;white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--border);white-space:nowrap}
+tr:hover{background:rgba(59,130,246,0.05)}
+.amount{font-weight:700;color:var(--green);text-align:right}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-state i{font-size:64px;margin-bottom:16px;opacity:.5}
+.toast{position:fixed;bottom:30px;right:30px;background:var(--green);color:#fff;padding:14px 20px;border-radius:10px;font-weight:600;box-shadow:var(--shadow);z-index:9999;animation:slideIn .3s}
+.toast.error{background:var(--red)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@media(max-width:768px){.header h1{font-size:18px}.container{padding:12px}.stats-grid{grid-template-columns:repeat(2,1fr)}.chart-grid{grid-template-columns:1fr}.filter-bar{flex-direction:column;align-items:stretch}.date-selection{flex-direction:column;align-items:stretch}.summary-grid{grid-template-columns:1fr}}
+@media print{body{background:#fff!important;color:#000!important}.theme-toggle,.back-btn,.upload-box,.upload-date-box,.action-bar,.filter-bar,.table-section,.status-bar,.date-selection,.cacheStatusBar,.modal-overlay{display:none!important}#dashboard-content{box-shadow:none!important;padding:0!important}.chart-box,.stat-card,.summary-item{break-inside:avoid;box-shadow:none!important;border:1px solid #ddd}}
+</style>
+</head>
+<body>
+<a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+<button class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
+<div class="header">
+<h1><i class="fas fa-chart-line"></i> GMS General Technical-MCD Daily Issue Smart Chart</h1>
+<p>Real-time Sync • Smart Cache (24h) • Auto Archive (30 days) • 20 Columns • Date: <span id="currentDate"></span></p>
+</div>
+<div class="container">
+<div class="cacheStatusBar">
+<div class="cacheDot"></div>
+<span id="cacheStatusText">📦 Cache Ready</span>
+<span class="cacheReadCount"><i class="fas fa-fire"></i> Today Reads: <b id="readCounter">0</b></span>
+<span class="roiBadge"><i class="fas fa-chart-line"></i> ROI: <b id="roiStatus">Active</b></span>
+<span class="syncStatus"><i class="fas fa-sync"></i> Sync: <b id="syncStatus">Active</b></span>
+</div>
+<div class="status-bar" id="statusBar">
+<span><i class="fas fa-circle" style="font-size:8px"></i> <span id="statusText">Ready</span></span>
+<span>Last Update: <span id="lastUpdate">-</span></span>
+</div>
+<div class="upload-box" id="uploadBox" onclick="document.getElementById('fileInput').click()">
+<i class="fas fa-cloud-upload-alt"></i>
+<h3>Upload Excel File — "Issue Data" sheet (20 Columns)</h3>
+<p>SL | Issue Date | Issue Purposed | Category | Reqs no | Division | Department | Section | Required Section | Item Group | UOM | Item Description | Item Code | Issue Qty | Rate(TK) | Amount(TK) | Issue id | Name of Person | Required For | Remarks</p>
+</div>
+<input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none">
+<div class="upload-date-box">
+<label><i class="fas fa-calendar-check"></i> Upload Date (optional):</label>
+<input type="date" id="uploadDateOverride">
+<small>তারিখ সিলেক্ট করে upload করলে ফাইলের সব row সেই তারিখেই সেভ হবে। খালি রাখলে Excel এর নিজের তারিখ ব্যবহার হবে। প্রতিটি দিন আলাদা Firestore document এ সেভ হয় (1MB limit নেই)।</small>
+</div>
+<div class="date-selection">
+<label><i class="fas fa-calendar"></i> Select Date:</label>
+<input type="date" id="reportDate">
+<button class="btn-apply" onclick="applyDateFilter()"><i class="fas fa-filter"></i> Apply</button>
+<button class="btn-clear" onclick="clearDateFilter()"><i class="fas fa-times"></i> Latest Date</button>
+<button class="btn-delete" onclick="deleteDateData()"><i class="fas fa-trash"></i> Delete Date</button>
+</div>
+<div class="monthly-summary">
+<h3><i class="fas fa-chart-bar"></i> Summary - <span id="currentMonthLabel">-</span></h3>
+<div class="summary-grid">
+<div class="summary-item"><span><i class="fas fa-calendar"></i> Total Days</span><b id="summaryDays">0</b></div>
+<div class="summary-item"><span><i class="fas fa-coins"></i> Total Amount</span><b id="summaryAmount">৳0</b></div>
+<div class="summary-item"><span><i class="fas fa-chart-line"></i> Avg Per Day</span><b id="summaryAvg">৳0</b></div>
+<div class="summary-item"><span><i class="fas fa-boxes"></i> Total Items</span><b id="summaryItems">0</b></div>
+<div class="summary-item"><span><i class="fas fa-building"></i> Departments</span><b id="summaryDepts">0</b></div>
+<div class="summary-item"><span><i class="fas fa-tags"></i> Categories</span><b id="summaryCats">0</b></div>
+</div>
+</div>
+<div class="action-bar">
+<button class="btn btn-excel" onclick="exportToExcel()"><i class="fas fa-file-excel"></i> Download Excel</button>
+<button class="btn btn-pdf" onclick="exportToPDF()"><i class="fas fa-file-pdf"></i> Print PDF</button>
+<button class="btn btn-datewise" onclick="openDateWiseReport()"><i class="fas fa-calendar-days"></i> Date Wise Report</button>
+<button class="btn btn-home" onclick="location.href='index.html'"><i class="fas fa-home"></i> Home</button>
+</div>
+<div class="modal-overlay" id="dateWiseModal">
+<div class="modal-box">
+<button class="modal-close" onclick="closeDateWiseReport()"><i class="fas fa-times"></i></button>
+<div class="dw-header">
+<h2>GMS Textiles Ltd.</h2>
+<p>Tansutrapur, Kaliakoir, Gazipur.</p>
+<h3 id="dwReportTitle">Date Wise Issue Value Report</h3>
+<p>General Technical - MCD</p>
+</div>
+<div class="dw-body">
+<div class="dw-table-wrap">
+<table class="dw-table">
+<thead><tr><th>S.N</th><th>Date</th><th>Value (TK)</th><th>Remarks</th></tr></thead>
+<tbody id="dwTableBody"></tbody>
+<tfoot id="dwTableFoot"></tfoot>
+</table>
+</div>
+<div class="dw-chart-wrap">
+<div class="dw-chart-title">DATE WISE TOTAL AMOUNT (TK)</div>
+<div class="dw-canvas-box" style="height:230px"><canvas id="dwBarChart"></canvas></div>
+<div class="dw-chart-title" style="margin-top:16px;background:#8b5cf6">SHARE BY DATE</div>
+<div class="dw-canvas-box" style="height:290px;margin-top:2px"><canvas id="dwPieChart"></canvas></div>
+</div>
+</div>
+<div class="dw-summary" id="dwSummary"></div>
+</div>
+</div>
+<div id="dashboard-content">
+<div class="stats-grid">
+<div class="stat-card" onclick="clearFilters()"><h4>Total Amount</h4><div class="value" id="statAmount">৳0</div></div>
+<div class="stat-card green" onclick="clearFilters()"><h4>Total Items</h4><div class="value" id="statItems">0</div></div>
+<div class="stat-card orange" onclick="clearFilters()"><h4>Departments</h4><div class="value" id="statDepts">0</div></div>
+<div class="stat-card purple" onclick="clearFilters()"><h4>Categories</h4><div class="value" id="statCats">0</div></div>
+<div class="stat-card red" onclick="clearFilters()"><h4>Avg. Per Item</h4><div class="value" id="statAvg">৳0</div></div>
+</div>
+<div id="emptyState" class="empty-state" style="display:none;">
+<i class="fas fa-inbox"></i><h3>No Data Available</h3><p>Upload an Excel file to get started</p>
+</div>
+<div class="chart-grid" id="chartGrid">
+<div class="chart-box"><h3><i class="fas fa-chart-pie" style="color:var(--blue)"></i> Category Wise Issue Value</h3><canvas id="categoryChart"></canvas><div class="chart-total" id="categoryTotal">Grand Total: ৳0</div></div>
+<div class="chart-box green"><h3><i class="fas fa-chart-bar" style="color:var(--green)"></i> Required Section Wise Issue Value</h3><canvas id="sectionChart"></canvas><div class="chart-total" id="sectionTotal">Grand Total: ৳0</div></div>
+<div class="chart-box orange"><h3><i class="fas fa-id-card" style="color:var(--yellow)"></i> Issue ID Wise Issue Value</h3><canvas id="issueIdChart"></canvas><div class="chart-total" id="issueIdTotal">Grand Total: ৳0</div></div>
+<div class="chart-box purple"><h3><i class="fas fa-building" style="color:var(--purple)"></i> Division Wise Issue Value</h3><canvas id="divisionChart"></canvas><div class="chart-total" id="divisionTotal">Grand Total: ৳0</div></div>
+<div class="chart-box cyan"><h3><i class="fas fa-box-open" style="color:var(--cyan)"></i> Item Wise Issue Value (Top 10)</h3><canvas id="itemChart"></canvas><div class="chart-total" id="itemTotal">Grand Total: ৳0</div></div>
+<div class="chart-box red full-width"><h3><i class="fas fa-chart-line" style="color:var(--red)"></i> Date Wise Amount Trend (Last 30 Days)</h3><canvas id="dateTrendChart"></canvas><div class="chart-total" id="dateTrendTotal">Grand Total: ৳0</div></div>
+</div>
+</div>
+<div class="filter-bar" id="filterBar">
+<span style="font-weight:700;font-size:13px;margin-right:10px"><i class="fas fa-filter"></i> Reports:</span>
+<button class="filter-btn active" id="btnAll">All Data<small id="totalAll">৳0</small></button>
+<div id="dynamicFilterButtons" style="display:contents"></div>
+</div>
+<div class="table-section">
+<h3 style="font-size:14px;font-weight:700;margin-bottom:12px"><i class="fas fa-table"></i> Detailed Data (20 Columns) - <span id="rowCount">0</span> rows</h3>
+<table>
+<thead><tr>
+<th>SL</th><th>Date</th><th>Issue Purposed</th><th>Category</th><th>Reqs No</th><th>Division</th>
+<th>Department</th><th>Section</th><th>Required Section</th><th>Item Group</th><th>UOM</th>
+<th>Item Description</th><th>Item Code</th><th style="text-align:center">Qty</th>
+<th style="text-align:right">Rate</th><th style="text-align:right">Amount (TK)</th>
+<th>Issue ID</th><th>Name of Person</th><th>Required For</th><th>Remarks</th>
+</tr></thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+</div>
+
+<!-- XLSX loader — GitHub Pages first (always works), then 3 CDN fallbacks -->
+<script>
+(function(){
+  var CDNS=[
+    'xlsx.full.min.js',                                                          // ✅ GitHub Pages (same folder — fastest, no CDN dependency)
+    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',      // fallback 1
+    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',           // fallback 2
+    'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'                       // fallback 3
+  ];
+  var box=document.getElementById('uploadBox');
+  var inp=document.getElementById('fileInput');
+
+  // Disable upload visually until XLSX is confirmed loaded
+  function disableUpload(){
+    if(box){box.style.opacity='0.5';box.style.cursor='not-allowed';box.title='XLSX লোড হচ্ছে...';}
+    if(inp)inp.disabled=true;
+  }
+  function enableUpload(){
+    if(box){box.style.opacity='';box.style.cursor='pointer';box.title='';}
+    if(inp)inp.disabled=false;
+    var st=document.getElementById('statusText');
+    if(st&&st.textContent.includes('XLSX'))st.textContent='Ready';
+  }
+
+  disableUpload();
+
+  function tryLoad(i){
+    if(i>=CDNS.length){
+      // All CDNs failed — show error
+      var st=document.getElementById('statusText');
+      if(st)st.textContent='⚠️ XLSX লোড হয়নি — Internet check করুন, তারপর reload করুন';
+      if(box)box.innerHTML='<i class="fas fa-exclamation-triangle" style="color:var(--red)"></i><h3 style="color:var(--red)">XLSX লোড হয়নি — Page Reload করুন</h3><p>Internet connection check করুন</p>';
+      return;
+    }
+    var s=document.createElement('script');
+    s.src=CDNS[i];
+    s.onload=function(){
+      if(window.XLSX){
+        enableUpload();
+        console.log('XLSX loaded from CDN',i,CDNS[i]);
+      }else{
+        tryLoad(i+1);
+      }
+    };
+    s.onerror=function(){ tryLoad(i+1); };
+    document.head.appendChild(s);
+  }
+
+  // If already loaded (cached), just enable immediately
+  if(window.XLSX){ enableUpload(); }
+  else{ tryLoad(0); }
+})();
+</script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, setDoc, onSnapshot, collection, getDocs, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain: "gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId: "gms-warehouse-tracker-7f57e",
+  storageBucket: "gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId: "992250313291",
+  appId: "1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ============================================================
+// DOCUMENT STRUCTURE (v2 — per-day, no 1MB limit problem)
+// ============================================================
+// OLD: generalTechnicalMcdDaily/2026-08          ← one doc per MONTH → hits 1MB
+// NEW: generalTechnicalMcdDaily/2026-08-19       ← one doc per DAY  → never hits 1MB
+//
+// The migration helper below reads old month-docs and rewrites them as day-docs
+// automatically the first time this page loads after the update.
+// ============================================================
+const ACTIVE_COL = "generalTechnicalMcdDaily";
+const SYNC_COL   = "system_sync";
+
+// Safe XLSX accessor — waits up to 5s for XLSX to load before giving up
+async function getXLSX() {
+  if (window.XLSX) return window.XLSX;
+  for(let i=0;i<25;i++){ await new Promise(r=>setTimeout(r,200)); if(window.XLSX) return window.XLSX; }
+  throw new Error("XLSX library লোড হয়নি। Internet connection check করে Page reload করুন।");
+}
+
+let allData = [];
+let filteredData = [];
+let charts = {};
+let currentFilter = {};
+let hasInitializedFilter = false;
+
+if (window.ChartDataLabels) {
+  Chart.register(ChartDataLabels);
+  Chart.defaults.set('plugins.datalabels', { display: false });
+}
+
+// ==================== CACHE ====================
+window.GMS_CACHE = {
+  CACHE_KEY:'GMS_TECH_MCD_CACHE_V2', // bumped to V2 — forces fresh fetch after migration
+  READ_COUNT_KEY:'GMS_TECH_MCD_READ_COUNT_TODAY',
+  READ_DATE_KEY:'GMS_TECH_MCD_READ_DATE',
+  LOCAL_TS_KEY:'GMS_TECH_MCD_LOCAL_TIMESTAMPS_V2',
+  CACHE_EXPIRY_MS:24*60*60*1000,
+  getReadCount(){const t=new Date().toDateString();if(localStorage.getItem(this.READ_DATE_KEY)!==t){localStorage.setItem(this.READ_DATE_KEY,t);localStorage.setItem(this.READ_COUNT_KEY,'0');}return parseInt(localStorage.getItem(this.READ_COUNT_KEY)||'0');},
+  incRead(n=1){const c=this.getReadCount()+n;localStorage.setItem(this.READ_COUNT_KEY,String(c));const el=document.getElementById('readCounter');if(el)el.innerText=c;return c;},
+  _all(){try{return JSON.parse(localStorage.getItem(this.CACHE_KEY)||'{}')}catch{return{}}},
+  set(key,data,ts){const a=this._all();a[key]={data,savedAt:Date.now(),timestamp:ts||Date.now()};try{localStorage.setItem(this.CACHE_KEY,JSON.stringify(a))}catch(e){console.warn('Cache set failed:',e)}},
+  get(key){const a=this._all();const e=a[key];if(!e)return null;if(Date.now()-e.savedAt>this.CACHE_EXPIRY_MS)return null;return e.data;},
+  getLocalTimestamp(col){return(JSON.parse(localStorage.getItem(this.LOCAL_TS_KEY)||'{}'))[col]||0;},
+  setLocalTimestamp(col,ts){const t=JSON.parse(localStorage.getItem(this.LOCAL_TS_KEY)||'{}');t[col]=ts;localStorage.setItem(this.LOCAL_TS_KEY,JSON.stringify(t));},
+  needsUpdate(col,remoteTS){return remoteTS>this.getLocalTimestamp(col);},
+  invalidate(keys){const a=this._all();if(typeof keys==='string')keys=[keys];keys.forEach(k=>delete a[k]);localStorage.setItem(this.CACHE_KEY,JSON.stringify(a));const t=JSON.parse(localStorage.getItem(this.LOCAL_TS_KEY)||'{}');keys.forEach(k=>{t[k]=0;});localStorage.setItem(this.LOCAL_TS_KEY,JSON.stringify(t));},
+  clear(){localStorage.removeItem(this.CACHE_KEY);localStorage.removeItem(this.LOCAL_TS_KEY);}
+};
+
+// ==================== DATE HELPERS ====================
+function isoToDMY(iso){const[y,m,d]=iso.split('-');return`${d}-${m}-${y}`;}
+function dmyToJSDate(dmy){const m=String(dmy||'').match(/^(\d{2})-(\d{2})-(\d{4})$/);if(!m)return null;return new Date(parseInt(m[3]),parseInt(m[2])-1,parseInt(m[1]));}
+function dmySortKey(dmy){const m=String(dmy||'').match(/^(\d{2})-(\d{2})-(\d{4})$/);if(!m)return'';return`${m[3]}-${m[2]}-${m[1]}`;}
+function dmyToISO(dmy){const m=String(dmy||'').match(/^(\d{2})-(\d{2})-(\d{4})$/);if(!m)return'';return`${m[3]}-${m[2]}-${m[1]}`;}
+function todayISOLocal(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+
+// KEY CHANGE: doc ID is now YYYY-MM-DD (one per day, max ~50KB per doc)
+function dayDocId(dateStr){
+  // dateStr is "DD-MM-YYYY"
+  const m=String(dateStr||'').match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if(!m)return null;
+  return`${m[3]}-${m[2]}-${m[1]}`; // YYYY-MM-DD
+}
+
+// ==================== MIGRATION (old month-docs → new day-docs) ====================
+async function migrateMonthDocsToDayDocs(){
+  const MIGRATED_KEY='GMS_TECH_MCD_MIGRATED_V2';
+  if(localStorage.getItem(MIGRATED_KEY)==='1')return;
+
+  const statusEl=document.getElementById('cacheStatusText');
+  if(statusEl)statusEl.innerText='🔄 পুরনো data নতুন format এ migrate করা হচ্ছে...';
+
+  try{
+    const snap=await getDocs(collection(db,ACTIVE_COL));
+    const oldMonthDocs=[];
+    snap.forEach(docSnap=>{
+      if(docSnap.id.length===7)oldMonthDocs.push(docSnap); // "2026-08" = 7 chars
+    });
+
+    if(oldMonthDocs.length===0){
+      localStorage.setItem(MIGRATED_KEY,'1');
+      return;
+    }
+
+    // Collect rows from each old month-doc.
+    // ⚠️ If a month-doc exceeded 1MB, Firestore SDK returns it but data[] may be
+    // partially missing or the whole doc read may silently return empty.
+    // We detect this and warn the user instead of silently losing data.
+    const dayMap={};
+    let oversizedDocs=[];
+
+    oldMonthDocs.forEach(docSnap=>{
+      const rows=docSnap.data().data||[];
+      if(rows.length===0){
+        // Doc existed but returned 0 rows — almost certainly the 1MB oversized case
+        oversizedDocs.push(docSnap.id);
+        return;
+      }
+      rows.forEach(r=>{
+        const key=dayDocId(r.date);
+        if(!key)return;
+        if(!dayMap[key])dayMap[key]=[];
+        dayMap[key].push(r);
+      });
+    });
+
+    // Write day-docs for whatever we successfully read
+    if(Object.keys(dayMap).length>0){
+      const writes=Object.entries(dayMap).map(async([dayKey,rows])=>{
+        const reseq=rows.map((r,i)=>({...r,sl:i+1}));
+        await setDoc(doc(db,ACTIVE_COL,dayKey),{data:reseq,updatedAt:Date.now()});
+      });
+      await Promise.all(writes);
+    }
+
+    // Delete old month-docs (including oversized ones — they can't be recovered via SDK)
+    const deletes=oldMonthDocs.map(d=>deleteDoc(doc(db,ACTIVE_COL,d.id)));
+    await Promise.all(deletes);
+
+    await setDoc(doc(db,SYNC_COL,ACTIVE_COL),{lastUpdated:Date.now()},{merge:true});
+    window.GMS_CACHE.invalidate([ACTIVE_COL]);
+    localStorage.setItem(MIGRATED_KEY,'1');
+
+    if(oversizedDocs.length>0){
+      // Show persistent warning — oversized docs could not be auto-recovered
+      showToast(`⚠️ পুরনো ${oversizedDocs.join(', ')} doc টা 1MB+ ছিল তাই auto-recover হয়নি। Excel থেকে সেই মাসের data আবার upload করুন।`,true);
+      setTimeout(()=>showToast('📤 যে দিনগুলোর data নেই সেগুলো upload box থেকে re-upload করুন',true),4000);
+      if(statusEl)statusEl.innerText=`⚠️ Migration আংশিক — ${oversizedDocs.join(', ')} manually re-upload করুন`;
+    }else{
+      if(statusEl)statusEl.innerText=`✅ Migration সম্পন্ন → ${Object.keys(dayMap).length} দিনের data নতুন format এ`;
+    }
+  }catch(err){
+    console.error('Migration error:',err);
+    if(statusEl)statusEl.innerText='⚠️ Migration error — পরের load এ retry হবে';
+  }
+}
+
+// ==================== SMART LOAD ====================
+async function smartLoadData(){
+  const statusEl=document.getElementById('cacheStatusText');
+  try{
+    if(statusEl)statusEl.innerText='🔍 Checking for updates...';
+    let remoteTS=0;
+    try{
+      const syncDoc=await getDoc(doc(db,SYNC_COL,ACTIVE_COL));
+      if(syncDoc.exists())remoteTS=syncDoc.data().lastUpdated||0;
+      window.GMS_CACHE.incRead(1);
+    }catch(e){console.warn('system_sync read failed:',e);}
+
+    if(!window.GMS_CACHE.needsUpdate(ACTIVE_COL,remoteTS)){
+      const cached=window.GMS_CACHE.get(ACTIVE_COL);
+      if(cached!==null){if(statusEl)statusEl.innerText='✅ Report loaded (Cache 📦) - 0 Firebase reads';return cached;}
+    }
+
+    if(statusEl)statusEl.innerText='🔥 Fetching from Firebase...';
+    const snapshot=await getDocs(collection(db,ACTIVE_COL));
+    const rawData=[];
+    snapshot.forEach(docSnap=>{
+      const d=docSnap.data();
+      // Accept both old (7-char month) and new (10-char day) doc IDs during transition
+      if(d.data)rawData.push(...d.data.map(r=>({...r,_docId:docSnap.id})));
+    });
+    window.GMS_CACHE.incRead(snapshot.size||1);
+    window.GMS_CACHE.set(ACTIVE_COL,rawData,remoteTS);
+    window.GMS_CACHE.setLocalTimestamp(ACTIVE_COL,remoteTS);
+    if(statusEl)statusEl.innerText='✅ Report loaded (Firebase 🔥)';
+    return rawData;
+  }catch(error){
+    console.error('Smart load error:',error);
+    if(statusEl)statusEl.innerText='❌ Load failed';
+    const cached=window.GMS_CACHE.get(ACTIVE_COL);
+    return cached!==null?cached:[];
+  }
+}
+
+function setupRealtimeSync(){
+  onSnapshot(collection(db,SYNC_COL),snapshot=>{
+    const remoteTS={};
+    snapshot.forEach(d=>{remoteTS[d.id]=d.data().lastUpdated||0;});
+    const localTS=window.GMS_CACHE.getLocalTimestamp(ACTIVE_COL);
+    if((remoteTS[ACTIVE_COL]||0)>localTS){
+      window.GMS_CACHE.invalidate([ACTIVE_COL]);
+      const el=document.getElementById('syncStatus');
+      if(el){el.innerText='Updated ✅';setTimeout(()=>{if(el)el.innerText='Active';},2000);}
+      if(!document.hidden)loadActiveData();
+    }
+  });
+}
+
+// ==================== THEME ====================
+window.toggleTheme=function(){
+  document.body.classList.toggle('light');
+  document.getElementById('themeIcon').className=document.body.classList.contains('light')?'fas fa-sun':'fas fa-moon';
+  localStorage.setItem('theme',document.body.classList.contains('light')?'light':'dark');
+  renderCharts();
+};
+if(localStorage.getItem('theme')==='light'){document.body.classList.add('light');document.getElementById('themeIcon').className='fas fa-sun';}
+document.getElementById('currentDate').textContent=new Date().toLocaleDateString('en-GB');
+document.getElementById('reportDate').value=todayISOLocal();
+(function(){const el=document.getElementById('readCounter');if(el)el.innerText=window.GMS_CACHE.getReadCount();})();
+
+window.addEventListener('online',()=>{updateStatus('Online - Syncing...');loadActiveData();});
+window.addEventListener('offline',()=>{updateStatus('Offline Mode - Using Cache',true);});
+function updateStatus(msg,offline=false){document.getElementById('statusText').textContent=msg;document.getElementById('statusBar').className='status-bar'+(offline?' offline':'');}
+
+// ==================== FILE UPLOAD ====================
+const uploadBox=document.getElementById('uploadBox');
+['dragenter','dragover'].forEach(e=>uploadBox.addEventListener(e,ev=>{ev.preventDefault();uploadBox.classList.add('dragover');}));
+['dragleave','drop'].forEach(e=>uploadBox.addEventListener(e,ev=>{ev.preventDefault();uploadBox.classList.remove('dragover');}));
+uploadBox.addEventListener('drop',ev=>{if(ev.dataTransfer.files.length)processFile(ev.dataTransfer.files[0]);});
+document.getElementById('fileInput').addEventListener('change',function(event){if(event.target.files[0])processFile(event.target.files[0]);event.target.value='';});
+
+async function processFile(file){
+  let XLSXLib;
+  try{XLSXLib=await getXLSX();}catch(e){showToast(e.message,true);return;}
+  updateStatus('Processing file...');
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=new Uint8Array(e.target.result);
+      const workbook=XLSXLib.read(data,{type:'array',cellFormula:false,cellNF:false});
+      const sheetName=workbook.SheetNames.find(n=>n.trim().toLowerCase()==='issue data')||workbook.SheetNames[0];
+      const jsonData=XLSXLib.utils.sheet_to_json(workbook.Sheets[sheetName],{defval:'',raw:true});
+      if(!jsonData.length){showToast('No data found!',true);return;}
+      const overrideInput=document.getElementById('uploadDateOverride').value;
+      const overrideDate=overrideInput?isoToDMY(overrideInput):'';
+      saveToFirebase(normalizeData(jsonData,overrideDate),file.name);
+    }catch(err){showToast('Error: '+err.message,true);console.error(err);}
+  };
+  reader.onerror=()=>showToast('File পড়তে সমস্যা হয়েছে।',true);
+  reader.readAsArrayBuffer(file);
+}
+
+function normalizeData(raw,overrideDate){
+  return raw.map((row,idx)=>{
+    // KEY FIX: trim all column header keys before reading
+    // Excel files often have ' Rate(TK) ' (with spaces) instead of 'Rate(TK)'
+    // causing all numeric lookups to return undefined -> amount saves as 0
+    const trimmed={};
+    Object.keys(row).forEach(k=>{trimmed[k.trim()]=row[k];});
+    const r=trimmed;
+    return {
+    sl:r['SL']||(idx+1),
+    date:overrideDate||formatDate(r['Issue Date']||r['Trans. Date']||r['date']),
+    issuePurposed:String(r['Issue Purposed']||'').trim(),
+    category:String(r['Category']||'').trim(),
+    reqsNo:String(r['Reqs no']||r['Reqs No']||r['Store Reqsn']||r['Requisition No']||'').trim(),
+    division:String(r['Division']||'').trim(),
+    department:String(r['Department']||'').trim(),
+    section:String(r['Section']||'').trim(),
+    requiredSection:String(r['Required Section']||'').trim(),
+    itemGroup:String(r['Item Group']||'').trim(),
+    uom:String(r['UOM']||'').trim(),
+    itemDescription:String(r['Item Description']||'').trim(),
+    itemCode:String(r['Item Code']||'').trim(),
+    issueQty:parseNum(r['Issue Qty']||r['qty']),
+    rate:parseNum(r['Rate(TK)']||r['Rate']),
+    amount:(function(){var a=parseNum(r['Amount(TK)']||r['Amount']);var q=parseNum(r['Issue Qty']||r['qty']);var rt=parseNum(r['Rate(TK)']||r['Rate']);return(a&&a>0)?a:(q*rt);})(),
+    issueId:String(r['Issue id']||r['Issue ID']||r['User']||r['Issue Id']||'').trim(),
+    personName:String(r['Name of Person']||'').trim(),
+    requiredFor:String(r['Required For']||'').trim(),
+    remarks:String(r['Remarks']||'').trim()
+    };
+  }).filter(r=>r.itemDescription||r.amount>0);
+}
+
+function parseNum(v){if(typeof v==='number')return v;return Number(String(v||0).replace(/,/g,''))||0;}
+
+function parseAnyDate(raw){
+  if(raw===null||raw===undefined||raw==='')return null;
+  if(typeof raw==='number'){try{const p=getXLSX().SSF.parse_date_code(raw);if(p)return{d:p.d,m:p.m,y:p.y};}catch{}return null;}
+  if(raw instanceof Date&&!isNaN(raw.getTime()))return{d:raw.getDate(),m:raw.getMonth()+1,y:raw.getFullYear()};
+  const str=String(raw).trim();if(!str)return null;
+  let m=str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);if(m)return{d:parseInt(m[1]),m:parseInt(m[2]),y:parseInt(m[3])};
+  m=str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);if(m)return{d:parseInt(m[3]),m:parseInt(m[2]),y:parseInt(m[1])};
+  const pd=new Date(str);if(!isNaN(pd.getTime()))return{d:pd.getDate(),m:pd.getMonth()+1,y:pd.getFullYear()};
+  return null;
+}
+
+function formatDate(d){const p=parseAnyDate(d);if(!p)return'';return`${String(p.d).padStart(2,'0')}-${String(p.m).padStart(2,'0')}-${p.y}`;}
+
+// ==================== FIREBASE SAVE (per-day docs) ====================
+async function saveToFirebase(data,fileName){
+  updateStatus('Saving to Firebase...');
+  await purgeExpiredData();
+
+  // Group rows by day → each day = one Firestore document
+  const dayMap={};
+  let skippedCount=0;
+  data.forEach(row=>{
+    const docKey=dayDocId(row.date); // e.g. "2026-08-19"
+    if(docKey){if(!dayMap[docKey])dayMap[docKey]=[];dayMap[docKey].push(row);}
+    else skippedCount++;
+  });
+
+  try{
+    const writes=Object.entries(dayMap).map(async([docKey,rows])=>{
+      const docRef=doc(db,ACTIVE_COL,docKey);
+      // REPLACE strategy: new upload overwrites existing day data
+      // (prevents duplicates when the same daily file is re-uploaded)
+      const reseq=rows.map((r,i)=>({...r,sl:i+1}));
+      await setDoc(docRef,{data:reseq,updatedAt:Date.now()});
+    });
+    await Promise.all(writes);
+    await setDoc(doc(db,SYNC_COL,ACTIVE_COL),{lastUpdated:Date.now(),collection:ACTIVE_COL},{merge:true});
+    window.GMS_CACHE.invalidate([ACTIVE_COL]);
+
+    const savedCount=data.length-skippedCount;
+    showToast(`✅ Saved ${savedCount} rows across ${Object.keys(dayMap).length} day(s)!`);
+    if(skippedCount>0)setTimeout(()=>showToast(`⚠️ Skipped ${skippedCount} row(s): valid date নেই`,true),2500);
+    updateStatus('✅ Saved successfully!');
+    hasInitializedFilter=false;currentFilter.date=null;
+    await loadActiveData();
+  }catch(err){showToast('Save failed: '+err.message,true);console.error(err);}
+}
+
+// ==================== AUTO-EXPIRY (30 days) ====================
+const RETENTION_DAYS=30;
+async function purgeExpiredData(){
+  try{
+    const now=new Date();now.setHours(0,0,0,0);
+    const cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-RETENTION_DAYS);
+    const snapshot=await getDocs(collection(db,ACTIVE_COL));
+    const deletes=[];
+    snapshot.forEach(docSnap=>{
+      // For day-docs: doc ID is "YYYY-MM-DD", parse directly
+      const docDate=new Date(docSnap.id+'T00:00:00');
+      if(!isNaN(docDate.getTime())&&docDate<cutoff){
+        deletes.push(deleteDoc(doc(db,ACTIVE_COL,docSnap.id)));
+      }
+    });
+    if(deletes.length){
+      await Promise.all(deletes);
+      await setDoc(doc(db,SYNC_COL,ACTIVE_COL),{lastUpdated:Date.now()},{merge:true});
+      window.GMS_CACHE.invalidate([ACTIVE_COL]);
+    }
+    return deletes.length>0;
+  }catch(err){console.error('Purge error:',err);return false;}
+}
+
+// ==================== DELETE DATE ====================
+window.deleteDateData=async function(){
+  const dateInput=document.getElementById('reportDate').value;
+  if(!dateInput){showToast('Please select a date to delete',true);return;}
+  const docKey=dateInput; // already "YYYY-MM-DD"
+  const displayDate=isoToDMY(dateInput);
+  if(!confirm(`Are you sure you want to delete ALL data for ${displayDate}?`))return;
+  try{
+    updateStatus('Deleting data...');
+    const docRef=doc(db,ACTIVE_COL,docKey);
+    const docSnap=await getDoc(docRef);
+    if(docSnap.exists()){
+      const count=docSnap.data().data?docSnap.data().data.length:0;
+      await deleteDoc(docRef);
+      await setDoc(doc(db,SYNC_COL,ACTIVE_COL),{lastUpdated:Date.now()},{merge:true});
+      window.GMS_CACHE.invalidate([ACTIVE_COL]);
+      allData=allData.filter(r=>r.date!==displayDate);
+      updateFilterTotals();applyFilters();
+      showToast(`✅ Deleted ${count} row(s) for ${displayDate}`);
+    }else{showToast(`No data found for ${displayDate}`,true);}
+    updateStatus('Live Sync Active ✅');
+  }catch(err){showToast('Delete failed: '+err.message,true);}
+};
+
+// ==================== LOAD DATA ====================
+async function loadActiveData(){
+  updateStatus('Loading live data...');
+  await migrateMonthDocsToDayDocs(); // safe no-op after first run
+  await purgeExpiredData();
+  const data=await smartLoadData();
+  allData=data;
+  allData.sort((a,b)=>dmySortKey(b.date).localeCompare(dmySortKey(a.date)));
+  document.getElementById('lastUpdate').textContent=new Date().toLocaleString();
+  if(!hasInitializedFilter){
+    const latestDate=allData.length?allData[0].date:null;
+    currentFilter.date=latestDate||null;
+    document.getElementById('reportDate').value=latestDate?dmyToISO(latestDate):todayISOLocal();
+    hasInitializedFilter=true;
+  }
+  updateFilterTotals();applyFilters();
+  if(document.getElementById('dateWiseModal').classList.contains('active'))renderDateWiseReport();
+  updateStatus('Live Sync Active ✅');
+}
+
+loadActiveData();
+setupRealtimeSync();
+setInterval(()=>{if(!document.hidden)loadActiveData();},5*60*1000);
+
+// ==================== FILTERS ====================
+window.applyDateFilter=function(){
+  const dateInput=document.getElementById('reportDate').value;
+  if(!dateInput){showToast('Please select a date',true);return;}
+  const[year,month,day]=dateInput.split('-');
+  const formattedDate=`${day}-${month}-${year}`;
+  currentFilter.date=formattedDate;
+  updateFilterTotals();applyFilters();
+  const count=allData.filter(r=>r.date===formattedDate).length;
+  if(count===0)showToast(`No data found for ${formattedDate}`,true);
+  else showToast(`Filter applied: ${formattedDate} (${count} rows)`);
+};
+window.clearDateFilter=function(){
+  const latestDate=allData.length?allData[0].date:null;
+  currentFilter.date=latestDate||null;
+  document.getElementById('reportDate').value=latestDate?dmyToISO(latestDate):todayISOLocal();
+  updateFilterTotals();applyFilters();
+  showToast(latestDate?`সর্বশেষ তারিখ দেখানো হচ্ছে: ${latestDate}`:'কোনো ডেটা নেই');
+};
+window.filterReport=function(category){currentFilter.reportType=category;updateFilterTotals();applyFilters();};
+window.showAllData=function(){currentFilter.reportType=null;updateFilterTotals();applyFilters();};
+
+// Event delegation on the filter container — works inside module scope,
+// no inline onclick needed (inline onclick can't reach module-scoped functions
+// in some browser/CSP combinations).
+document.getElementById('dynamicFilterButtons').addEventListener('click',function(e){
+  const btn=e.target.closest('button[data-cat]');
+  if(!btn)return;
+  currentFilter.reportType=btn.dataset.cat;
+  updateFilterTotals();
+  applyFilters();
+});
+document.getElementById('btnAll').addEventListener('click',function(){
+  currentFilter.reportType=null;
+  updateFilterTotals();
+  applyFilters();
+});
+
+function updateFilterTotals(){
+  const base=currentFilter.date?allData.filter(r=>r.date===currentFilter.date):allData;
+  const allTotal=base.reduce((s,r)=>s+r.amount,0);
+  document.getElementById('totalAll').textContent='৳'+allTotal.toLocaleString('en-US',{maximumFractionDigits:0});
+  document.getElementById('btnAll').classList.toggle('active',!currentFilter.reportType);
+  const catTotals={};
+  base.forEach(r=>{const c=r.category||'Unknown';catTotals[c]=(catTotals[c]||0)+r.amount;});
+  const sorted=Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const container=document.getElementById('dynamicFilterButtons');
+  container.innerHTML='';
+  sorted.forEach(([cat,val])=>{
+    const btn=document.createElement('button');
+    btn.className='filter-btn'+(currentFilter.reportType===cat?' active':'');
+    btn.dataset.cat=cat; // store category in data attribute, no onclick needed
+    btn.innerHTML=`${cat}<small>৳${val.toLocaleString('en-US',{maximumFractionDigits:0})}</small>`;
+    container.appendChild(btn);
+  });
+}
+
+function applyFilters(){
+  filteredData=allData.filter(row=>{
+    if(currentFilter.date&&row.date!==currentFilter.date)return false;
+    if(!currentFilter.date&&allData.length)return false;
+    if(currentFilter.reportType&&row.category!==currentFilter.reportType)return false;
+    return true;
+  });
+  const emptyState=document.getElementById('emptyState');
+  const chartGrid=document.getElementById('chartGrid');
+  if(filteredData.length===0){emptyState.style.display='block';chartGrid.style.display='none';}
+  else{emptyState.style.display='none';chartGrid.style.display='grid';}
+  updateStats();updateMonthlySummary();renderCharts();renderTable();
+}
+window.clearFilters=function(){currentFilter.reportType=null;updateFilterTotals();applyFilters();};
+
+// ==================== STATS ====================
+function updateStats(){
+  const total=filteredData.length;
+  const amount=filteredData.reduce((s,r)=>s+r.amount,0);
+  const depts=new Set(filteredData.map(r=>r.department).filter(Boolean)).size;
+  const cats=new Set(filteredData.map(r=>r.category).filter(Boolean)).size;
+  const avg=total>0?amount/total:0;
+  document.getElementById('statAmount').textContent='৳'+amount.toLocaleString('en-US',{maximumFractionDigits:0});
+  document.getElementById('statItems').textContent=total.toLocaleString();
+  document.getElementById('statDepts').textContent=depts;
+  document.getElementById('statCats').textContent=cats;
+  document.getElementById('statAvg').textContent='৳'+avg.toLocaleString('en-US',{maximumFractionDigits:0});
+  document.getElementById('rowCount').textContent=total;
+}
+function updateMonthlySummary(){
+  const days=new Set(filteredData.map(r=>r.date)).size;
+  const amount=filteredData.reduce((s,r)=>s+r.amount,0);
+  const avg=days>0?amount/days:0;
+  document.getElementById('summaryDays').textContent=days;
+  document.getElementById('summaryAmount').textContent='৳'+amount.toLocaleString('en-US',{maximumFractionDigits:0});
+  document.getElementById('summaryAvg').textContent='৳'+avg.toLocaleString('en-US',{maximumFractionDigits:0});
+  document.getElementById('summaryItems').textContent=filteredData.length;
+  document.getElementById('summaryDepts').textContent=new Set(filteredData.map(r=>r.department).filter(Boolean)).size;
+  document.getElementById('summaryCats').textContent=new Set(filteredData.map(r=>r.category).filter(Boolean)).size;
+  document.getElementById('currentMonthLabel').textContent=currentFilter.date||'কোনো তারিখ সিলেক্ট করা নেই';
+}
+
+// ==================== CHARTS ====================
+function destroyChart(canvasId){
+  // Chart.getChart() is the only 100% reliable way to destroy a chart tied to a canvas.
+  // The charts{} object reference can go stale (e.g. after theme toggle triggers two
+  // rapid renderCharts() calls), leaving Chart.js thinking the canvas is still in use.
+  const existing=Chart.getChart(canvasId);
+  if(existing)existing.destroy();
+}
+function renderCharts(){
+  // Destroy via canvas ID — never via stale object reference
+  ['categoryChart','sectionChart','issueIdChart','divisionChart','itemChart','dateTrendChart']
+    .forEach(destroyChart);
+  charts={};
+  const isDark=!document.body.classList.contains('light');
+  const textColor=isDark?'#f1f5f9':'#1e293b';
+  const gridColor=isDark?'rgba(148,163,184,.2)':'rgba(0,0,0,.1)';
+  const palette=['#38bdf8','#22c55e','#f59e0b','#a855f7','#ef4444','#14b8a6','#eab308','#6366f1','#ec4899','#84cc16'];
+  const vlp={id:'vlp',afterDatasetsDraw(chart){const{ctx}=chart;ctx.save();ctx.font='600 11px Poppins';ctx.fillStyle=textColor;ctx.textAlign='center';chart.data.datasets.forEach((ds,di)=>{const meta=chart.getDatasetMeta(di);meta.data.forEach((bar,i)=>{const v=ds.data[i];if(v==null)return;ctx.fillText('৳'+v.toLocaleString('en-US',{maximumFractionDigits:0}),bar.x,bar.y-6);});});ctx.restore();}};
+
+  // Chart 1: Category Pie
+  const catData={};filteredData.forEach(r=>{const c=r.category||'Unknown';catData[c]=(catData[c]||0)+r.amount;});
+  const catLabels=Object.keys(catData);const catTotal=catLabels.reduce((s,l)=>s+catData[l],0);
+  charts.category=new Chart(document.getElementById('categoryChart'),{type:'pie',data:{labels:catLabels.length?catLabels:['No Data'],datasets:[{data:catLabels.length?catLabels.map(l=>catData[l]):[1],backgroundColor:palette,borderWidth:2,borderColor:isDark?'#1e293b':'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:textColor,font:{size:10}}}}}});
+  document.getElementById('categoryTotal').textContent='Grand Total: ৳'+catTotal.toLocaleString('en-US',{maximumFractionDigits:0});
+
+  // Chart 2: Section Bar
+  const secData={};filteredData.forEach(r=>{const s=r.requiredSection||r.section||'Unknown';secData[s]=(secData[s]||0)+r.amount;});
+  const secAll=Object.keys(secData);const secTotal=secAll.reduce((s,l)=>s+secData[l],0);const secLabels=secAll.slice(0,15);
+  charts.section=new Chart(document.getElementById('sectionChart'),{type:'bar',data:{labels:secLabels.length?secLabels:['No Data'],datasets:[{label:'Amount',data:secLabels.length?secLabels.map(l=>secData[l]):[0],backgroundColor:'#22c55e',borderRadius:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:gridColor},ticks:{color:textColor}},x:{ticks:{color:textColor,maxRotation:45,font:{size:9}}}}},plugins:[vlp]});
+  document.getElementById('sectionTotal').textContent='Grand Total: ৳'+secTotal.toLocaleString('en-US',{maximumFractionDigits:0})+(secAll.length>15?` (top 15 of ${secAll.length})`:'');
+
+  // Chart 3: Issue ID Wise (with smart fallback)
+  // If issueId column is empty in the data, fall back to grouping by personName.
+  // This makes the chart meaningful even when Issue ID isn't present in the Excel.
+  const idData={},idNameMap={};
+  filteredData.forEach(r=>{const id=r.issueId||'';idData[id]=(idData[id]||0)+r.amount;if(!idNameMap[id]&&r.personName)idNameMap[id]=r.personName;});
+  const hasRealIds=Object.keys(idData).some(k=>k&&k!=='Unknown'&&k!=='');
+  let idChartData={},idChartTitle='Issue ID Wise Issue Value';
+  if(hasRealIds){
+    // Normal mode: group by issueId, label = "ID (Name)"
+    filteredData.forEach(r=>{const id=r.issueId||'Unknown';idChartData[id]=(idChartData[id]||0)+r.amount;idNameMap[id]=idNameMap[id]||r.personName||'';});
+  }else{
+    // Fallback mode: group by personName
+    idChartTitle='Name of Person Wise Issue Value';
+    filteredData.forEach(r=>{const name=r.personName||'Unknown';idChartData[name]=(idChartData[name]||0)+r.amount;});
+  }
+  const idAll=Object.keys(idChartData).sort((a,b)=>idChartData[b]-idChartData[a]);
+  const idTotal=idAll.reduce((s,l)=>s+idChartData[l],0);
+  const idLabels=idAll.slice(0,10);
+  const idDisplayLabels=hasRealIds?idLabels.map(l=>idNameMap[l]?`${l}\n(${idNameMap[l]})`:l):idLabels;
+  // Update chart box heading
+  const issueIdHeading=document.querySelector('#issueIdChart')?.closest('.chart-box')?.querySelector('h3');
+  if(issueIdHeading)issueIdHeading.innerHTML=`<i class="fas fa-id-card" style="color:var(--yellow)"></i> ${idChartTitle}`;
+  charts.issueId=new Chart(document.getElementById('issueIdChart'),{type:'bar',data:{labels:idDisplayLabels.length?idDisplayLabels:['No Data'],datasets:[{label:'Amount',data:idLabels.length?idLabels.map(l=>idChartData[l]):[0],backgroundColor:'#f59e0b',borderRadius:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:gridColor},ticks:{color:textColor}},x:{ticks:{color:textColor,maxRotation:45,font:{size:9}}}}},plugins:[vlp]});
+  document.getElementById('issueIdTotal').textContent='Grand Total: ৳'+idTotal.toLocaleString('en-US',{maximumFractionDigits:0})+(idAll.length>10?` (top 10 of ${idAll.length})`:'');
+
+  // Chart 4: Division Bar
+  const divData={};filteredData.forEach(r=>{const d=r.division||'Unknown';divData[d]=(divData[d]||0)+r.amount;});
+  const divLabels=Object.keys(divData);const divTotal=divLabels.reduce((s,l)=>s+divData[l],0);
+  charts.division=new Chart(document.getElementById('divisionChart'),{type:'bar',data:{labels:divLabels.length?divLabels:['No Data'],datasets:[{label:'Amount',data:divLabels.length?divLabels.map(l=>divData[l]):[0],backgroundColor:'#8b5cf6',borderRadius:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:gridColor},ticks:{color:textColor}},x:{ticks:{color:textColor,maxRotation:45,font:{size:9}}}}},plugins:[vlp]});
+  document.getElementById('divisionTotal').textContent='Grand Total: ৳'+divTotal.toLocaleString('en-US',{maximumFractionDigits:0});
+
+  // Chart 5: Item Wise horizontal bar
+  const itemData={};filteredData.forEach(r=>{const it=r.itemDescription||'Unknown';itemData[it]=(itemData[it]||0)+r.amount;});
+  const itemAll=Object.keys(itemData);const itemTotalAll=itemAll.reduce((s,l)=>s+itemData[l],0);const itemLabels=itemAll.sort((a,b)=>itemData[b]-itemData[a]).slice(0,10);
+  charts.item=new Chart(document.getElementById('itemChart'),{type:'bar',data:{labels:itemLabels.length?itemLabels:['No Data'],datasets:[{label:'Amount',data:itemLabels.length?itemLabels.map(l=>itemData[l]):[0],backgroundColor:'#06b6d4',borderRadius:8}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridColor},ticks:{color:textColor}},y:{ticks:{color:textColor,font:{size:9}}}}}});
+  document.getElementById('itemTotal').textContent='Grand Total: ৳'+itemTotalAll.toLocaleString('en-US',{maximumFractionDigits:0})+(itemAll.length>10?` (top 10 of ${itemAll.length})`:'');
+
+  // Chart 6: Date Trend Line
+  const trendData={};allData.forEach(r=>{trendData[r.date||'Unknown']=(trendData[r.date||'Unknown']||0)+r.amount;});
+  const trendDates=Object.keys(trendData).sort((a,b)=>dmySortKey(a).localeCompare(dmySortKey(b)));
+  const trendValues=trendDates.map(d=>trendData[d]);const trendTotal=trendValues.reduce((a,b)=>a+b,0);
+  charts.dateTrend=new Chart(document.getElementById('dateTrendChart'),{type:'line',data:{labels:trendDates.length?trendDates:['No Data'],datasets:[{label:'Daily Amount',data:trendValues.length?trendValues:[0],borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.15)',tension:0.3,fill:true,pointRadius:3,pointBackgroundColor:'#ef4444'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'৳'+ctx.parsed.y.toLocaleString('en-US',{maximumFractionDigits:0})}}},scales:{y:{grid:{color:gridColor},ticks:{color:textColor,callback:v=>'৳'+v.toLocaleString('en-US',{notation:'compact'})}},x:{grid:{color:gridColor},ticks:{color:textColor,maxRotation:45,font:{size:9}}}}}});
+  document.getElementById('dateTrendTotal').textContent='Grand Total: ৳'+trendTotal.toLocaleString('en-US',{maximumFractionDigits:0})+` (${trendDates.length} days)`;
+}
+
+// ==================== DATE WISE MODAL ====================
+let dwCharts={};
+function parseDMY(s){const[d,m,y]=(s||'').split('-').map(Number);return new Date(y||1970,(m||1)-1,d||1);}
+function formatDMYShort(dateStr){const[d,m,y]=dateStr.split('-');const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return`${d}-${months[parseInt(m,10)-1]}-${y.slice(-2)}`;}
+
+function renderDateWiseReport(){
+  const isDark=!document.body.classList.contains('light');
+  const textColor=isDark?'#f1f5f9':'#1e293b';const gridColor=isDark?'rgba(148,163,184,.2)':'rgba(0,0,0,.1)';
+  if(!allData.length){document.getElementById('dwTableBody').innerHTML='<tr><td colspan="4">No Data Available</td></tr>';document.getElementById('dwTableFoot').innerHTML='';document.getElementById('dwSummary').innerHTML='';Object.values(dwCharts).forEach(c=>c&&c.destroy());return;}
+  const latest=allData.reduce((a,b)=>parseDMY(a.date)>parseDMY(b.date)?a:b,allData[0]);
+  const latestDt=parseDMY(latest.date);const year=latestDt.getFullYear(),month=latestDt.getMonth();
+  const daysInMonth=new Date(year,month+1,0).getDate();const monthName=latestDt.toLocaleString('en-US',{month:'long'});
+  document.getElementById('dwReportTitle').textContent=`Date Wise Issue Value Report (${monthName}-${year})`;
+  const dayMap={};
+  allData.forEach(r=>{const dt=parseDMY(r.date);if(dt.getFullYear()===year&&dt.getMonth()===month){if(!dayMap[r.date])dayMap[r.date]={amount:0,remarks:new Set()};dayMap[r.date].amount+=r.amount||0;if(r.remarks)dayMap[r.date].remarks.add(r.remarks);}});
+  const rows=[];
+  for(let d=1;d<=daysInMonth;d++){const dateStr=`${String(d).padStart(2,'0')}-${String(month+1).padStart(2,'0')}-${year}`;const entry=dayMap[dateStr];rows.push({sn:d,date:dateStr,value:entry?entry.amount:null,remarks:entry?[...entry.remarks].join('; '):''});}
+  const grandTotal=rows.reduce((s,r)=>s+(r.value||0),0);const daysWithData=rows.filter(r=>r.value).length;const avgPerDay=daysWithData?grandTotal/daysWithData:0;
+  document.getElementById('dwTableBody').innerHTML=rows.map(r=>`<tr class="${r.value?'':'dw-empty-row'}"><td>${r.sn}</td><td class="dw-left">${formatDMYShort(r.date)}</td><td class="dw-right">${r.value?r.value.toLocaleString('en-US',{maximumFractionDigits:2}):''}</td><td class="dw-left">${r.remarks}</td></tr>`).join('');
+  document.getElementById('dwTableFoot').innerHTML=`<tr class="dw-total-row"><td colspan="2">Total</td><td class="dw-right">${grandTotal.toLocaleString('en-US',{maximumFractionDigits:2})}</td><td></td></tr>`;
+  Object.values(dwCharts).forEach(c=>c&&c.destroy());
+  dwCharts.bar=new Chart(document.getElementById('dwBarChart'),{type:'bar',data:{labels:rows.map(r=>formatDMYShort(r.date)),datasets:[{label:'Value (TK)',data:rows.map(r=>r.value||0),backgroundColor:'#84cc16',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},plugins:{legend:{display:false},datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,anchor:'end',align:'end',color:textColor,font:{size:8,weight:'bold'},rotation:-60,formatter:v=>'৳'+v.toLocaleString('en-US',{notation:'compact',maximumFractionDigits:1})}},scales:{x:{grid:{display:false},ticks:{color:textColor,maxRotation:60,font:{size:8}}},y:{grid:{color:gridColor},ticks:{color:textColor,callback:v=>'৳'+v.toLocaleString('en-US',{notation:'compact'})}}}}});
+  const piePalette=['#38bdf8','#22c55e','#f59e0b','#a855f7','#ef4444','#14b8a6','#eab308','#6366f1','#ec4899','#84cc16','#0ea5e9','#f97316','#4ade80','#fb7185','#c084fc','#facc15','#2dd4bf','#818cf8','#fdba74','#a3e635'];
+  const pieRows=rows.filter(r=>r.value);
+  dwCharts.pie=new Chart(document.getElementById('dwPieChart'),{type:'pie',data:{labels:pieRows.length?pieRows.map(r=>formatDMYShort(r.date)):['No Data'],datasets:[{data:pieRows.length?pieRows.map(r=>r.value):[1],backgroundColor:piePalette,borderWidth:1,borderColor:isDark?'#1e293b':'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:textColor,font:{size:9},boxWidth:10}},datalabels:{display:pieRows.length>0,color:'#fff',textStrokeColor:'rgba(0,0,0,0.65)',textStrokeWidth:2,anchor:'center',align:'center',clamp:true,clip:false,font:{size:8,weight:'bold'},formatter:(value,ctx)=>{const total=pieRows.reduce((a,b)=>a+b.value,0);const pct=total?Math.round((value/total)*100):0;return[ctx.chart.data.labels[ctx.dataIndex],pct+'%'];}}}}});
+  document.getElementById('dwSummary').innerHTML=`<div>Total Value of ${monthName}-${String(year).slice(-2)}<span>৳${grandTotal.toLocaleString('en-US',{maximumFractionDigits:0})}</span></div><div>Avg. Per Day Value<span>৳${avgPerDay.toLocaleString('en-US',{maximumFractionDigits:0})}</span></div><div>Days With Data<span>${daysWithData} / ${daysInMonth}</span></div>`;
+}
+window.openDateWiseReport=function(){document.getElementById('dateWiseModal').classList.add('active');renderDateWiseReport();};
+window.closeDateWiseReport=function(){document.getElementById('dateWiseModal').classList.remove('active');};
+
+// ==================== TABLE ====================
+function renderTable(){
+  document.getElementById('tableBody').innerHTML=filteredData.slice(0,500).map(r=>`<tr><td>${r.sl}</td><td>${r.date}</td><td>${r.issuePurposed}</td><td>${r.category}</td><td>${r.reqsNo}</td><td>${r.division}</td><td>${r.department}</td><td>${r.section}</td><td>${r.requiredSection}</td><td>${r.itemGroup}</td><td>${r.uom}</td><td style="max-width:300px;white-space:normal">${r.itemDescription}</td><td>${r.itemCode}</td><td style="text-align:center">${r.issueQty.toLocaleString()}</td><td style="text-align:right">${r.rate.toLocaleString('en-US',{maximumFractionDigits:2})}</td><td class="amount">৳${r.amount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${r.issueId}</td><td>${r.personName}</td><td>${r.requiredFor}</td><td>${r.remarks}</td></tr>`).join('')+(filteredData.length>500?`<tr><td colspan="20" style="text-align:center;color:var(--muted)">Showing first 500 of ${filteredData.length} rows</td></tr>`:'');
+}
+
+// ==================== EXPORT EXCEL ====================
+window.exportToExcel=async function(){
+  let XLSXLib;try{XLSXLib=await getXLSX();}catch(e){showToast(e.message,true);return;}
+  const ws=XLSXLib.utils.json_to_sheet(filteredData.map(r=>({'SL':r.sl,'Issue Date':r.date,'Issue Purposed':r.issuePurposed,'Category':r.category,'Reqs no':r.reqsNo,'Division':r.division,'Department':r.department,'Section':r.section,'Required Section':r.requiredSection,'Item Group':r.itemGroup,'UOM':r.uom,'Item Description':r.itemDescription,'Item Code':r.itemCode,'Issue Qty':r.issueQty,'Rate(TK)':r.rate,'Amount(TK)':r.amount,'Issue id':r.issueId,'Name of Person':r.personName,'Required For':r.requiredFor,'Remarks':r.remarks})));
+  const wb=XLSXLib.utils.book_new();XLSXLib.utils.book_append_sheet(wb,ws,'Issue Data');
+  XLSXLib.writeFile(wb,`GMS-General-Technical-MCD-${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('✅ Excel exported!');
+};
+
+// ==================== EXPORT PDF ====================
+window.exportToPDF=function(){
+  if(!filteredData.length){showToast('কোনো ডেটা নেই',true);return;}
+  if(!window.jspdf){showToast('PDF library লোড হয়নি',true);return;}
+  showToast('🖨️ PDF তৈরি হচ্ছে...');
+  const wasLight=document.body.classList.contains('light');
+  if(!wasLight){document.body.classList.add('light');renderCharts();}
+  setTimeout(()=>{try{buildAndSavePdf();}catch(err){console.error(err);showToast('PDF error: '+err.message,true);}finally{if(!wasLight){document.body.classList.remove('light');renderCharts();}}},300);
+};
+function buildAndSavePdf(){
+  const{jsPDF}=window.jspdf;const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const pageWidth=pdf.internal.pageSize.getWidth();const pageHeight=pdf.internal.pageSize.getHeight();const dateLabel=currentFilter.date||'All Dates';
+  const totalAmount=filteredData.reduce((s,r)=>s+r.amount,0);const totalQty=filteredData.reduce((s,r)=>s+r.issueQty,0);
+  const depts=new Set(filteredData.map(r=>r.department).filter(Boolean)).size;const cats=new Set(filteredData.map(r=>r.category).filter(Boolean)).size;const avg=filteredData.length?totalAmount/filteredData.length:0;
+  function drawBrandHeader(title){pdf.setFillColor(31,78,120);pdf.rect(0,0,pageWidth,16,'F');pdf.setTextColor(255,255,255);pdf.setFont('helvetica','bold');pdf.setFontSize(13);pdf.text('GMS Textiles Ltd. — General Technical-MCD Daily Issue Report',pageWidth/2,7,{align:'center'});pdf.setFont('helvetica','normal');pdf.setFontSize(9);pdf.text(title,pageWidth/2,13,{align:'center'});}
+  drawBrandHeader(`Date: ${dateLabel}`);pdf.setTextColor(55,65,81);pdf.setFont('helvetica','normal');pdf.setFontSize(10);
+  pdf.text(`Total Amount: TK ${totalAmount.toLocaleString('en-US',{maximumFractionDigits:0})}   |   Items: ${filteredData.length}   |   Qty: ${totalQty.toLocaleString()}   |   Departments: ${depts}   |   Categories: ${cats}   |   Avg/Item: TK ${avg.toLocaleString('en-US',{maximumFractionDigits:0})}`,pageWidth/2,23,{align:'center'});
+  const chartIds=['categoryChart','sectionChart','divisionChart','issueIdChart','itemChart'];const chartTitles=['Category Wise','Required Section Wise','Division Wise','Issue ID Wise','Item Wise (Top 10)'];
+  const marginX=10,gap=8,startY=30,chartH=72;const chartW=(pageWidth-marginX*2-gap*2)/3;
+  chartIds.forEach((id,i)=>{const canvas=document.getElementById(id);if(!canvas)return;const col=i%3,row=Math.floor(i/3);const x=marginX+col*(chartW+gap),y=startY+row*(chartH+10);pdf.setFont('helvetica','bold');pdf.setFontSize(9);pdf.setTextColor(31,41,55);pdf.text(chartTitles[i],x,y-2);try{pdf.setDrawColor(220,220,220);pdf.rect(x,y,chartW,chartH);pdf.addImage(canvas.toDataURL('image/png',1.0),'PNG',x,y,chartW,chartH);}catch(e){console.warn('Chart capture failed:',id,e);}});
+  pdf.setFont('helvetica','normal');pdf.setFontSize(8);pdf.setTextColor(150,150,150);pdf.text('Page 1',pageWidth-10,pageHeight-6,{align:'right'});
+  pdf.addPage();
+  const head=[['SL','Date','Issue Purposed','Category','Reqs No','Division','Department','Section','Required Section','Item Group','UOM','Item Description','Item Code','Qty','Rate','Amount (TK)','Issue ID','Name of Person','Required For','Remarks']];
+  const body=filteredData.map(r=>[r.sl,r.date,r.issuePurposed,r.category,r.reqsNo,r.division,r.department,r.section,r.requiredSection,r.itemGroup,r.uom,r.itemDescription,r.itemCode,r.issueQty.toLocaleString(),r.rate.toLocaleString('en-US',{maximumFractionDigits:2}),r.amount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),r.issueId,r.personName,r.requiredFor,r.remarks]);
+  pdf.autoTable({head,body,startY:20,margin:{left:4,right:4,top:18},styles:{fontSize:5.5,cellPadding:1.1,valign:'middle',overflow:'linebreak'},headStyles:{fillColor:[48,84,150],textColor:255,fontStyle:'bold',halign:'center',fontSize:6},alternateRowStyles:{fillColor:[242,246,252]},columnStyles:{0:{cellWidth:7,halign:'center'},13:{halign:'right'},14:{halign:'right'},15:{halign:'right'}},didDrawPage:()=>{drawBrandHeader(`Detailed Data — ${dateLabel}  (${filteredData.length} rows)`);pdf.setFont('helvetica','normal');pdf.setFontSize(8);pdf.setTextColor(150,150,150);pdf.text(`Page ${pdf.internal.getCurrentPageInfo().pageNumber}`,pageWidth-10,pageHeight-6,{align:'right'});}});
+  pdf.save(`GMS-General-Technical-MCD-${dateLabel}.pdf`);showToast('✅ PDF Downloaded!');
+}
+
+// ==================== TOAST ====================
+function showToast(msg,error=false){const t=document.createElement('div');t.className='toast'+(error?' error':'');t.innerText=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3500);}
+window.showToast=showToast;
+</script>
+</body>
+</html>

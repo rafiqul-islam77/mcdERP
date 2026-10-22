@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>All Needle Summary</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+<style>
+body{margin:0;background:#07111f;color:white;font-family:Arial,sans-serif}
+.header{text-align:center;padding:12px}
+.header h2,.header h3{margin:4px}
+.controls{text-align:center;margin:10px}
+button{padding:10px 14px;border:0;border-radius:8px;color:white;font-weight:bold;margin:4px;cursor:pointer}
+.show{background:#2563eb}.excel{background:#16a34a}.print{background:#7c3aed}.home{background:#0f766e}
+input,select{font-size:16px;padding:8px;border-radius:6px;border:1px solid #999}
+.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px}
+.kpiBox{background:#101b2d;border:1px solid #263855;border-radius:14px;padding:12px;text-align:center}
+.kpiBox span{font-size:12px;color:#9fb0c7;font-weight:bold}
+.kpiBox b{display:block;color:#22c55e;font-size:24px;margin-top:5px}
+.kpiBox.warn b{color:#f59e0b}
+.kpiBox.danger b{color:#ef4444}
+.tableWrap{overflow-x:auto;width:100%}
+table{min-width:1200px;width:98%;margin:10px auto;border-collapse:collapse;background:white;color:black;font-size:12px}
+th,td{border:1px solid #000;padding:6px;text-align:center}
+th{background:#9fc5e8;font-weight:bold}
+.totalRow{background:#d9ead3;font-weight:bold}
+.grandRow{background:#ffe599;font-weight:bold;font-size:15px}
+
+/* Ageing color codes */
+.age-green{background:#d1fae5;color:#065f46;font-weight:bold}
+.age-yellow{background:#fef3c7;color:#92400e;font-weight:bold}
+.age-red{background:#fee2e2;color:#991b1b;font-weight:bold}
+
+@page{size:A4 landscape;margin:5mm}
+@media print{
+  body{background:white;color:black}
+  .controls,.kpi,.noPrint{display:none!important}
+  .header h2{font-size:16px}
+  .header h3{font-size:12px}
+  table{width:100%;min-width:0;font-size:9px;margin:2px 0}
+  th,td{padding:3px}
+}
+@media(max-width:700px){.kpi{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h2>GMS Textiles Ltd</h2>
+  <h3>All Needle Summary Report with Ageing</h3>
+</div>
+
+<div class="controls noPrint">
+  From: <input type="date" id="fromDate">
+  To: <input type="date" id="toDate">
+  Month: <input type="month" id="monthInput">
+
+  <button class="show" onclick="setMonthRange()">📅 Month Load</button>
+  <button class="show" onclick="loadSummary()">🔍 Show</button>
+  <button class="excel" onclick="exportExcel()">📊 Excel</button>
+  <button class="print" onclick="window.print()">🖨 PDF / Print</button>
+  <button class="home" onclick="location.href='needle.html'">🪡 Entry</button>
+  <button class="home" onclick="location.href='index.html'">🏠 Home</button>
+</div>
+
+<div class="kpi">
+  <div class="kpiBox"><span>📥 Total Receive</span><b id="kpiReceive">0</b></div>
+  <div class="kpiBox"><span>📤 Total Delivery</span><b id="kpiDelivery">0</b></div>
+  <div class="kpiBox"><span>📦 Present Stock</span><b id="kpiPresent">0</b></div>
+  <div class="kpiBox warn"><span>⏳ Avg Ageing (Days)</span><b id="kpiAgeing">0</b></div>
+</div>
+
+<div class="tableWrap">
+<table id="summaryTable">
+<thead>
+<tr>
+  <th>SL</th>
+  <th>Needle Type</th>
+  <th>Size</th>
+  <th>Total Receive</th>
+  <th>Total Delivery</th>
+  <th>Present Stock</th>
+  <th>Last Receive Date</th>
+  <th>Last Delivery Date</th>
+  <th>Ageing (Days)</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+<tfoot>
+<tr class="grandRow">
+  <td colspan="3">Grand Total</td>
+  <td id="gtReceive">0</td>
+  <td id="gtDelivery">0</td>
+  <td id="gtPresent">0</td>
+  <td>-</td>
+  <td>-</td>
+  <td id="gtAgeing">0</td>
+</tr>
+</tfoot>
+</table>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId:"gms-warehouse-tracker-7f57e",
+  storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId:"992250313291",
+  appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+
+function today(){return new Date().toISOString().slice(0,10)}
+function ym(){return new Date().toISOString().slice(0,7)}
+function n(v){return Number(v)||0}
+
+// আজ থেকে কোনো date কত দিন আগে, তা বের করার ফাংশন
+function daysBetween(dateStr){
+  if(!dateStr) return 0;
+  let d=new Date(dateStr);
+  let now=new Date();
+  let diff=Math.floor((now - d)/(1000*60*60*24));
+  return diff>=0 ? diff : 0;
+}
+
+// Ageing অনুযায়ী CSS class return করা
+function ageingClass(days){
+  if(days<=15) return "age-green";
+  if(days<=30) return "age-yellow";
+  return "age-red";
+}
+
+document.getElementById("fromDate").value=today();
+document.getElementById("toDate").value=today();
+document.getElementById("monthInput").value=ym();
+
+window.setMonthRange=function(){
+  let m=document.getElementById("monthInput").value;
+  if(!m){alert("Month select koro");return;}
+
+  let first=m+"-01";
+  let d=new Date(first);
+  let last=new Date(d.getFullYear(),d.getMonth()+1,0).toISOString().slice(0,10);
+
+  document.getElementById("fromDate").value=first;
+  document.getElementById("toDate").value=last;
+
+  loadSummary();
+};
+
+async function loadSummary(){
+  let from=document.getElementById("fromDate").value;
+  let to=document.getElementById("toDate").value;
+
+  let snap=await getDocs(collection(db,"dailyPosting"));
+  let map={};
+
+  // ১. প্রতিটি ফ্লোরের জন্য 'To Date'-এর সবচেয়ে কাছের সর্বশেষ ডকুমেন্ট বের করার ট্র্যাকার
+  let latestDatePerFloor = {}; 
+  let latestDocPerFloor = {};  
+
+  // প্রথম রান: ডেট রেঞ্জের মধ্যে ট্রানজেকশন (Receive/Delivery) হিসাব করা এবং লেটেস্ট শিট খুঁজে বের করা
+  snap.forEach(d=>{
+    let data=d.data();
+    if(!data.date || !data.floor || !Array.isArray(data.rows)) return;
+    
+    // To Date-এর পরের কোনো এন্ট্রি নেওয়া হবে না
+    if(to && data.date > to) return;
+
+    // প্রতিটি ফ্লোরের সর্বশেষ সক্রিয় এন্ট্রি শিট ট্র্যাক করা
+    let floor = data.floor;
+    let date = data.date;
+    if(!latestDatePerFloor[floor] || date > latestDatePerFloor[floor]){
+      latestDatePerFloor[floor] = date;
+      latestDocPerFloor[floor] = data;
+    }
+
+    // From Date থেকে To Date সীমানার ভেতর ট্রানজেকশন যোগ করা
+    if(from && data.date < from) return;
+
+    data.rows.forEach(row=>{
+      let needleType=row.needleType || "";
+      let size=row.size || "";
+
+      // ডুপ্লিকেট স্পেলিং বা টাইপো এড়াতে নরমাল কী তৈরি করা
+      let normType = needleType.toString().toUpperCase().replace(/[^A-Z0-9]/g, "");
+      let normSize = size.toString().toUpperCase().replace(/[^A-Z0-9]/g, "");
+      let key = normType + "___" + normSize;
+
+      if(!map[key]){
+        map[key]={
+          needleType: needleType,
+          size: size,
+          receive: 0,
+          delivery: 0,
+          present: 0,
+          lastDate: "",
+          lastReceiveDate: "",
+          lastDeliveryDate: ""
+        };
+      }
+
+      let rcv=n(row.receive);
+      let dlv=n(row.delivery);
+      map[key].receive += rcv;
+      map[key].delivery += dlv;
+
+      // সর্বশেষ Receive Date ট্র্যাক করা (শুধু receive > 0 হলে)
+      if(rcv>0 && (!map[key].lastReceiveDate || data.date > map[key].lastReceiveDate)){
+        map[key].lastReceiveDate = data.date;
+      }
+
+      // সর্বশেষ Delivery Date ট্র্যাক করা (শুধু delivery > 0 হলে)
+      if(dlv>0 && (!map[key].lastDeliveryDate || data.date > map[key].lastDeliveryDate)){
+        map[key].lastDeliveryDate = data.date;
+      }
+
+      // সর্বশেষ এন্ট্রির সঠিক নামটি রাখা
+      if(!map[key].lastDate || data.date >= map[key].lastDate){
+        map[key].needleType = needleType;
+        map[key].size = size;
+        map[key].lastDate = data.date;
+      }
+    });
+  });
+
+  // দ্বিতীয় রান: শুধুমাত্র সর্বশেষ এন্ট্রি শিট (Latest Sheet) থেকে Present Stock হিসাব করা
+  Object.values(latestDocPerFloor).forEach(data => {
+    data.rows.forEach(row => {
+      let needleType = row.needleType || "";
+      let size = row.size || "";
+
+      let normType = needleType.toString().toUpperCase().replace(/[^A-Z0-9]/g, "");
+      let normSize = size.toString().toUpperCase().replace(/[^A-Z0-9]/g, "");
+      let key = normType + "___" + normSize;
+
+      if(!map[key]){
+        map[key]={
+          needleType: needleType,
+          size: size,
+          receive: 0,
+          delivery: 0,
+          present: 0,
+          lastDate: data.date,
+          lastReceiveDate: "",
+          lastDeliveryDate: ""
+        };
+      }
+
+      map[key].present += n(row.present);
+    });
+  });
+
+  let rows=Object.values(map).sort((a,b)=>{
+    return (a.needleType+a.size).localeCompare(b.needleType+b.size);
+  });
+
+  let html="";
+  let gtReceive=0,gtDelivery=0,gtPresent=0;
+  let totalAgeing=0, ageingCount=0;
+
+  rows.forEach((r,i)=>{
+    gtReceive+=n(r.receive);
+    gtDelivery+=n(r.delivery);
+    gtPresent+=n(r.present);
+
+    // Ageing হিসাব: সর্বশেষ যে কোনো movement (receive/delivery) থেকে আজ পর্যন্ত
+    let lastMovement = r.lastReceiveDate > r.lastDeliveryDate ? r.lastReceiveDate : r.lastDeliveryDate;
+    let ageing = daysBetween(lastMovement);
+
+    if(lastMovement){
+      totalAgeing += ageing;
+      ageingCount++;
+    }
+
+    let ageClass = ageingClass(ageing);
+
+    html+=`
+    <tr>
+      <td>${i+1}</td>
+      <td>${r.needleType}</td>
+      <td>${r.size}</td>
+      <td>${r.receive}</td>
+      <td>${r.delivery}</td>
+      <td>${r.present}</td>
+      <td>${r.lastReceiveDate || "-"}</td>
+      <td>${r.lastDeliveryDate || "-"}</td>
+      <td class="${ageClass}">${lastMovement ? ageing : "-"}</td>
+    </tr>`;
+  });
+
+  document.getElementById("tbody").innerHTML=html || `<tr><td colspan="9">No Data Found</td></tr>`;
+
+  document.getElementById("gtReceive").innerText=gtReceive;
+  document.getElementById("gtDelivery").innerText=gtDelivery;
+  document.getElementById("gtPresent").innerText=gtPresent;
+
+  let avgAgeing = ageingCount>0 ? Math.round(totalAgeing/ageingCount) : 0;
+  document.getElementById("gtAgeing").innerText=avgAgeing;
+
+  document.getElementById("kpiReceive").innerText=gtReceive;
+  document.getElementById("kpiDelivery").innerText=gtDelivery;
+  document.getElementById("kpiPresent").innerText=gtPresent;
+  document.getElementById("kpiAgeing").innerText=avgAgeing;
+}
+
+window.loadSummary=loadSummary;
+
+window.exportExcel=function(){
+  let table=document.getElementById("summaryTable").outerHTML;
+
+  let file=new Blob([`
+    <html><head><meta charset="UTF-8"></head>
+    <body>
+      <h2>GMS Textiles Ltd</h2>
+      <h3>All Needle Summary Report with Ageing</h3>
+      ${table}
+    </body></html>
+  `],{type:"application/vnd.ms-excel"});
+
+  let a=document.createElement("a");
+  a.href=URL.createObjectURL(file);
+  a.download="all-needle-summary-ageing-report.xls";
+  a.click();
+};
+
+loadSummary();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Gate Plan Report</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+<style>
+body{
+  margin:0;
+  background:#07111f;
+  color:white;
+  font-family:Arial,sans-serif;
+}
+.header{
+  text-align:center;
+  padding:10px;
+}
+.header h2,.header h3,.header h4{
+  margin:3px;
+}
+.controls{
+  text-align:center;
+  margin:10px;
+}
+button{
+  padding:10px 14px;
+  border:0;
+  border-radius:8px;
+  color:white;
+  font-weight:bold;
+  margin:4px;
+  cursor:pointer;
+}
+.show{background:#2563eb}
+.excel{background:#16a34a}
+.print{background:#7c3aed}
+.home{background:#0f766e}
+.edit{background:#f59e0b}
+.del{background:#dc2626}
+
+input,select{
+  font-size:15px;
+  padding:7px;
+  border-radius:6px;
+  border:1px solid #999;
+}
+
+.planCard{
+  width:96%;
+  margin:10px auto;
+  background:white;
+  color:black;
+  border:1px solid #000;
+}
+.topLine{
+  text-align:center;
+  font-weight:bold;
+  border-bottom:1px solid #000;
+  padding:4px;
+  font-size:18px;
+}
+.meta{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  border-bottom:1px solid #000;
+}
+.meta div{
+  border-right:1px solid #000;
+  padding:6px;
+  text-align:center;
+  font-weight:bold;
+}
+.actionBar{
+  text-align:center;
+  padding:8px;
+}
+.tableWrap{
+  overflow-x:auto;
+  width:100%;
+}
+table{
+  min-width:1450px;
+  width:100%;
+  border-collapse:collapse;
+  background:white;
+  color:black;
+  font-size:12px;
+  table-layout:fixed;
+}
+th,td{
+  border:1px solid #000;
+  padding:5px;
+  text-align:center;
+  vertical-align:middle;
+}
+.totalRow{
+  font-weight:bold;
+  background:#f3f4f6;
+}
+.sign{
+  display:grid;
+  grid-template-columns:repeat(8,1fr);
+  gap:0;
+  margin-top:55px;
+}
+.sign div{
+  text-align:center;
+  font-weight:bold;
+  border-top:1px solid #000;
+  padding:6px;
+  font-size:12px;
+}
+
+.slCol{width:40px}
+.buyerCol{width:115px}
+.srCol{width:105px}
+.styleCol{width:110px}
+.orderCol{width:115px}
+.itemCol{width:125px}
+.colorCol{width:95px}
+.unitCol{width:70px}
+.qtyCol{width:90px}
+.ctnCol{width:95px}
+.partyCol{width:240px}
+.vehicleCol{width:115px}
+.remarksCol{width:115px}
+
+.qrBox{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin-top:6px;
+}
+.qrBox canvas,.qrBox img{
+  width:70px!important;
+  height:70px!important;
+}
+.qrLabel{
+  text-align:center;
+  font-size:10px;
+  font-weight:900;
+  margin-top:2px;
+}
+
+.greyReport{
+  width:96%;
+  margin:10px auto;
+  background:white;
+  color:black;
+  border:1px solid #000;
+  padding:8px;
+}
+.greyHeader{
+  text-align:center;
+  line-height:1.25;
+}
+.greyHeader h2{
+  margin:0;
+  font-size:26px;
+  font-weight:900;
+}
+.greyHeader h4{
+  margin:2px 0;
+  font-size:14px;
+}
+.greyHeader h1{
+  margin:2px 0;
+  font-size:36px;
+  font-weight:900;
+  color:#555;
+}
+.greyTitle{
+  font-size:20px;
+  font-weight:900;
+  margin:8px 0;
+}
+.greyTable{
+  min-width:0!important;
+  width:65%;
+  margin:8px auto 0;
+  font-size:14px;
+  table-layout:fixed;
+}
+.greyTable th,.greyTable td{
+  padding:7px;
+  border:1px solid #000;
+}
+.greySign{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:25px;
+  margin-top:80px;
+}
+.greySign div{
+  text-align:center;
+  font-weight:bold;
+  border-top:1px solid #000;
+  padding-top:6px;
+  font-size:12px;
+}
+
+.noData{
+  text-align:center;
+  padding:25px;
+  font-weight:bold;
+}
+
+@media(max-width:768px){
+  .controls input,.controls select{
+    width:44%;
+    margin:4px 0;
+  }
+  button{
+    font-size:13px;
+    padding:9px 10px;
+  }
+}
+
+@page{
+  size:A4 landscape;
+  margin:4mm;
+}
+
+@media print{
+  html,body{
+    width:297mm;
+    height:210mm;
+    margin:0!important;
+    padding:0!important;
+    background:white!important;
+    color:black!important;
+    overflow:hidden!important;
+  }
+  .controls,.noPrint,.actionBar{
+    display:none!important;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="header noPrint">
+  <h2>GMS Textiles Ltd.</h2>
+  <h4>Tansutrapur, Kaliakair, Gazipur.</h4>
+  <h4>Daily Goods Delivery Plan</h4>
+  <h3>Gate Plan Report</h3>
+</div>
+
+<div class="controls noPrint">
+  From: <input type="date" id="fromDate">
+  To: <input type="date" id="toDate">
+
+  Gate Plan No:
+  <input id="gateSearch" placeholder="GP-2026-0001" style="width:150px">
+
+  Company:
+  <select id="companyFilter">
+    <option value="">All</option>
+    <option>GMS Textiles Ltd.</option>
+    <option>GMS Composite Knitting Ind Ltd.</option>
+    <option>Other's Factory</option>
+  </select>
+
+  MCD:
+  <select id="mcdFilter">
+    <option value="">All</option>
+  </select>
+
+  <br>
+
+  <button class="show" onclick="showReport()">🔍 Search</button>
+  <button class="excel" onclick="exportExcel()">📊 Excel</button>
+  <button class="print" onclick="printSingle(0)">🖨 PDF / Print</button>
+  <button class="show" onclick="location.href='gate-plan.html'">➕ New Gate Plan</button>
+  <button class="home" onclick="location.href='index.html'">🏠 Home</button>
+</div>
+
+<div id="reportArea"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig={apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",projectId:"gms-warehouse-tracker-7f57e",storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",messagingSenderId:"992250313291",appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"};
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+let firebasePlans=[];
+
+var ALL_MCD=[
+  "ACCESSORIES MCD",
+  "GREY FABRIC MCD",
+  "BILLING SECTION",
+  "NEEDLE MCD",
+  "SHIPMENT MCD",
+  "OUTER WEAR MCD",
+  "YARN MCD",
+  "PRINTING MCD",
+  "JHUT MCD",
+  "GENERAL MCD",
+  "LEFTOVER MCD",
+  "FINISH FABRIC MCD",
+  "YARN DYEING MCD",
+  "CHEMICAL MCD"
+];
+
+function today(){
+  return new Date().toISOString().slice(0,10);
+}
+
+function fmt(v){
+  return Number(v||0).toLocaleString("en-US");
+}
+
+function plans(){ return firebasePlans; }
+function makeId(no){return String(no).replaceAll("/","-").replaceAll(" ","-");}
+async function loadFirebasePlans(){
+  let snap=await getDocs(collection(db,"gatePlans"));
+  firebasePlans=[];
+  snap.forEach(d=>firebasePlans.push({...d.data(),_id:d.id}));
+}
+
+function savePlans(arr){
+  localStorage.setItem("gatePlans", JSON.stringify(arr));
+}
+
+function planNo(p){
+  return p.gatePlanNo || p.gatePassNo || "";
+}
+
+function totalDelivery(p){
+  var total=0;
+  (p.rows||[]).forEach(function(r){
+    total += Number(r.deliveryQty)||0;
+  });
+  return total;
+}
+
+function totalCtn(p){
+  var total=0;
+  (p.rows||[]).forEach(function(r){
+    total += Number(r.ctnQty)||0;
+  });
+  return total;
+}
+
+document.getElementById("fromDate").value=today();
+document.getElementById("toDate").value=today();
+
+var mcdHtml='<option value="">All</option>';
+ALL_MCD.forEach(function(x){
+  mcdHtml += '<option>'+x+'</option>';
+});
+document.getElementById("mcdFilter").innerHTML=mcdHtml;
+
+function makeQRText(p){
+  var base=location.origin + location.pathname;
+  return base + "?gate=" + encodeURIComponent(planNo(p));
+}
+
+function generateQRs(data){
+  setTimeout(function(){
+    data.forEach(function(p,i){
+      var el=document.getElementById("qr-"+i);
+      if(!el) return;
+      el.innerHTML="";
+      new QRCode(el,{
+        text:makeQRText(p),
+        width:70,
+        height:70,
+        colorDark:"#000000",
+        colorLight:"#ffffff",
+        correctLevel:QRCode.CorrectLevel.M
+      });
+    });
+  },100);
+}
+
+window.showReport=async function(){
+  await loadFirebasePlans();
+  var from=document.getElementById("fromDate").value;
+  var to=document.getElementById("toDate").value;
+
+  var urlGate=new URLSearchParams(location.search).get("gate") || "";
+  if(urlGate && !document.getElementById("gateSearch").value){
+    document.getElementById("gateSearch").value=urlGate;
+  }
+
+  var gate=document.getElementById("gateSearch").value.trim();
+  var company=document.getElementById("companyFilter").value;
+  var mcd=document.getElementById("mcdFilter").value;
+
+  var data=plans().filter(function(p){
+    if(from && p.date < from) return false;
+    if(to && p.date > to) return false;
+    if(gate && planNo(p)!==gate) return false;
+    if(company && p.toCompany!==company && p.company!==company) return false;
+    if(mcd && p.mcd!==mcd) return false;
+    return true;
+  });
+
+  data.sort(function(a,b){
+    return planNo(a).localeCompare(planNo(b));
+  });
+
+  var box=document.getElementById("reportArea");
+
+  if(data.length===0){
+    box.innerHTML='<div class="planCard noData">No Gate Plan Found</div>';
+    return;
+  }
+
+  var html="";
+  data.forEach(function(p,i){
+    html += renderPlan(p,i);
+  });
+
+  box.innerHTML=html;
+  generateQRs(data);
+}
+
+function renderPlan(p,index){
+  if(p.mcd==="GREY FABRIC MCD"){
+    return renderGrey(p,index);
+  }
+
+  var rowsHtml="";
+  (p.rows||[]).forEach(function(r,i){
+    rowsHtml += '<tr>';
+    rowsHtml += '<td class="slCol">'+(i+1)+'</td>';
+    rowsHtml += '<td class="buyerCol">'+(r.buyerName||"")+'</td>';
+    rowsHtml += '<td class="srCol">'+(r.srGtNo||"")+'</td>';
+    rowsHtml += '<td class="styleCol">'+(r.styleName||"")+'</td>';
+    rowsHtml += '<td class="orderCol">'+(r.orderNo||"")+'</td>';
+    rowsHtml += '<td class="itemCol">'+(r.itemName||"")+'</td>';
+    rowsHtml += '<td class="colorCol">'+(r.color||"")+'</td>';
+    rowsHtml += '<td class="unitCol">'+(r.unit||"")+'</td>';
+    rowsHtml += '<td class="qtyCol">'+(r.deliveryQty||"")+'</td>';
+    rowsHtml += '<td class="ctnCol">'+(r.ctnQty||"")+'</td>';
+    rowsHtml += '<td class="partyCol">'+(r.toParty||"")+'</td>';
+    rowsHtml += '<td class="vehicleCol">'+(r.vehicleNo||"")+'</td>';
+    rowsHtml += '<td class="remarksCol">'+(r.remarks||"")+'</td>';
+    rowsHtml += '</tr>';
+  });
+
+  var h='';
+  h += '<div class="planCard" id="plan-'+index+'">';
+  h += '<div class="topLine">'+(p.company||"")+' To '+(p.toCompany||"")+'</div>';
+  h += '<div class="meta">';
+  h += '<div>Gate Plan No: '+planNo(p)+'</div>';
+  h += '<div>Date: '+(p.date||"")+'</div>';
+  h += '<div>Time: '+(p.time||"")+'</div>';
+  h += '<div>MCD: '+(p.mcd||"")+'</div>';
+  h += '<div>Prepared By: '+(p.preparedBy||"")+'</div>';
+  h += '</div>';
+
+  h += '<div class="qrBox" id="qr-'+index+'"></div>';
+  h += '<div class="qrLabel">Scan QR: '+planNo(p)+'</div>';
+
+  h += '<div class="actionBar noPrint">';
+  h += '<button class="print" onclick="printSingle('+index+')">🖨 Print This</button>';
+  h += '<button class="edit" onclick="editPlan(\''+planNo(p)+'\')">✏ Edit</button>';
+  h += '<button class="del" onclick="deletePlan(\''+planNo(p)+'\')">🗑 Delete</button>';
+  h += '</div>';
+
+  h += '<div class="tableWrap"><table>';
+  h += '<thead><tr>';
+  h += '<th class="slCol">SL No</th>';
+  h += '<th class="buyerCol">Buyer Name</th>';
+  h += '<th class="srCol">SR/GT No</th>';
+  h += '<th class="styleCol">Style Name</th>';
+  h += '<th class="orderCol">Order No/PO No</th>';
+  h += '<th class="itemCol">Name of Item</th>';
+  h += '<th class="colorCol">Color</th>';
+  h += '<th class="unitCol">Unit</th>';
+  h += '<th class="qtyCol">Delivery Qty</th>';
+  h += '<th class="ctnCol">CTN/PKG Qty</th>';
+  h += '<th class="partyCol">To Party Name</th>';
+  h += '<th class="vehicleCol">Vehicle No</th>';
+  h += '<th class="remarksCol">Remarks</th>';
+  h += '</tr></thead>';
+  h += '<tbody>'+rowsHtml+'</tbody>';
+  h += '<tfoot><tr class="totalRow">';
+  h += '<td colspan="8">Grand Total</td>';
+  h += '<td>'+totalDelivery(p)+'</td>';
+  h += '<td>'+totalCtn(p)+'</td>';
+  h += '<td colspan="3"></td>';
+  h += '</tr></tfoot>';
+  h += '</table></div>';
+
+  h += '<div class="sign">';
+  h += '<div>Prepared By<br>'+(p.preparedBy||"")+'</div>';
+  h += '<div>Security Dept.</div>';
+  h += '<div>Checked By<br>Sr. Officer ( MCD )</div>';
+  h += '<div>Asst. Manager<br>(MCD)</div>';
+  h += '<div>AGM (MCD)</div>';
+  h += '<div>Verify By<br>Merchant Dept.</div>';
+  h += '<div>Verify By<br>HR & Admin Dept.</div>';
+  h += '<div>Approved By</div>';
+  h += '</div>';
+
+  h += '</div>';
+  return h;
+}
+
+function renderGrey(p,index){
+  var r=(p.rows||[])[0] || {};
+  var reason=r.itemName || "For Dyeing";
+  var qty=totalDelivery(p);
+  var company=r.toParty || p.toCompany || "";
+  var remarks=r.remarks || "";
+
+  var h='';
+  h += '<div class="greyReport" id="plan-'+index+'">';
+  h += '<div class="greyHeader">';
+  h += '<h2>GMS TEXTILES LTD.</h2>';
+  h += '<h4>Tansutrapur, Kaliakoir, Gazipur</h4>';
+  h += '<h1>Grey Fabric-MCD</h1>';
+  h += '<div class="greyTitle">Daily GMS Textiles to GMS Composite Delivery Status</div>';
+  h += '</div>';
+
+  h += '<div class="qrBox" id="qr-'+index+'"></div>';
+  h += '<div class="qrLabel">Scan QR: '+planNo(p)+'</div>';
+
+  h += '<div class="actionBar noPrint">';
+  h += '<button class="print" onclick="printSingle('+index+')">🖨 Print This</button>';
+  h += '<button class="edit" onclick="editPlan(\''+planNo(p)+'\')">✏ Edit</button>';
+  h += '<button class="del" onclick="deletePlan(\''+planNo(p)+'\')">🗑 Delete</button>';
+  h += '</div>';
+
+  h += '<table class="greyTable">';
+  h += '<thead><tr>';
+  h += '<th>Date</th>';
+  h += '<th>Company Name</th>';
+  h += '<th>Delivery Reason</th>';
+  h += '<th>Total Qty</th>';
+  h += '<th>Remarks</th>';
+  h += '</tr></thead>';
+  h += '<tbody>';
+  h += '<tr>';
+  h += '<td>'+(p.date||"")+'</td>';
+  h += '<td>'+company+'</td>';
+  h += '<td>'+reason+'</td>';
+  h += '<td>'+Number(qty).toFixed(1)+'</td>';
+  h += '<td>'+remarks+'</td>';
+  h += '</tr>';
+  h += '<tr class="totalRow">';
+  h += '<td colspan="3">Total-</td>';
+  h += '<td>'+Number(qty).toFixed(1)+'</td>';
+  h += '<td></td>';
+  h += '</tr>';
+  h += '</tbody></table>';
+
+  h += '<div class="greySign">';
+  h += '<div>Prepared By<br>'+(p.preparedBy||"")+'</div>';
+  h += '<div>Security Dept.</div>';
+  h += '<div>Checked By Officer - MCD</div>';
+  h += '<div>Asst. Manager - MCD</div>';
+  h += '<div>Knitting Manager/DGM</div>';
+  h += '<div>Dyeing Manager/DGM</div>';
+  h += '</div>';
+
+  h += '</div>';
+  return h;
+}
+
+window.printSingle=function(index){
+  var item=document.getElementById("plan-"+index);
+  if(!item) return;
+
+  var clone=item.cloneNode(true);
+
+  clone.querySelectorAll("canvas").forEach(function(canvas){
+    var img=document.createElement("img");
+    img.src=canvas.toDataURL("image/png");
+    img.style.width="55px";
+    img.style.height="55px";
+    canvas.replaceWith(img);
+  });
+
+  var printCss = ''
+  + '<style>'
+  + '@page{size:A4 landscape;margin:4mm;}'
+  + '*{box-sizing:border-box;}'
+  + 'html,body{margin:0;padding:0;background:white;color:black;font-family:Arial,sans-serif;width:297mm;height:200mm;overflow:hidden;}'
+  + '.noPrint,.actionBar{display:none!important;}'
+  + '.planCard{width:100%;height:auto;min-height:115mm;margin:0;padding:0;border:0;overflow:hidden;page-break-inside:avoid;page-break-after:avoid;}'
+  + '.topLine{text-align:center;font-size:16px;font-weight:900;padding:3px;border-bottom:1px solid #000;line-height:1;}'
+  + '.meta{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid #000;}'
+  + '.meta div{font-size:13px;font-weight:900;text-align:center;padding:4px;border-right:1px solid #000;line-height:1;}'
+  + '.tableWrap{overflow:visible;width:100%;}'
+  + 'table{width:100%;min-width:0!important;border-collapse:collapse;table-layout:fixed;font-size:10px;}'
+  + 'th,td{border:1px solid #000;text-align:center;padding:3px 1px;font-size:10px;font-weight:800;line-height:1;overflow:hidden;}'
+  + 'th{font-weight:900;}'
+  + '.totalRow td{font-weight:900;}'
+  + '.slCol{width:25px}.buyerCol{width:82px}.srCol{width:85px}.styleCol{width:82px}.orderCol{width:90px}.itemCol{width:85px}.colorCol{width:55px}.unitCol{width:45px}.qtyCol{width:65px}.ctnCol{width:68px}.partyCol{width:145px}.vehicleCol{width:75px}.remarksCol{width:75px}'
+  + '.sign{margin-top:22mm;display:grid;grid-template-columns:repeat(8,1fr);border-top:1px solid #000;}'
+  + '.sign div{text-align:center;font-size:9.5px;font-weight:900;padding-top:6px;line-height:1;border-top:0!important;}'
+  + '.qrBox{display:flex;justify-content:center;align-items:center;margin-top:5px}.qrBox img,.qrBox canvas{width:55px!important;height:55px!important}.qrLabel{text-align:center;font-size:8px;font-weight:900}'
+  + '.greyReport{width:100%;height:120mm;margin:0;padding:0;border:0;overflow:hidden;page-break-inside:avoid;page-break-after:avoid;position:relative;}'
+  + '.greyHeader{text-align:center;line-height:1;}'
+  + '.greyHeader h2{font-size:23px;margin:0;font-weight:900;}'
+  + '.greyHeader h4{font-size:13px;margin:0;}'
+  + '.greyHeader h1{font-size:33px;margin:2px 0;color:#555;font-weight:900;}'
+  + '.greyTitle{font-size:18px;font-weight:900;margin:4px 0;}'
+  + '.greyTable{width:72%;margin:6mm auto 0;border-collapse:collapse;table-layout:fixed;}'
+  + '.greyTable th,.greyTable td{font-size:13px;padding:5px;border:1px solid #000;text-align:center;line-height:1;}'
+  + '.greySign{margin-top:35mm;display:grid;grid-template-columns:repeat(6,1fr);gap:16px;}'
+  + '.greySign div{text-align:center;border-top:1px solid #000;font-size:11px;font-weight:900;padding-top:5px;line-height:1;}'
+  + '</style>';
+
+  var win=window.open("", "_blank", "width=1200,height=800");
+  win.document.open();
+  win.document.write('<!DOCTYPE html><html><head><title>Gate Plan Print</title>'+printCss+'</head><body>'+clone.outerHTML+'</body></html>');
+  win.document.close();
+
+  setTimeout(function(){
+    win.focus();
+    win.print();
+    setTimeout(function(){
+      win.close();
+    },500);
+  },500);
+}
+
+window.deletePlan=async function(no){
+  if(!confirm("Delete this Gate Plan?")) return;
+  await deleteDoc(doc(db,"gatePlans",makeId(no)));
+  showReport();
+}
+
+window.editPlan=function(no){
+  localStorage.setItem("editGatePlanNo", no);
+  location.href="gate-plan.html?edit="+encodeURIComponent(no);
+}
+
+window.exportExcel=function(){
+  var html=document.getElementById("reportArea").innerHTML;
+  var file=new Blob([html],{type:"application/vnd.ms-excel"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(file);
+  a.download="gate-plan-report.xls";
+  a.click();
+}
+
+showReport();
+</script>
+
+</body>
+</html>

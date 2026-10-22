@@ -1,0 +1,3398 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GMS Grey Fabric MCD - Order Closing Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Poppins',sans-serif;background:#0a1628;color:#f1f5f9;min-height:100vh;padding-bottom:80px}
+body.light{background:#f8fafc;color:#1e293b}
+.header{background:linear-gradient(135deg,#1e40af,#7c3aed);padding:20px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3);position:sticky;top:0;z-index:100}
+.header h1{font-size:22px;font-weight:800;margin-bottom:4px}
+.header p{font-size:12px;opacity:.9}
+.live-dot{width:10px;height:10px;background:#10b981;border-radius:50%;display:inline-block;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.tabs{display:flex;gap:4px;padding:12px;background:#1e293b;overflow-x:auto;position:sticky;top:80px;z-index:99;box-shadow:0 2px 10px rgba(0,0,0,.2)}
+body.light .tabs{background:#fff;border-bottom:1px solid #e2e8f0}
+.tab{padding:10px 16px;background:#334155;border:none;color:#cbd5e1;border-radius:8px;cursor:pointer;font-weight:600;font-size:12px;white-space:nowrap;transition:all .3s}
+body.light .tab{background:#f1f5f9;color:#475569}
+.tab.active{background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff}
+.tab:hover{transform:translateY(-2px)}
+.page{display:none;padding:16px;animation:fadeIn .3s}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.card{background:#1e293b;border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:0 4px 15px rgba(0,0,0,.2)}
+body.light .card{background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.card h2{font-size:16px;margin-bottom:12px;color:#60a5fa;display:flex;align-items:center;gap:8px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.controls label{font-size:11px;font-weight:600;color:#94a3b8}
+.controls input,.controls select{padding:8px 10px;border-radius:6px;border:1px solid #475569;background:#0f172a;color:#f1f5f9;font-size:12px;font-family:inherit}
+body.light .controls input,body.light .controls select{background:#f8fafc;color:#1e293b;border-color:#cbd5e1}
+.btn{padding:8px 14px;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.btn-primary{background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff}
+.btn-success{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
+.btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff}
+.btn-warning{background:linear-gradient(135deg,#f59e0b,#d97706);color:#000}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.summary-card{background:linear-gradient(135deg,#1e293b,#334155);padding:14px;border-radius:10px;border-left:4px solid #3b82f6;transition:transform .2s}
+body.light .summary-card{background:linear-gradient(135deg,#fff,#f1f5f9)}
+.summary-card:hover{transform:translateY(-3px)}
+.summary-card h4{font-size:10px;color:#94a3b8;margin-bottom:4px;text-transform:uppercase;font-weight:700;letter-spacing:.5px}
+.summary-card .value{font-size:18px;font-weight:800;color:#f1f5f9}
+body.light .summary-card .value{color:#1e293b}
+.summary-card.green{border-left-color:#10b981}
+.summary-card.orange{border-left-color:#f59e0b}
+.summary-card.purple{border-left-color:#8b5cf6}
+.summary-card.red{border-left-color:#ef4444}
+.summary-card.blue{border-left-color:#3b82f6}
+.table-wrap{overflow-x:auto;background:#0f172a;border-radius:8px;border:1px solid #334155}
+body.light .table-wrap{background:#fff;border-color:#e2e8f0}
+
+/* Excel-style Freeze Panes (header row + leading columns) */
+.freeze-wrap{overflow:auto;max-height:65vh;position:relative}
+.freeze-wrap table{border-collapse:separate;border-spacing:0}
+.freeze-wrap thead th{position:sticky;top:0;z-index:5}
+.freeze-th-sl, .freeze-td-sl{position:sticky;left:0;z-index:3;background:#0f172a;width:42px;min-width:42px;max-width:42px}
+.freeze-th-date, .freeze-td-date{position:sticky;left:42px;z-index:3;background:#0f172a;width:88px;min-width:88px;max-width:88px}
+.freeze-th-booking, .freeze-td-booking{position:sticky;left:130px;z-index:3;background:#0f172a;width:130px;min-width:130px;max-width:130px}
+.freeze-th-booking2, .freeze-td-booking2{position:sticky;left:42px;z-index:3;background:#0f172a;width:150px;min-width:150px;max-width:150px}
+.freeze-wrap thead .freeze-th-booking2{z-index:6;background:#1e40af}
+body.light .freeze-td-booking2{background:#fff}
+body.light .freeze-wrap thead .freeze-th-booking2{background:#3b82f6}
+tbody tr:nth-child(even) .freeze-td-booking2{background:rgba(30,41,59,.95)}
+body.light tbody tr:nth-child(even) .freeze-td-booking2{background:#f8fafc}
+.freeze-td-booking2, .freeze-th-booking2{box-shadow:3px 0 6px rgba(0,0,0,.25)}
+.freeze-wrap thead .freeze-th-sl, .freeze-wrap thead .freeze-th-date, .freeze-wrap thead .freeze-th-booking{z-index:6;background:#1e40af}
+body.light .freeze-td-sl, body.light .freeze-td-date, body.light .freeze-td-booking{background:#fff}
+body.light .freeze-wrap thead .freeze-th-sl, body.light .freeze-wrap thead .freeze-th-date, body.light .freeze-wrap thead .freeze-th-booking{background:#3b82f6}
+tbody tr:nth-child(even) .freeze-td-sl, tbody tr:nth-child(even) .freeze-td-date, tbody tr:nth-child(even) .freeze-td-booking{background:rgba(30,41,59,.95)}
+body.light tbody tr:nth-child(even) .freeze-td-sl, body.light tbody tr:nth-child(even) .freeze-td-date, body.light tbody tr:nth-child(even) .freeze-td-booking{background:#f8fafc}
+.freeze-td-booking, .freeze-th-booking{box-shadow:3px 0 6px rgba(0,0,0,.25)}
+
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:2200px}
+th{background:#1e40af;color:#fff;padding:8px 6px;text-align:center;font-weight:600;position:sticky;top:0;white-space:nowrap;font-size:10px}
+body.light th{background:#3b82f6}
+td{padding:5px 4px;text-align:center;border:1px solid #334155;color:#e2e8f0;font-size:10px}
+body.light td{border-color:#e2e8f0;color:#1e293b}
+tbody tr:nth-child(even){background:rgba(30,41,59,.5)}
+body.light tbody tr:nth-child(even){background:#f8fafc}
+tbody tr:hover{background:rgba(59,130,246,.15)}
+.stock-warning{background:#fef3c7!important;color:#92400e!important;font-weight:700}
+body.light .stock-warning{background:#fef3c7!important}
+.stock-clear{background:#d1fae5!important;color:#065f46!important}
+body.light .stock-clear{background:#d1fae5!important}
+.negative{background:#fecaca!important;color:#991b1b!important;font-weight:700}
+body.light .negative{background:#fecaca!important}
+input.cell-input{width:75px;padding:4px;border:1px solid #475569;border-radius:3px;background:#0f172a;color:#f1f5f9;text-align:center;font-size:10px;font-family:inherit}
+body.light input.cell-input{background:#fff;color:#1e293b;border-color:#cbd5e1}
+input.cell-input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.2)}
+input.cell-input.wide{width:100px}
+input.cell-input.narrow{width:60px}
+.status-badge{padding:3px 8px;border-radius:10px;font-size:9px;font-weight:700}
+.status-open{background:#fef3c7;color:#92400e}
+.status-closed{background:#d1fae5;color:#065f46}
+.toast{position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:8px;color:#fff;font-weight:600;font-size:12px;z-index:9999;animation:slideIn .3s;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+.toast.success{background:#10b981}
+.toast.error{background:#ef4444}
+.toast.warning{background:#f59e0b;color:#000}
+.loading{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);display:none;justify-content:center;align-items:center;z-index:9999}
+.loading.show{display:flex}
+.spinner{width:50px;height:50px;border:4px solid #334155;border-top-color:#3b82f6;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:9998;justify-content:center;align-items:center}
+.modal.show{display:flex}
+.modal-content{background:#1e293b;border-radius:12px;padding:24px;max-width:500px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+body.light .modal-content{background:#fff}
+.modal-content h3{color:#f59e0b;margin-bottom:12px;font-size:18px;display:flex;align-items:center;gap:8px}
+.modal-content p{color:#cbd5e1;margin-bottom:16px;font-size:13px}
+body.light .modal-content p{color:#475569}
+.modal-buttons{display:flex;gap:10px;margin-top:16px}
+.modal-buttons .btn{flex:1;justify-content:center}
+.theme-toggle{position:fixed;top:16px;right:16px;z-index:101;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px}
+body.light .theme-toggle{background:rgba(0,0,0,.05);border-color:rgba(0,0,0,.1);color:#1e293b}
+.home-btn{position:fixed;top:16px;left:16px;z-index:101;background:rgba(59,130,246,.2);border:1px solid rgba(59,130,246,.3);color:#3b82f6;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:6px}
+.autosave-pill{display:inline-flex;align-items:center;gap:4px;background:#022c22;color:#34d399;border:1px solid #059669;border-radius:14px;padding:2px 9px;font-size:9px;font-weight:700;margin-left:6px}
+body.light .autosave-pill{background:#ecfdf5;color:#047857;border-color:#10b981}
+.autosave-dot{width:6px;height:6px;border-radius:50%;background:#34d399;animation:pulseDot 1.4s infinite}
+@keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.3}}
+.last-sync{text-align:center;font-size:9px;color:#94a3b8;margin-top:3px}
+body.light .last-sync{color:#64748b}
+.modal-content.wide{max-width:760px}
+.search-result-table{width:100%;border-collapse:collapse;font-size:11px}
+.search-result-table th{background:#1e40af;color:#fff;padding:6px;font-size:10px}
+.search-result-table td{padding:6px;border:1px solid #334155;color:#e2e8f0;font-size:10px;text-align:center}
+body.light .search-result-table td{border-color:#e2e8f0;color:#1e293b}
+@media(max-width:768px){
+  .header h1{font-size:16px}
+  .summary-grid{grid-template-columns:repeat(2,1fr)}
+  .summary-card .value{font-size:14px}
+  table{font-size:9px;min-width:1800px}
+  input.cell-input{width:60px;font-size:9px}
+  .controls{flex-direction:column;align-items:stretch}
+  .btn{padding:8px 12px;font-size:11px}
+}
+.oc-filter-icon{cursor:pointer;margin-left:6px;font-size:9px;opacity:.75;color:#dbeafe}
+.oc-filter-icon:hover{opacity:1;color:#fbbf24}
+.oc-filter-icon.oc-filter-active{color:#fbbf24;opacity:1}
+.oc-sortable-th{cursor:pointer;user-select:none}
+.oc-sortable-th:hover{background:#2563eb}
+.oc-sort-icon{font-size:9px;margin-left:2px}
+.oc-filter-dropdown{position:fixed;background:#1e293b;border:1px solid #475569;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:10000;width:230px;padding:10px;display:none}
+body.light .oc-filter-dropdown{background:#fff;border-color:#cbd5e1}
+.oc-filter-dropdown.show{display:block}
+.oc-filter-search{width:100%;padding:6px;margin-bottom:8px;border-radius:4px;border:1px solid #475569;background:#0f172a;color:#f1f5f9;font-size:11px;font-family:inherit}
+body.light .oc-filter-search{background:#f8fafc;color:#1e293b;border-color:#cbd5e1}
+.oc-filter-quick{display:flex;gap:10px;margin-bottom:6px;font-size:10px}
+.oc-filter-quick span{cursor:pointer;color:#60a5fa;font-weight:600}
+.oc-filter-quick span:hover{text-decoration:underline}
+.oc-filter-list{max-height:180px;overflow-y:auto;margin-bottom:8px;border-top:1px solid #334155;border-bottom:1px solid #334155;padding:4px 0}
+body.light .oc-filter-list{border-color:#e2e8f0}
+.oc-filter-item{display:flex;align-items:center;gap:6px;padding:3px 2px;font-size:11px;cursor:pointer}
+.oc-filter-item:hover{background:rgba(59,130,246,.15)}
+.oc-filter-actions{display:flex;gap:6px}
+.oc-filter-actions button{flex:1;padding:6px;font-size:10px}
+
+/* Glassmorphism - Buyer Smart Analytics */
+.glass-card{
+  background:rgba(30,41,59,.55);
+  backdrop-filter:blur(16px) saturate(160%);
+  -webkit-backdrop-filter:blur(16px) saturate(160%);
+  border:1px solid rgba(148,163,184,.18);
+  border-radius:18px;
+  padding:20px;
+  box-shadow:0 8px 32px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.05);
+  margin-bottom:16px;
+  position:relative;
+  overflow:hidden;
+}
+body.light .glass-card{
+  background:rgba(255,255,255,.55);
+  border-color:rgba(148,163,184,.35);
+  box-shadow:0 8px 32px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.6);
+}
+.glass-card::before{
+  content:'';position:absolute;top:-40%;right:-10%;width:280px;height:280px;
+  background:radial-gradient(circle, rgba(59,130,246,.18), transparent 70%);
+  pointer-events:none;
+}
+.buyer-charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;position:relative;z-index:1}
+.chart-panel{
+  background:rgba(15,23,42,.35);
+  border:1px solid rgba(148,163,184,.12);
+  border-radius:14px;
+  padding:14px;
+}
+body.light .chart-panel{background:rgba(248,250,252,.55);border-color:rgba(148,163,184,.25)}
+.chart-panel h4{font-size:11px;color:#94a3b8;margin-bottom:10px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.chart-wrap{position:relative;height:280px}
+.top-buyer-banner{
+  background:linear-gradient(135deg, rgba(245,158,11,.16), rgba(220,38,38,.08));
+  border:1px solid rgba(245,158,11,.35);
+  border-radius:14px;
+  padding:16px 18px;
+  display:flex;
+  align-items:center;
+  gap:16px;
+  margin-bottom:16px;
+  position:relative;
+  z-index:1;
+}
+.top-buyer-banner .trophy{font-size:32px}
+.top-buyer-banner .tb-name{font-size:16px;font-weight:800;color:#f1f5f9}
+body.light .top-buyer-banner .tb-name{color:#1e293b}
+.top-buyer-banner .tb-sub{font-size:11px;color:#fbbf24;font-weight:700;margin-top:2px}
+.buyer-rank-list{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;position:relative;z-index:1}
+.buyer-rank-item{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 14px;border-radius:12px;
+  background:rgba(59,130,246,.07);
+  border:1px solid rgba(59,130,246,.15);
+  transition:transform .15s;
+}
+.buyer-rank-item:hover{transform:translateX(3px);background:rgba(59,130,246,.13)}
+.buyer-rank-item .rank-badge{
+  min-width:26px;height:26px;border-radius:50%;
+  background:linear-gradient(135deg,#3b82f6,#8b5cf6);
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;flex-shrink:0;
+}
+.buyer-rank-item .rank-badge.gold{background:linear-gradient(135deg,#fbbf24,#d97706)}
+.buyer-rank-item .rank-badge.silver{background:linear-gradient(135deg,#cbd5e1,#94a3b8)}
+.buyer-rank-item .rank-badge.bronze{background:linear-gradient(135deg,#d97706,#92400e)}
+.buyer-rank-item .rn-name{flex:1;font-size:12px;font-weight:600;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.light .buyer-rank-item .rn-name{color:#1e293b}
+.buyer-rank-item .rn-stats{display:flex;gap:10px;font-size:10px;color:#94a3b8;flex-shrink:0}
+.buyer-rank-item .rn-stats b{color:#60a5fa}
+@media(max-width:768px){
+  .buyer-charts-grid{grid-template-columns:1fr}
+  .chart-wrap{height:220px}
+}
+
+/* Sticky / Freeze Filter Bar (Order Close) */
+.oc-sticky-filters{
+  position:sticky;
+  top: var(--sticky-offset, 130px);
+  z-index:50;
+  background:#1e293b;
+  padding:10px 6px 4px;
+  margin:-6px -6px 14px;
+  border-radius:10px;
+  box-shadow:0 6px 16px rgba(0,0,0,.3);
+}
+body.light .oc-sticky-filters{
+  background:#fff;
+  box-shadow:0 6px 16px rgba(0,0,0,.1);
+}
+</style>
+</head>
+<body>
+
+<a href="index.html" class="home-btn"><i class="fas fa-arrow-left"></i> Home</a>
+<button class="theme-toggle" onclick="toggleTheme()">Toggle</button>
+
+<div class="header">
+  <h1>GMS TEXTILES - Grey Fabric MCD</h1>
+  <p>Order Closing Report System <span class="live-dot"></span> LIVE | Supabase</p>
+</div>
+<div class="tabs">
+  <button class="tab active" onclick="showPage('dashboard',this)">Dashboard</button>
+  <button class="tab" onclick="showPage('entry',this)">Daily Entry</button>
+  <button class="tab" onclick="showPage('orderclose',this)">Order Close</button>
+  <button class="tab" onclick="showPage('stock',this)">Stock Check</button>
+  <button class="tab" onclick="showPage('inhand',this)">Inhand</button>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="page active">
+  <div class="card">
+    <h2><i class="fas fa-chart-line"></i> Monthly Summary</h2>
+    <div class="controls">
+      <label>Month:</label>
+      <input type="month" id="dashMonth" onchange="loadDashboard()">
+      <button class="btn btn-primary" onclick="loadDashboard()"><i class="fas fa-sync"></i> Refresh</button>
+      <button class="btn btn-success" onclick="exportDashboardExcel()"><i class="fas fa-file-excel"></i> Export</button>
+    </div>
+    <div class="summary-grid">
+      <div class="summary-card blue"><h4>Order Close</h4><div class="value" id="sumOrderClose">0</div></div>
+      <div class="summary-card green"><h4>Booking Qty</h4><div class="value" id="sumBookingQty">0</div></div>
+      <div class="summary-card"><h4>Received Qty</h4><div class="value" id="sumReceivedQty">0</div></div>
+      <div class="summary-card orange"><h4>Delivery Qty</h4><div class="value" id="sumDeliveryQty">0</div></div>
+      <div class="summary-card purple"><h4>Inhand Stock</h4><div class="value" id="sumInhandStock">0</div></div>
+      <div class="summary-card"><h4>Delivery %</h4><div class="value" id="sumDeliveryPct">0%</div></div>
+      <div class="summary-card red"><h4>T.F Out Qty</h4><div class="value" id="sumTfOutQty">0</div></div>
+      <div class="summary-card green"><h4>Present Stock</h4><div class="value" id="sumPresentStock">0</div></div>
+    </div>
+    <div class="table-wrap">
+      <table id="dashTable">
+        <thead>
+          <tr>
+            <th>Month</th><th>Order Close</th><th>Booking Qty</th><th>Received Qty</th>
+            <th>Delivery Qty</th><th>Inhand Stock</th><th>Delivery %</th>
+            <th>T.F %</th><th>T.F Out Qty</th><th>Present Stock</th>
+          </tr>
+        </thead>
+        <tbody id="dashTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- BUYER-WISE SMART ANALYTICS (Glass Theme) -->
+  <div class="card glass-card">
+    <h2><i class="fas fa-chart-pie"></i> Buyer-wise Smart Analytics <span style="font-size:10px;font-weight:500;color:#94a3b8">(All-time)</span></h2>
+
+    <div id="topBuyerBanner" class="top-buyer-banner" style="display:none">
+      <div class="trophy">Trophy</div>
+      <div>
+        <div class="tb-name" id="topBuyerName">-</div>
+        <div class="tb-sub" id="topBuyerStat">-</div>
+      </div>
+    </div>
+
+    <div class="buyer-charts-grid">
+      <div class="chart-panel">
+        <h4>Booking Qty by Buyer (Top 10)</h4>
+        <div class="chart-wrap"><canvas id="buyerBookingChart"></canvas></div>
+      </div>
+      <div class="chart-panel">
+        <h4>Order Close Count by Buyer (Top 10)</h4>
+        <div class="chart-wrap"><canvas id="buyerCloseChart"></canvas></div>
+      </div>
+    </div>
+
+    <h4 style="font-size:11px;color:#94a3b8;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;position:relative;z-index:1">Full Buyer Ranking (by Order Close)</h4>
+    <div class="buyer-rank-list" id="buyerRankList"></div>
+  </div>
+</div>
+
+<!-- DAILY ENTRY -->
+<div id="entry" class="page">
+  <div class="card">
+    <h2><i class="fas fa-plus-circle"></i> Booking Maintain Sheet (Daily Entry)</h2>
+    <div class="controls">
+      <label>Date:</label>
+      <input type="date" id="entryDate">
+      <label>Operator:</label>
+      <input type="text" id="entryOperator" placeholder="Your Name" style="width:140px" onchange="scheduleAutoSave()">
+      <button class="btn btn-primary" onclick="loadEntries()"><i class="fas fa-sync"></i> Load</button>
+      <button class="btn btn-success" onclick="addNewRow()"><i class="fas fa-plus"></i> Add Row</button>
+      <button class="btn btn-warning" onclick="saveAllEntries()"><i class="fas fa-save"></i> Save All</button>
+      <button class="btn btn-danger" onclick="exportEntryExcel()"><i class="fas fa-file-excel"></i> Export</button>
+      <span class="autosave-pill"><span class="autosave-dot"></span> AUTO-SAVE ON</span>
+    </div>
+    <div class="controls">
+      <label>Booking No:</label>
+      <input type="text" id="entrySearchBooking" placeholder="Search existing Booking No" style="width:200px">
+      <button class="btn btn-primary" onclick="searchBookingForColor()"><i class="fas fa-search"></i> Find Booking</button>
+      <span style="font-size:10px;color:#94a3b8">Same booking no te notun color add korte এখানে Booking No diye khujun</span>
+    </div>
+    <div class="table-wrap">
+      <table id="entryTable">
+        <thead>
+          <tr>
+            <th>SL</th><th>Date</th><th>Buyer</th><th>Booking No</th><th>Fab Color</th>
+            <th>Fab Type</th><th>Finish Qty</th><th>PL %</th><th>Knit Rcvd</th>
+            <th>Trf In</th><th>Trf From</th><th>Grey Qty</th><th>Total Rcvd</th>
+            <th>Knit BL</th><th>Total Dlv</th><th>Inhand</th><th>Trf Out</th>
+            <th>Trf To</th><th>Stock</th><th>ETD</th><th>Remarks</th>
+            <th>Status</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="entryTableBody"></tbody>
+      </table>
+    </div>
+    <div class="last-sync" id="lastSync"></div>
+  </div>
+</div>
+
+<!-- ORDER CLOSE -->
+<div id="orderclose" class="page">
+  <div class="card">
+    <h2><i class="fas fa-clipboard-check"></i> Order Close Report</h2>
+
+    <div class="oc-sticky-filters">
+      <div class="controls">
+        <label>From:</label>
+        <input type="date" id="ocFrom">
+        <label>To:</label>
+        <input type="date" id="ocTo">
+        <button class="btn btn-primary" onclick="loadOrderClose()"><i class="fas fa-search"></i> Search</button>
+        <button class="btn btn-success" onclick="exportOrderCloseExcel()"><i class="fas fa-file-excel"></i> Export</button>
+      </div>
+      <div class="controls">
+        <label><i class="fas fa-filter"></i> Filter:</label>
+        <input type="text" id="ocFilterBox" placeholder="Buyer, Booking No, Color, Type, Remarks diye khujun..." style="width:320px" oninput="applyOCFilter()">
+        <button class="btn btn-warning" onclick="clearOCFilter()" style="padding:8px 10px"><i class="fas fa-times"></i> Clear</button>
+        <span style="font-size:10px;color:#94a3b8" id="ocFilterCount"></span>
+      </div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-card blue"><h4>Order Close</h4><div class="value" id="ocCount">0</div></div>
+      <div class="summary-card green"><h4>Color Close</h4><div class="value" id="ocColorCount">0</div></div>
+      <div class="summary-card"><h4>Grey Qty</h4><div class="value" id="ocGreyQty">0</div></div>
+      <div class="summary-card orange"><h4>Finish Qty</h4><div class="value" id="ocFinishQty">0</div></div>
+      <div class="summary-card purple"><h4>T.F In Qty</h4><div class="value" id="ocTfIn">0</div></div>
+      <div class="summary-card red"><h4>T.F Out Qty</h4><div class="value" id="ocTfOut">0</div></div>
+      <div class="summary-card green"><h4>Stock Qty</h4><div class="value" id="ocStock">0</div></div>
+    </div>
+
+    <!-- BOOKING LIST VIEW (default) -->
+    <div id="ocBookingListWrap" class="table-wrap freeze-wrap">
+      <table id="ocBookingListTable">
+        <thead>
+          <tr>
+            <th class="freeze-th-sl">SL</th>
+            <th class="oc-sortable-th freeze-th-booking2" onclick="sortOCList('booking_no')">Booking No<span class="oc-sort-icon" id="sortIcon_booking_no"></span> <i class="fas fa-filter oc-filter-icon" id="filterIcon_booking_no" onclick="event.stopPropagation();openOCColumnFilter(event,'booking_no')"></i></th>
+            <th class="oc-sortable-th" onclick="sortOCList('buyer')">Buyer<span class="oc-sort-icon" id="sortIcon_buyer"></span> <i class="fas fa-filter oc-filter-icon" id="filterIcon_buyer" onclick="event.stopPropagation();openOCColumnFilter(event,'buyer')"></i></th>
+            <th class="oc-sortable-th" onclick="sortOCList('colorCount')">Colors Closed<span class="oc-sort-icon" id="sortIcon_colorCount"></span> <i class="fas fa-filter oc-filter-icon" id="filterIcon_colorCount" onclick="event.stopPropagation();openOCColumnFilter(event,'colorCount')"></i></th>
+            <th class="oc-sortable-th" onclick="sortOCList('greyQty')">Grey Qty<span class="oc-sort-icon" id="sortIcon_greyQty"></span> <i class="fas fa-filter oc-filter-icon" id="filterIcon_greyQty" onclick="event.stopPropagation();openOCColumnFilter(event,'greyQty')"></i></th>
+            <th class="oc-sortable-th" onclick="sortOCList('finishQty')">Finish Qty<span class="oc-sort-icon" id="sortIcon_finishQty"></span> <i class="fas fa-filter oc-filter-icon" id="filterIcon_finishQty" onclick="event.stopPropagation();openOCColumnFilter(event,'finishQty')"></i></th>
+            <th class="oc-sortable-th" onclick="sortOCList('trfOut')">Trf Out<span class="oc-sort-icon" id="sortIcon_trfOut"></span> <i class="fas fa-filter oc-filter-icon" id="filterIcon_trfOut" onclick="event.stopPropagation();openOCColumnFilter(event,'trfOut')"></i></th>
+            <th class="oc-sortable-th" onclick="sortOCList('stock')">Stock<span class="oc-sort-icon" id="sortIcon_stock"></span> <i class="fas fa-filter oc-filter-icon" id="filterIcon_stock" onclick="event.stopPropagation();openOCColumnFilter(event,'stock')"></i></th>
+            <th class="oc-sortable-th" onclick="sortOCList('lastCloseDate')">Last Close Date<span class="oc-sort-icon" id="sortIcon_lastCloseDate"></span> <i class="fas fa-filter oc-filter-icon" id="filterIcon_lastCloseDate" onclick="event.stopPropagation();openOCColumnFilter(event,'lastCloseDate')"></i></th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="ocBookingListBody"></tbody>
+      </table>
+    </div>
+
+    <!-- EXCEL-STYLE COLUMN FILTER DROPDOWN -->
+    <div id="ocFilterPanel" class="oc-filter-dropdown">
+      <div style="font-weight:700;font-size:12px;margin-bottom:8px;color:#60a5fa" id="ocFilterPanelTitle">Filter</div>
+      <input type="text" id="ocFilterSearchBox" class="oc-filter-search" placeholder="khujun..." oninput="ocFilterSearchInput()">
+      <div class="oc-filter-quick">
+        <span onclick="ocFilterSelectAll(true)">Select All</span>
+        <span onclick="ocFilterSelectAll(false)">Clear All</span>
+      </div>
+      <div class="oc-filter-list" id="ocFilterListBody"></div>
+      <div class="oc-filter-actions">
+        <button class="btn btn-success" onclick="applyOCColumnFilter()"><i class="fas fa-check"></i> OK</button>
+        <button class="btn btn-danger" onclick="clearOCColumnFilter()"><i class="fas fa-times"></i> Clear</button>
+      </div>
+    </div>
+
+    <!-- DETAIL VIEW (shown after clicking a Booking No) -->
+    <div id="ocDetailWrap" style="display:none">
+      <div class="controls">
+        <button class="btn btn-warning" onclick="backToOCBookingList()"><i class="fas fa-arrow-left"></i> Back to Booking List</button>
+        <span style="font-size:13px;font-weight:700;color:#60a5fa" id="ocDetailTitle"></span>
+      </div>
+      <div class="table-wrap freeze-wrap">
+        <table id="ocTable">
+          <thead>
+            <tr>
+              <th class="freeze-th-sl">SL</th><th class="freeze-th-date">Date</th><th class="freeze-th-booking">Booking No</th><th>Buyer</th><th>Fab Color</th>
+              <th>Fab Type</th><th>Finish Qty</th><th>PL %</th><th>Grey Qty</th>
+              <th>Knit Rcvd</th><th>Trf In</th><th>Trf From</th><th>Total Rcvd</th>
+              <th>Knit BL</th><th>Total Dlv</th><th>Inhand</th><th>Trf Out</th>
+              <th>Trf To</th><th>Stock</th><th>ETD</th><th>Remarks</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="ocTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STOCK CHECK -->
+<div id="stock" class="page">
+  <div class="card">
+    <h2><i class="fas fa-boxes"></i> Stock Check (Booking No + Color + Type + Date Match)</h2>
+    <div class="controls">
+      <label>Booking No:</label>
+      <input type="text" id="stockBookingNo" placeholder="GMST-FB-26-01187" style="width:200px">
+      <button class="btn btn-primary" onclick="checkStock()"><i class="fas fa-search"></i> Check Stock</button>
+      <button class="btn btn-warning" onclick="loadAllStock()"><i class="fas fa-list"></i> Show All Stock</button>
+      <button class="btn btn-success" onclick="exportStockExcel()"><i class="fas fa-file-excel"></i> Export</button>
+    </div>
+    <div id="stockMonthFilterBanner" style="display:none;margin-bottom:12px;padding:9px 14px;background:rgba(59,130,246,.12);border:1px solid #3b82f6;border-radius:8px;font-size:12px;color:#3b82f6;align-items:center;gap:10px;flex-wrap:wrap">
+      <i class="fas fa-filter"></i> <span id="stockMonthFilterText"></span>
+      <button class="btn btn-danger" style="padding:3px 10px;font-size:10px" onclick="loadAllStock()"><i class="fas fa-times"></i> Clear Filter</button>
+    </div>
+    <div class="table-wrap">
+      <table id="stockTable">
+        <thead>
+          <tr>
+            <th>Date</th><th>Booking No</th><th>Buyer</th><th>Color</th><th>Type</th><th>Total Rcvd</th>
+            <th>Total Dlv</th><th>Inhand</th><th>Trf Out</th><th>Stock</th><th>Status</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="stockTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- INHAND -->
+<div id="inhand" class="page">
+  <div class="card">
+    <h2><i class="fas fa-hand-holding"></i> Inhand Stock (Booking-wise)</h2>
+    <p style="font-size:11px;color:#94a3b8;margin-bottom:10px">Protita booking-e ja Inhand stock (delivery na hoya, transfer-e na jaoa) royeche shegulo ekhane dekhabe. "Transfer" chaple onno booking-e pathano jabe, othoba Daily Entry-r Trf In ghorer পাশে <i class="fas fa-hand-holding"></i> icon diye ekhan theke Pull kora jabe.</p>
+    <div class="controls">
+      <label>Booking No:</label>
+      <input type="text" id="inhandFilterBox" placeholder="Booking No, Buyer, Color diye khujun..." style="width:260px" oninput="renderInhandTable()">
+      <button class="btn btn-primary" onclick="loadInhand()"><i class="fas fa-sync"></i> Refresh</button>
+      <span style="font-size:10px;color:#94a3b8" id="inhandCount"></span>
+    </div>
+    <div class="summary-grid">
+      <div class="summary-card purple"><h4>Total Inhand Rows</h4><div class="value" id="inhandRowCount">0</div></div>
+      <div class="summary-card green"><h4>Total Available Qty</h4><div class="value" id="inhandTotalQty">0</div></div>
+    </div>
+    <div class="table-wrap">
+      <table id="inhandTable">
+        <thead>
+          <tr>
+            <th>Date</th><th>Booking No</th><th>Buyer</th><th>Color</th><th>Type</th>
+            <th>Available Qty</th><th>Status</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="inhandTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- INHAND TRANSFER MODAL -->
+<div class="modal" id="inhandTransferModal">
+  <div class="modal-content wide">
+    <h3><i class="fas fa-exchange-alt"></i> Inhand Transfer</h3>
+    <div id="inhandTransferSourceInfo" style="font-size:12px;color:#cbd5e1;background:#0f172a;padding:10px;border-radius:8px;margin-bottom:12px"></div>
+
+    <div id="inhandTargetPickArea">
+      <div class="controls">
+        <label>Target Booking No:</label>
+        <input type="text" id="inhandTargetBooking" class="cell-input wide" placeholder="Booking No" style="width:180px">
+        <button class="btn btn-primary" onclick="findInhandTargetRows()" style="padding:6px 10px;font-size:11px"><i class="fas fa-search"></i> Find Existing</button>
+      </div>
+      <div id="inhandTargetMatches" style="max-height:150px;overflow-y:auto;margin-bottom:10px"></div>
+      <div class="controls">
+        <label>Color:</label>
+        <input type="text" id="inhandTargetColor" class="cell-input" placeholder="Fab Color">
+        <label>Type:</label>
+        <input type="text" id="inhandTargetType" class="cell-input" placeholder="Fab Type">
+        <label>Date:</label>
+        <input type="date" id="inhandTargetDate">
+      </div>
+      <p style="font-size:10px;color:#94a3b8;margin-bottom:10px">Upore "Find Existing" die matching row select korte parben, othoba Color/Type/Date nijei bhore notun row hisebe transfer korte parben.</p>
+      <div class="controls">
+        <label>Transfer Qty:</label>
+        <input type="number" id="inhandTransferQty" class="cell-input" style="width:110px">
+        <span style="font-size:10px;color:#94a3b8" id="inhandMaxQtyHint"></span>
+      </div>
+    </div>
+
+    <div class="modal-buttons">
+      <button class="btn btn-danger" onclick="closeInhandTransferModal()">Cancel</button>
+      <button class="btn btn-success" onclick="confirmInhandTransfer()"><i class="fas fa-check"></i> Confirm Transfer</button>
+    </div>
+  </div>
+</div>
+
+<!-- WARNING MODAL -->
+<div class="modal" id="warningModal">
+  <div class="modal-content">
+    <h3><i class="fas fa-exclamation-triangle"></i> Stock Warning!</h3>
+    <p id="warningMessage">This order has remaining stock. Are you sure you want to close it?</p>
+    <div class="modal-buttons">
+      <button class="btn btn-danger" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-success" onclick="confirmCloseOrder()">Yes, Close Anyway</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOOKING SEARCH MODAL -->
+<div class="modal" id="bookingSearchModal">
+  <div class="modal-content wide">
+    <h3><i class="fas fa-search"></i> Booking Search Results</h3>
+    <p>Row theke "Add Color" chaple ei Booking No te notun color row hisebe add hobe. Shudhu Color ghor ta purun kore din.</p>
+    <div class="table-wrap" style="max-height:320px;overflow-y:auto">
+      <table class="search-result-table">
+        <thead><tr><th>Date</th><th>Buyer</th><th>Booking No</th><th>Color</th><th>Type</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="bookingSearchResults"></tbody>
+      </table>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-danger" onclick="closeBookingSearchModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- STOCK EDIT MODAL -->
+<div class="modal" id="stockEditModal">
+  <div class="modal-content wide">
+    <h3><i class="fas fa-pen"></i> Edit Rows - <span id="stockEditTitle"></span></h3>
+    <p>Ekhane ei Booking + Color + Type er protita diner row alada bhabe Edit ba Delete kora jabe.</p>
+    <div class="table-wrap" style="max-height:320px;overflow-y:auto">
+      <table class="search-result-table">
+        <thead>
+          <tr>
+            <th>Date</th><th>Booking No</th><th>Color</th><th>Type</th><th>Knit Rcvd</th><th>Trf In</th><th>Total Dlv</th><th>Trf Out</th><th>Status</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="stockEditRows"></tbody>
+      </table>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-danger" onclick="closeStockEditModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="loading" id="loading">
+  <div style="text-align:center">
+    <div class="spinner"></div>
+    <p style="margin-top:15px;color:#cbd5e1;font-size:13px">Loading...</p>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+// =========================================
+// SUPABASE CONFIG
+// =========================================
+const SUPABASE_URL = 'https://hmatleeearcaltguosiz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_VA7UkQqRwCxdeVwHuxzsjw_dQxOPiIj';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const COMPANY_CODE = 'textile';
+
+// =========================================
+// GLOBAL STATE
+// =========================================
+let companyId = null;
+let allEntries = [];
+let allOrderClose = [];
+let pendingCloseIdx = null;
+let autoSaveTimer = null;
+let autoSaveInFlight = false;
+let suppressAutoSave = false;
+let lastAutoSaveTime = 0;
+let bookingSearchMatches = [];
+let stockDisplayData = [];
+let stockEditRows = [];
+let stockEditRowsOriginal = [];
+let ocEditingRows = new Set();
+let ocRowBackups = {};
+let ocFilterText = '';
+let ocSelectedBooking = null;
+let ocColumnFilters = {};
+let ocSortCol = null;
+let ocSortDir = 'asc';
+let ocActiveFilterCol = null;
+let inhandRawRows = [];
+let inhandFilteredRows = [];
+let inhandSourceRow = null;   // the grey_bookings row we're transferring FROM
+let inhandPullTargetIdx = null; // Daily Entry idx we're pulling INTO (pull mode)
+let inhandTargetSelected = null; // {id, booking_no, fab_color, fab_type, report_date} when an existing target row is picked
+const OC_NUMERIC_COLS = new Set(['colorCount','greyQty','finishQty','trfOut','stock']);
+const ocColumnLabels = {
+  booking_no: 'Booking No', buyer: 'Buyer', colorCount: 'Colors Closed',
+  greyQty: 'Grey Qty', finishQty: 'Finish Qty', trfOut: 'Trf Out',
+  stock: 'Stock', lastCloseDate: 'Last Close Date'
+};
+
+// =========================================
+// ROUNDING TOLERANCE (BUG FIX)
+// All Kg quantities are rounded to 2 decimals in numOrZero() below. Even so,
+// repeated add/subtract across many saves can leave a value like 0.0000001
+// or -0.0000001 sitting in the DB instead of a clean 0. Comparing against a
+// bare "> 0" / "< 0" then wrongly treats that as "still has stock" (row
+// stays in Inhand tab forever, popup keeps showing on Close, etc). EPS is
+// the tolerance used everywhere a stock/available amount is checked against
+// zero, so tiny floating-point noise is treated as exactly 0.
+// =========================================
+const EPS = 0.01;
+
+// Prevents a double-click / slow network double-submit on "Close" from
+// creating two close operations for the same row at once, which could
+// otherwise leave a duplicate/ghost row behind in grey_bookings or
+// grey_order_close.
+let closingInProgress = new Set();
+
+// Columns that don't exist on a table get remembered here for this session,
+// so we don't keep re-sending them and re-failing.
+const unsupportedColumns = { grey_bookings: new Set(), grey_order_close: new Set() };
+
+// =========================================
+// KEY NORMALIZATION HELPER
+// booking_no (and other key text fields) can be typed with different
+// spacing/case on different days (e.g. "GMST-FB-26-01067" vs
+// "Gmst-fb-26-01067"). Postgres/JS equality is case-sensitive, so without
+// normalizing, the exact same booking ends up split into separate groups in
+// every grouped view (Order Close booking list, Stock Check, booking
+// search). normKey() is used ONLY for comparison/grouping purposes - the
+// original text is still what's displayed and stored.
+// =========================================
+function normKey(v){
+  return (v || '').toString().trim().toUpperCase();
+}
+
+// =========================================
+// SCHEMA-SAFE WRITE HELPER
+// =========================================
+function stripUnsupported(table, obj){
+  const copy = {...obj};
+  unsupportedColumns[table].forEach(col => { delete copy[col]; });
+  return copy;
+}
+
+function extractMissingColumn(message){
+  if(!message) return null;
+  const m = message.match(/'([a-zA-Z0-9_]+)'\s+column/);
+  return m ? m[1] : null;
+}
+
+// mode: {id:someId} => update by id | {conflict:'col1,col2'} => upsert | {} => insert
+async function safeWrite(table, payload, mode = {}){
+  let attempt = 0;
+  while(attempt < 10){
+    const clean = stripUnsupported(table, payload);
+    let query;
+    if(mode.id){
+      const body = {...clean};
+      delete body.id;
+      query = supabase.from(table).update(body).eq('id', mode.id).select().maybeSingle();
+    } else if(mode.conflict){
+      query = supabase.from(table).upsert(clean, {onConflict: mode.conflict}).select().maybeSingle();
+    } else {
+      const body = {...clean};
+      delete body.id;
+      query = supabase.from(table).insert(body).select().maybeSingle();
+    }
+    const {data, error} = await query;
+    if(!error) return {data, error: null};
+    const col = extractMissingColumn(error.message);
+    if(col && !unsupportedColumns[table].has(col)){
+      unsupportedColumns[table].add(col);
+      attempt++;
+      continue;
+    }
+    return {data: null, error};
+  }
+  return {data: null, error: {message: 'Bar bar schema error - column milche na'}};
+}
+
+// numOrZero now ROUNDS to 2 decimals (BUG FIX). Previously it only cast to
+// Number, so tiny binary floating-point remainders (e.g. 12.000000000002 or
+// -0.0000000004) accumulated through repeated saves/transfers and stuck
+// around in the DB forever, which is what caused rows to show as
+// "Available Qty: 0" in the Inhand tab yet still remain listed instead of
+// disappearing (0 displayed on screen, but the real stored value was a
+// non-zero speck).
+function numOrZero(v){
+  const n = Number(v);
+  if(isNaN(n)) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+// =========================================
+// SUPABASE FUNCTIONS
+// =========================================
+async function getCompanyId(){
+  if(companyId) return companyId;
+  const {data,error} = await supabase.from('companies').select('id').eq('code',COMPANY_CODE).single();
+  if(error||!data){ console.error('Company not found'); return null; }
+  companyId = data.id;
+  return companyId;
+}
+
+function buildRowPayload(entry, cid, operator){
+  return {
+    company_id: cid,
+    report_date: entry.report_date || null,
+    operator: operator,
+    buyer: entry.buyer || '',
+    // Booking No is normalized (trimmed + UPPERCASE) at the point of save so
+    // that "GMST-FB-26-01067" and "gmst-fb-26-01067" typed on different days
+    // always land as the SAME booking in the database, instead of quietly
+    // creating a duplicate booking that then shows up as two separate rows
+    // in Order Close / Stock Check.
+    booking_no: (entry.booking_no || '').toString().trim().toUpperCase(),
+    fab_color: (entry.fab_color || '').toString().trim(),
+    fab_type: (entry.fab_type || '').toString().trim(),
+    finish_qty: numOrZero(entry.finish_qty),
+    pl_percent: numOrZero(entry.pl_percent),
+    knitting_receive: numOrZero(entry.knitting_receive),
+    transfer_in_qty: numOrZero(entry.transfer_in_qty),
+    transfer_from_order: (entry.transfer_from_order || '').toString().trim().toUpperCase(),
+    grey_qty: numOrZero(entry.grey_qty),
+    total_received_qty: numOrZero(entry.total_received_qty),
+    knit_rcvd_bl: numOrZero(entry.knit_rcvd_bl),
+    total_delivery_qty: numOrZero(entry.total_delivery_qty),
+    inhand_stock_qty: numOrZero(entry.inhand_stock_qty),
+    transfer_out_qty: numOrZero(entry.transfer_out_qty),
+    transfer_to_order: (entry.transfer_to_order || '').toString().trim().toUpperCase(),
+    stock: numOrZero(entry.stock),
+    etd: entry.etd || null,
+    remarks: entry.remarks || '',
+    status: entry.status || 'Open'
+  };
+}
+
+async function saveEntryRow(entry, cid, operator){
+  const payload = buildRowPayload(entry, cid, operator);
+  const wasNew = !entry.id;
+  const mode = entry.id
+    ? {id: entry.id}
+    : {conflict: 'company_id,report_date,booking_no,fab_color,fab_type'};
+  const {data, error} = await safeWrite('grey_bookings', payload, mode);
+
+  if(error){
+    const msg = (error.message || '').toLowerCase();
+    const looksLikeDuplicate = msg.includes('duplicate') || msg.includes('unique') || msg.includes('already exists');
+    if(wasNew && looksLikeDuplicate){
+      const found = await findExistingBookingRow(payload, cid);
+      if(found){
+        entry.id = found.id;
+        return {success: true, recovered: true};
+      }
+    }
+    return {error};
+  }
+
+  if(wasNew){
+    if(data && data.id){
+      entry.id = data.id;
+    } else {
+      const found = await findExistingBookingRow(payload, cid);
+      if(found) entry.id = found.id;
+    }
+  }
+  return {success: true};
+}
+
+async function findExistingBookingRow(payload, cid){
+  try {
+    const {data} = await supabase
+      .from('grey_bookings')
+      .select('id')
+      .eq('company_id', cid)
+      .eq('booking_no', payload.booking_no)
+      .eq('fab_color', payload.fab_color)
+      .eq('fab_type', payload.fab_type)
+      .eq('report_date', payload.report_date)
+      .order('id', {ascending: false})
+      .limit(1)
+      .maybeSingle();
+    return data || null;
+  } catch(e){
+    console.error('findExistingBookingRow error:', e);
+    return null;
+  }
+}
+
+// Looks up a row in a target table using an explicit natural key (rather than
+// relying on the CURRENT entry's key, which may have already changed via edits).
+// Used by cross-table sync so we update the SAME underlying row even when the
+// booking_no/fab_color/fab_type/date fields were edited, instead of creating a
+// new row via upsert-on-new-key and leaving the old row behind as a ghost.
+async function findRowByExactKey(table, cid, key, dateField){
+  try {
+    const {data} = await supabase
+      .from(table)
+      .select('id')
+      .eq('company_id', cid)
+      .eq('booking_no', normKey(key.booking_no))
+      .eq('fab_color', (key.fab_color || '').toString().trim())
+      .eq('fab_type', (key.fab_type || '').toString().trim())
+      .eq(dateField, key[dateField] || key.report_date || key.close_date || '')
+      .order('id', {ascending: false})
+      .limit(1)
+      .maybeSingle();
+    return data || null;
+  } catch(e){
+    console.error('findRowByExactKey error:', e);
+    return null;
+  }
+}
+
+async function saveAllEntryRows(showSuccess = true){
+  const cid = await getCompanyId();
+  if(!cid) return {error: 'no company'};
+  const operator = document.getElementById('entryOperator').value.trim() || localStorage.getItem('lastOperator') || 'Unknown';
+
+  const incompleteRows = [];
+  const readyEntries = allEntries.filter(entry => {
+    const hasBookingNo = (entry.booking_no || '').trim() !== '';
+    const hasColor = (entry.fab_color || '').trim() !== '';
+    if(!hasBookingNo || !hasColor){
+      incompleteRows.push(entry);
+      return false;
+    }
+    return true;
+  });
+
+  let failed = 0;
+  const failDetails = [];
+  for(const entry of readyEntries){
+    const res = await saveEntryRow(entry, cid, operator);
+    if(res.error){
+      failed++;
+      const label = [entry.booking_no, entry.fab_color].filter(Boolean).join(' - ') || '(no booking no)';
+      const reason = res.error.message || JSON.stringify(res.error);
+      failDetails.push(`${label}: ${reason}`);
+    }
+  }
+
+  if(failed > 0){
+    console.error('Save failures:', failDetails);
+    if(showSuccess) showToast(`${failed} ta row save hoyni - ${failDetails[0]}`, 'error');
+    return {error: failDetails.join(' | ')};
+  }
+  
+  if(incompleteRows.length > 0 && showSuccess){
+    showToast(`${incompleteRows.length} ta row-e Booking No ba Color khali ache - segulo akhono save hoyni`, 'warning');
+  }
+  
+  return {success: true, skipped: incompleteRows.length};
+}
+
+// =========================================
+// UI HELPERS
+// =========================================
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(btn) btn.classList.add('active');
+  
+  if(id === 'dashboard') loadDashboard();
+  else if(id === 'entry') loadEntries();
+  else if(id === 'orderclose') loadOrderClose();
+  else if(id === 'stock') loadAllStock();
+  else if(id === 'inhand') loadInhand();
+}
+
+function showLoading(show=true) {
+  document.getElementById('loading').classList.toggle('show', show);
+}
+
+function showToast(msg, type='success') {
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerText = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function fmt(n) {
+  return Number(n||0).toLocaleString('en-US', {maximumFractionDigits: 2});
+}
+
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  localStorage.setItem('greyTheme', document.body.classList.contains('light') ? 'light' : 'dark');
+  if(document.getElementById('dashboard')?.classList.contains('active') && typeof Chart !== 'undefined'){
+    loadBuyerAnalytics();
+  }
+}
+
+function closeModal() {
+  document.getElementById('warningModal').classList.remove('show');
+  pendingCloseIdx = null;
+}
+
+function closeBookingSearchModal(){
+  document.getElementById('bookingSearchModal').classList.remove('show');
+}
+
+function updateLastSync(t){ 
+  const el = document.getElementById('lastSync'); 
+  if(el) el.textContent=t; 
+}
+
+// =========================================
+// DASHBOARD
+// =========================================
+async function loadDashboard() {
+  const cid = await getCompanyId();
+  if(!cid) return;
+  showLoading();
+  
+  const month = document.getElementById('dashMonth').value;
+  const [year, mon] = month.split('-');
+  const startDate = `${year}-${mon}-01`;
+  const lastDay = new Date(Number(year), Number(mon), 0).getDate();
+  const endDate = `${year}-${mon}-${String(lastDay).padStart(2,'0')}`;
+  
+  try {
+    const [bookingsRes, ocRes] = await Promise.all([
+      supabase.from('grey_bookings')
+        .select('finish_qty, knitting_receive, transfer_in_qty, total_delivery_qty, transfer_out_qty')
+        .eq('company_id', cid)
+        .gte('report_date', startDate)
+        .lte('report_date', endDate),
+      supabase.from('grey_order_close')
+        .select('booking_no')
+        .eq('company_id', cid)
+        .gte('close_date', startDate)
+        .lte('close_date', endDate)
+    ]);
+    
+    if(bookingsRes.error) throw bookingsRes.error;
+    const bookingsData = bookingsRes.data;
+    const ocData = ocRes.data;
+    
+    let bookingQty = 0, receivedQty = 0, deliveryQty = 0, inhandStock = 0, tfOutQty = 0;
+    
+    (bookingsData || []).forEach(b => {
+      const totalRcvd = numOrZero(b.knitting_receive) + numOrZero(b.transfer_in_qty);
+      const totalDlv = numOrZero(b.total_delivery_qty);
+      bookingQty += numOrZero(b.finish_qty);
+      receivedQty += totalRcvd;
+      deliveryQty += totalDlv;
+      inhandStock += (totalRcvd - totalDlv);
+      tfOutQty += numOrZero(b.transfer_out_qty);
+    });
+    
+    const presentStock = inhandStock - tfOutQty;
+    const deliveryPct = receivedQty > 0 ? (deliveryQty / receivedQty * 100) : 0;
+    const uniqueOrderCloseBookings = new Set((ocData || []).map(o => normKey(o.booking_no)).filter(Boolean));
+    
+    document.getElementById('sumOrderClose').innerText = uniqueOrderCloseBookings.size;
+    document.getElementById('sumBookingQty').innerText = fmt(bookingQty);
+    document.getElementById('sumReceivedQty').innerText = fmt(receivedQty);
+    document.getElementById('sumDeliveryQty').innerText = fmt(deliveryQty);
+    document.getElementById('sumInhandStock').innerText = fmt(inhandStock);
+    document.getElementById('sumDeliveryPct').innerText = deliveryPct.toFixed(2) + '%';
+    document.getElementById('sumTfOutQty').innerText = fmt(tfOutQty);
+    document.getElementById('sumPresentStock').innerText = fmt(presentStock);
+    
+    await loadDashboardTable();
+    await loadBuyerAnalytics();
+    
+  } catch(e) {
+    console.error(e);
+    showToast('Error: ' + e.message, 'error');
+  }
+  showLoading(false);
+}
+
+async function loadDashboardTable() {
+  const cid = await getCompanyId();
+  if(!cid) return;
+  
+  const [ocRes, bookingsRes] = await Promise.all([
+    supabase.from('grey_order_close')
+      .select('close_date, booking_no')
+      .eq('company_id', cid)
+      .order('close_date', {ascending: false}),
+    supabase.from('grey_bookings')
+      .select('report_date, finish_qty, knitting_receive, transfer_in_qty, total_delivery_qty, transfer_out_qty')
+      .eq('company_id', cid)
+  ]);
+  const allOC = ocRes.data;
+  const allBookings = bookingsRes.data;
+  
+  const months = {};
+  const monthBookingSets = {};
+  (allOC || []).forEach(oc => {
+    if(!oc.close_date) return;
+    const m = oc.close_date.slice(0,7);
+    if(!months[m]) months[m] = {orderClose: 0, bookingQty: 0, receivedQty: 0, deliveryQty: 0, inhandStock: 0, tfOutQty: 0};
+    if(!monthBookingSets[m]) monthBookingSets[m] = new Set();
+    if(oc.booking_no) monthBookingSets[m].add(normKey(oc.booking_no));
+    months[m].orderClose = monthBookingSets[m].size;
+  });
+  
+  (allBookings || []).forEach(b => {
+    if(!b.report_date) return;
+    const m = b.report_date.slice(0,7);
+    if(!months[m]) months[m] = {orderClose: 0, bookingQty: 0, receivedQty: 0, deliveryQty: 0, inhandStock: 0, tfOutQty: 0};
+    const totalRcvd = numOrZero(b.knitting_receive) + numOrZero(b.transfer_in_qty);
+    const totalDlv = numOrZero(b.total_delivery_qty);
+    months[m].bookingQty += numOrZero(b.finish_qty);
+    months[m].receivedQty += totalRcvd;
+    months[m].deliveryQty += totalDlv;
+    months[m].inhandStock += (totalRcvd - totalDlv);
+    months[m].tfOutQty += numOrZero(b.transfer_out_qty);
+  });
+  
+  const tbody = document.getElementById('dashTableBody');
+  tbody.innerHTML = '';
+  
+  Object.keys(months).sort().reverse().forEach(m => {
+    const d = months[m];
+    const dPct = d.receivedQty > 0 ? (d.deliveryQty / d.receivedQty * 100) : 0;
+    const tfPct = d.receivedQty > 0 ? (d.tfOutQty / d.receivedQty * 100) : 0;
+    const present = d.inhandStock - d.tfOutQty;
+    const [y, mo] = m.split('-');
+    const monthName = new Date(y, mo-1).toLocaleString('en', {month:'short'}) + '-' + y.slice(2);
+    
+    tbody.innerHTML += `<tr class="dash-month-row" style="cursor:pointer" onclick="goToStockForMonth('${m}', '${monthName}')" title="Click korle ei month-er sob booking-er Stock Check-e jaben, jekhane sorasori edit kora jabe">
+      <td><b>${monthName}</b></td>
+      <td>${d.orderClose}</td>
+      <td>${fmt(d.bookingQty)}</td>
+      <td>${fmt(d.receivedQty)}</td>
+      <td>${fmt(d.deliveryQty)}</td>
+      <td><b style="color:#3b82f6;text-decoration:underline">${fmt(d.inhandStock)}</b></td>
+      <td>${dPct.toFixed(2)}%</td>
+      <td>${tfPct.toFixed(2)}%</td>
+      <td>${fmt(d.tfOutQty)}</td>
+      <td><b style="color:#3b82f6;text-decoration:underline">${fmt(present)}</b></td>
+    </tr>`;
+  });
+}
+
+// =========================================
+// BUYER-WISE SMART ANALYTICS (Glass Theme)
+// =========================================
+let buyerBookingChartInstance = null;
+let buyerCloseChartInstance = null;
+const BUYER_CHART_PALETTE = ['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16','#f97316','#6366f1'];
+
+function chartTextColor(){
+  return document.body.classList.contains('light') ? '#334155' : '#cbd5e1';
+}
+function chartGridColor(){
+  return document.body.classList.contains('light') ? 'rgba(51,65,85,.1)' : 'rgba(203,213,225,.1)';
+}
+
+async function loadBuyerAnalytics(){
+  const cid = await getCompanyId();
+  if(!cid) return;
+  
+  try {
+    const [bookingsRes, ocRes] = await Promise.all([
+      supabase.from('grey_bookings').select('buyer, finish_qty').eq('company_id', cid),
+      supabase.from('grey_order_close').select('buyer, booking_no').eq('company_id', cid)
+    ]);
+    if(bookingsRes.error) throw bookingsRes.error;
+    if(ocRes.error) throw ocRes.error;
+    
+    const bookingQtyByBuyer = {};
+    (bookingsRes.data || []).forEach(b => {
+      const buyer = (b.buyer || '').trim() || '(Unknown)';
+      bookingQtyByBuyer[buyer] = (bookingQtyByBuyer[buyer] || 0) + numOrZero(b.finish_qty);
+    });
+    
+    const closedBookingsByBuyer = {};
+    (ocRes.data || []).forEach(o => {
+      const buyer = (o.buyer || '').trim() || '(Unknown)';
+      if(!closedBookingsByBuyer[buyer]) closedBookingsByBuyer[buyer] = new Set();
+      if(o.booking_no) closedBookingsByBuyer[buyer].add(normKey(o.booking_no));
+    });
+    const closeCountByBuyer = {};
+    Object.keys(closedBookingsByBuyer).forEach(b => { closeCountByBuyer[b] = closedBookingsByBuyer[b].size; });
+    
+    renderBuyerBookingChart(bookingQtyByBuyer);
+    renderBuyerCloseChart(closeCountByBuyer);
+    renderBuyerRanking(closeCountByBuyer, bookingQtyByBuyer);
+    
+  } catch(e){
+    console.error('loadBuyerAnalytics error:', e);
+  }
+}
+
+function renderBuyerBookingChart(bookingQtyByBuyer){
+  const canvas = document.getElementById('buyerBookingChart');
+  if(!canvas || typeof Chart === 'undefined') return;
+  
+  const sorted = Object.entries(bookingQtyByBuyer).sort((a,b) => b[1]-a[1]).slice(0, 10);
+  const labels = sorted.map(x => x[0]);
+  const values = sorted.map(x => x[1]);
+  
+  if(buyerBookingChartInstance) buyerBookingChartInstance.destroy();
+  
+  buyerBookingChartInstance = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Booking Qty',
+        data: values,
+        backgroundColor: labels.map((_, i) => BUYER_CHART_PALETTE[i % BUYER_CHART_PALETTE.length] + 'cc'),
+        borderColor: labels.map((_, i) => BUYER_CHART_PALETTE[i % BUYER_CHART_PALETTE.length]),
+        borderWidth: 1.5,
+        borderRadius: 6,
+        maxBarThickness: 34
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx) => ' ' + fmt(ctx.parsed.y) + ' Kg' } }
+      },
+      scales: {
+        x: { ticks: { color: chartTextColor(), font: { size: 9 }, maxRotation: 35, minRotation: 0 }, grid: { display: false } },
+        y: { ticks: { color: chartTextColor(), font: { size: 9 } }, grid: { color: chartGridColor() } }
+      }
+    }
+  });
+}
+
+function renderBuyerCloseChart(closeCountByBuyer){
+  const canvas = document.getElementById('buyerCloseChart');
+  if(!canvas || typeof Chart === 'undefined') return;
+  
+  const sorted = Object.entries(closeCountByBuyer).sort((a,b) => b[1]-a[1]).slice(0, 10);
+  const labels = sorted.map(x => x[0]);
+  const values = sorted.map(x => x[1]);
+  
+  if(buyerCloseChartInstance) buyerCloseChartInstance.destroy();
+  
+  buyerCloseChartInstance = new Chart(canvas.getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: labels.map((_, i) => BUYER_CHART_PALETTE[i % BUYER_CHART_PALETTE.length]),
+        borderColor: document.body.classList.contains('light') ? '#fff' : '#1e293b',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '62%',
+      plugins: {
+        legend: { position: 'right', labels: { color: chartTextColor(), font: { size: 9 }, boxWidth: 10, padding: 8 } },
+        tooltip: { callbacks: { label: (ctx) => ' ' + ctx.label + ': ' + ctx.parsed + ' order(s)' } }
+      }
+    }
+  });
+  
+  const banner = document.getElementById('topBuyerBanner');
+  if(sorted.length > 0){
+    document.getElementById('topBuyerName').innerText = sorted[0][0];
+    document.getElementById('topBuyerStat').innerText = `Sobcheye beshi Order Close - ${sorted[0][1]} ta Booking`;
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function renderBuyerRanking(closeCountByBuyer, bookingQtyByBuyer){
+  const listEl = document.getElementById('buyerRankList');
+  if(!listEl) return;
+  
+  const allBuyers = new Set([...Object.keys(closeCountByBuyer), ...Object.keys(bookingQtyByBuyer)]);
+  const ranked = [...allBuyers]
+    .map(b => ({ buyer: b, closeCount: closeCountByBuyer[b] || 0, bookingQty: bookingQtyByBuyer[b] || 0 }))
+    .sort((a, b) => b.closeCount - a.closeCount || b.bookingQty - a.bookingQty);
+  
+  if(ranked.length === 0){
+    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:11px">Kono Buyer data paoya jayni</div>';
+    return;
+  }
+  
+  listEl.innerHTML = '';
+  ranked.forEach((r, i) => {
+    const badgeClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    listEl.innerHTML += `<div class="buyer-rank-item">
+      <div class="rank-badge ${badgeClass}">${i+1}</div>
+      <div class="rn-name" title="${r.buyer}">${r.buyer}</div>
+      <div class="rn-stats">
+        <span>Close: <b>${r.closeCount}</b></span>
+        <span>Booking: <b>${fmt(r.bookingQty)}</b> Kg</span>
+      </div>
+    </div>`;
+  });
+}
+
+// =========================================
+// DAILY ENTRY
+// =========================================
+async function loadEntries() {
+  const cid = await getCompanyId();
+  if(!cid) return;
+  showLoading();
+  
+  const date = document.getElementById('entryDate').value;
+  suppressAutoSave = true;
+  
+  try {
+    const {data, error} = await supabase
+      .from('grey_bookings')
+      .select('*')
+      .eq('company_id', cid)
+      .eq('report_date', date)
+      .neq('status', 'Closed')
+      .order('id', {ascending: true});
+    
+    if(error) throw error;
+    
+    allEntries = data || [];
+    
+    if(allEntries.length === 0){
+      showToast('Notun entry shuru korun');
+    } else if(allEntries[0].operator){
+      document.getElementById('entryOperator').value = allEntries[0].operator;
+    }
+    
+    renderEntries();
+    updateLastSync('Loaded | ' + new Date().toLocaleTimeString());
+    
+  } catch(e) {
+    console.error(e);
+    showToast('Load error: ' + e.message, 'error');
+    allEntries = [];
+    renderEntries();
+  }
+  
+  showLoading(false);
+  suppressAutoSave = false;
+}
+
+function renderEntries() {
+  const tbody = document.getElementById('entryTableBody');
+  
+  if(allEntries.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="23" style="padding:30px;color:#94a3b8;text-align:center"><i class="fas fa-inbox" style="font-size:48px;margin-bottom:12px;opacity:.5"></i><br>No Entries<br><small>Click "Add Row" to start</small></td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = '';
+  
+  allEntries.forEach((entry, idx) => {
+    const totalRcvd = (Number(entry.knitting_receive) || 0) + (Number(entry.transfer_in_qty) || 0);
+    const greyQty = Number(entry.grey_qty) || 0;
+    const knitBL = greyQty - totalRcvd;
+    const totalDlv = Number(entry.total_delivery_qty) || 0;
+    const inhand = totalRcvd - totalDlv;
+    const trfOut = Number(entry.transfer_out_qty) || 0;
+    const stock = inhand - trfOut;
+    
+    const stockClass = stock > EPS ? 'stock-warning' : (stock < -EPS ? 'negative' : 'stock-clear');
+    
+    tbody.innerHTML += `<tr data-idx="${idx}">
+      <td>${idx+1}</td>
+      <td><input type="date" class="cell-input" value="${entry.report_date||''}" onchange="updateEntry(${idx},'report_date',this.value)"></td>
+      <td><input type="text" class="cell-input wide" value="${entry.buyer||''}" onchange="updateEntry(${idx},'buyer',this.value)"></td>
+      <td><input type="text" class="cell-input wide" value="${entry.booking_no||''}" onchange="updateEntry(${idx},'booking_no',this.value)"></td>
+      <td><input type="text" class="cell-input" value="${entry.fab_color||''}" onchange="updateEntry(${idx},'fab_color',this.value)"></td>
+      <td><input type="text" class="cell-input" value="${entry.fab_type||''}" onchange="updateEntry(${idx},'fab_type',this.value)"></td>
+      <td><input type="number" class="cell-input narrow" value="${entry.finish_qty||0}" onchange="updateEntry(${idx},'finish_qty',this.value);calcRow(${idx})"></td>
+      <td><input type="number" class="cell-input narrow" value="${entry.pl_percent||0}" onchange="updateEntry(${idx},'pl_percent',this.value)"></td>
+      <td><input type="number" class="cell-input narrow" value="${entry.knitting_receive||0}" onchange="updateEntry(${idx},'knitting_receive',this.value);calcRow(${idx})"></td>
+      <td>
+        <input type="number" class="cell-input narrow" value="${entry.transfer_in_qty||0}" onchange="updateEntry(${idx},'transfer_in_qty',this.value);calcRow(${idx})">
+        <button class="btn btn-warning" title="Inhand theke Pull korun" onclick="openInhandPull(${idx})" style="padding:3px 6px;font-size:9px;margin-top:3px"><i class="fas fa-hand-holding"></i></button>
+      </td>
+      <td><input type="text" class="cell-input" value="${entry.transfer_from_order||''}" onchange="updateEntry(${idx},'transfer_from_order',this.value)"></td>
+      <td><input type="number" class="cell-input narrow" value="${entry.grey_qty||0}" onchange="updateEntry(${idx},'grey_qty',this.value);calcRow(${idx})"></td>
+      <td id="trcvd${idx}"><b>${fmt(totalRcvd)}</b></td>
+      <td id="tbl${idx}">${fmt(knitBL)}</td>
+      <td><input type="number" class="cell-input narrow" value="${entry.total_delivery_qty||0}" onchange="updateEntry(${idx},'total_delivery_qty',this.value);calcRow(${idx})"></td>
+      <td id="tinhand${idx}"><b>${fmt(inhand)}</b></td>
+      <td><input type="number" class="cell-input narrow" value="${entry.transfer_out_qty||0}" onchange="updateEntry(${idx},'transfer_out_qty',this.value);calcRow(${idx})"></td>
+      <td><input type="text" class="cell-input" value="${entry.transfer_to_order||''}" onchange="updateEntry(${idx},'transfer_to_order',this.value)"></td>
+      <td id="tstock${idx}" class="${stockClass}"><b>${fmt(stock)}</b></td>
+      <td><input type="date" class="cell-input" value="${entry.etd||''}" onchange="updateEntry(${idx},'etd',this.value)"></td>
+      <td><input type="text" class="cell-input wide" value="${entry.remarks||''}" onchange="updateEntry(${idx},'remarks',this.value)"></td>
+      <td><span class="status-badge ${entry.status==='Closed'?'status-closed':'status-open'}">${entry.status||'Open'}</span></td>
+      <td>
+        <button class="btn btn-success" onclick="closeOrder(${idx})" ${entry.status==='Closed'?'disabled':''} style="padding:4px 8px;font-size:10px">
+          <i class="fas fa-check"></i> Close
+        </button>
+        <button class="btn btn-danger" onclick="deleteEntry(${idx})" style="padding:4px 8px;font-size:10px">
+          <i class="fas fa-trash"></i>
+        </button>
+      </td>
+    </tr>`;
+  });
+}
+
+function updateEntry(idx, field, value) {
+  allEntries[idx][field] = value;
+  scheduleAutoSave();
+}
+
+function calcRow(idx) {
+  const entry = allEntries[idx];
+  const knitRcvd = Number(entry.knitting_receive) || 0;
+  const trfIn = Number(entry.transfer_in_qty) || 0;
+  const totalRcvd = knitRcvd + trfIn;
+  const greyQty = Number(entry.grey_qty) || 0;
+  const knitBL = greyQty - totalRcvd;
+  const totalDlv = Number(entry.total_delivery_qty) || 0;
+  const inhand = totalRcvd - totalDlv;
+  const trfOut = Number(entry.transfer_out_qty) || 0;
+  const stock = inhand - trfOut;
+  
+  entry.total_received_qty = totalRcvd;
+  entry.knit_rcvd_bl = knitBL;
+  entry.inhand_stock_qty = inhand;
+  entry.transfer_out_qty = trfOut;
+  entry.stock = stock;
+  
+  document.getElementById(`trcvd${idx}`).innerHTML = `<b>${fmt(totalRcvd)}</b>`;
+  document.getElementById(`tbl${idx}`).innerText = fmt(knitBL);
+  document.getElementById(`tinhand${idx}`).innerHTML = `<b>${fmt(inhand)}</b>`;
+  const stockEl = document.getElementById(`tstock${idx}`);
+  stockEl.innerHTML = `<b>${fmt(stock)}</b>`;
+  stockEl.className = stock > EPS ? 'stock-warning' : (stock < -EPS ? 'negative' : 'stock-clear');
+  
+  if(stock < -EPS){
+    showToast(`${entry.booking_no||'Row'} - Stock Negative (${fmt(stock)}) hoye geche, man check korun`, 'warning');
+  }
+  
+  scheduleAutoSave();
+}
+
+function addNewRow() {
+  const date = document.getElementById('entryDate').value;
+  allEntries.push({
+    id: null,
+    report_date: date,
+    buyer: '',
+    booking_no: '',
+    fab_color: '',
+    fab_type: '',
+    finish_qty: 0,
+    pl_percent: 0,
+    knitting_receive: 0,
+    transfer_in_qty: 0,
+    transfer_from_order: '',
+    transfer_to_order: '',
+    grey_qty: 0,
+    total_received_qty: 0,
+    knit_rcvd_bl: 0,
+    total_delivery_qty: 0,
+    inhand_stock_qty: 0,
+    transfer_out_qty: 0,
+    stock: 0,
+    etd: '',
+    remarks: '',
+    status: 'Open'
+  });
+  renderEntries();
+  showToast('New row added');
+  scheduleAutoSave();
+}
+
+async function saveAllEntries() {
+  const cid = await getCompanyId();
+  if(!cid) return;
+  showLoading();
+  
+  const operator = document.getElementById('entryOperator').value.trim() || localStorage.getItem('lastOperator') || 'Unknown';
+  localStorage.setItem('lastOperator', operator);
+  
+  try {
+    const result = await saveAllEntryRows(true);
+    if(result.success){
+      lastAutoSaveTime = Date.now();
+      updateLastSync(`Supabase e Saved - ${new Date().toLocaleTimeString()}`);
+      showToast('Supabase e Save hoyeche');
+      renderEntries();
+    }
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+  showLoading(false);
+}
+
+async function deleteEntry(idx) {
+  const entry = allEntries[idx];
+  if(!entry) return;
+  if(!confirm(`Delete ${entry.booking_no} - ${entry.fab_color}?`)) return;
+  
+  if(entry.id){
+    showLoading();
+    const {error} = await supabase.from('grey_bookings').delete().eq('id', entry.id);
+    showLoading(false);
+    if(error){
+      showToast('Delete failed: ' + error.message, 'error');
+      return;
+    }
+  }
+  
+  const currentIdx = allEntries.indexOf(entry);
+  if(currentIdx === -1) return;
+  allEntries.splice(currentIdx, 1);
+  renderEntries();
+  showToast('Deleted');
+}
+
+async function closeOrder(idx) {
+  // BUG FIX: guard against double-click / double-submit while a close for
+  // this same row is already being processed.
+  if(closingInProgress.has(idx)) return;
+
+  const entry = allEntries[idx];
+  const totalRcvd = (Number(entry.knitting_receive) || 0) + (Number(entry.transfer_in_qty) || 0);
+  const totalDlv = Number(entry.total_delivery_qty) || 0;
+  const inhand = totalRcvd - totalDlv;
+  const trfOut = Number(entry.transfer_out_qty) || 0;
+  const stock = inhand - trfOut;
+  
+  // BUG FIX: use EPS tolerance instead of a bare "> 0" so tiny floating
+  // point noise (e.g. 0.0000001) doesn't wrongly trigger the "you still
+  // have stock, transfer it out first" popup when the real stock is 0.
+  if(stock > EPS) {
+    pendingCloseIdx = idx;
+    document.getElementById('warningMessage').innerHTML = 
+      `<b>${entry.booking_no}</b> - <b>${entry.fab_color}</b> - <b>${entry.fab_type}</b><br>
+       Stock Available: <b style="color:#f59e0b">${fmt(stock)} Kg</b><br>
+       Order close korle ei stock Transfer Out korte hobe.<br>
+       Continue?`;
+    document.getElementById('warningModal').classList.add('show');
+    return;
+  }
+  
+  await performCloseOrder(idx);
+}
+
+async function confirmCloseOrder() {
+  if(pendingCloseIdx !== null) {
+    await performCloseOrder(pendingCloseIdx);
+    closeModal();
+  }
+}
+
+async function performCloseOrder(idx) {
+  const entry = allEntries[idx];
+  if(!entry) return;
+  // BUG FIX: second half of the double-submit guard - if this row is
+  // already mid-close (e.g. triggered from both the direct Close button and
+  // the warning modal's "Yes, Close Anyway" almost simultaneously), skip.
+  if(closingInProgress.has(idx)) return;
+  closingInProgress.add(idx);
+  showLoading();
+  
+  try {
+    const cid = await getCompanyId();
+    const closeDate = new Date().toISOString().slice(0,10);
+    const operator = document.getElementById('entryOperator').value.trim() || 'Unknown';
+    
+    entry.status = 'Closed';
+    
+    const saveRes = await saveEntryRow(entry, cid, operator);
+    if(saveRes.error) throw saveRes.error;
+    
+    const closePayload = {
+      ...buildRowPayload(entry, cid, operator),
+      close_date: closeDate
+    };
+    const {error} = await safeWrite('grey_order_close', closePayload, {conflict: 'company_id,close_date,booking_no,fab_color,fab_type'});
+    if(error) throw error;
+    
+    const currentIdx = allEntries.indexOf(entry);
+    if(currentIdx !== -1) allEntries.splice(currentIdx, 1);
+    renderEntries();
+    showToast(`Order Closed: ${entry.booking_no}`);
+    
+  } catch(e) {
+    entry.status = 'Open';
+    showToast(e.message, 'error');
+  } finally {
+    closingInProgress.delete(idx);
+  }
+  showLoading(false);
+}
+
+// =========================================
+// BOOKING NO SEARCH (add another color to an existing booking)
+// =========================================
+async function searchBookingForColor(){
+  const cid = await getCompanyId();
+  if(!cid) return;
+  
+  const q = document.getElementById('entrySearchBooking').value.trim();
+  if(!q){ showToast('Booking No likhun', 'warning'); return; }
+  
+  showLoading();
+  try{
+    const {data, error} = await supabase
+      .from('grey_bookings')
+      .select('*')
+      .eq('company_id', cid)
+      .ilike('booking_no', `%${q}%`)
+      .order('report_date', {ascending: false});
+    
+    if(error) throw error;
+    
+    const seen = new Set();
+    const matches = [];
+    (data || []).forEach(row => {
+      const key = normKey(row.booking_no) + '__' + normKey(row.fab_color) + '__' + normKey(row.fab_type) + '__' + row.report_date;
+      if(!seen.has(key)){
+        seen.add(key);
+        matches.push(row);
+      }
+    });
+    
+    bookingSearchMatches = matches;
+    renderBookingSearchResults(matches);
+    document.getElementById('bookingSearchModal').classList.add('show');
+    
+  }catch(e){
+    showToast(e.message, 'error');
+  }
+  showLoading(false);
+}
+
+function renderBookingSearchResults(matches){
+  const tbody = document.getElementById('bookingSearchResults');
+  
+  if(matches.length === 0){
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:#94a3b8">Ei Booking No te kono data paoya jayni</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = '';
+  matches.forEach((m, i) => {
+    tbody.innerHTML += `<tr>
+      <td>${m.report_date||''}</td>
+      <td>${m.buyer||''}</td>
+      <td><b>${m.booking_no}</b></td>
+      <td>${m.fab_color||''}</td>
+      <td>${m.fab_type||''}</td>
+      <td><span class="status-badge ${m.status==='Closed'?'status-closed':'status-open'}">${m.status||'Open'}</span></td>
+      <td><button class="btn btn-success" style="padding:4px 8px;font-size:10px" onclick="addColorRowFromBooking(${i})"><i class="fas fa-plus"></i> Add Color</button></td>
+    </tr>`;
+  });
+}
+
+function addColorRowFromBooking(i){
+  const m = bookingSearchMatches[i];
+  if(!m) return;
+  const date = document.getElementById('entryDate').value;
+  
+  allEntries.push({
+    id: null,
+    report_date: date,
+    buyer: m.buyer || '',
+    booking_no: m.booking_no || '',
+    fab_color: '',
+    fab_type: m.fab_type || '',
+    finish_qty: 0,
+    pl_percent: m.pl_percent || 0,
+    knitting_receive: 0,
+    transfer_in_qty: 0,
+    transfer_from_order: '',
+    transfer_to_order: '',
+    grey_qty: 0,
+    total_received_qty: 0,
+    knit_rcvd_bl: 0,
+    total_delivery_qty: 0,
+    inhand_stock_qty: 0,
+    transfer_out_qty: 0,
+    stock: 0,
+    etd: m.etd || '',
+    remarks: '',
+    status: 'Open'
+  });
+  
+  renderEntries();
+  closeBookingSearchModal();
+  showToast(`${m.booking_no} e notun Color row add hoyeche - Color ghore notun rong likhun`);
+  scheduleAutoSave();
+}
+
+// =========================================
+// AUTO-SAVE
+// =========================================
+function scheduleAutoSave(){
+  if(suppressAutoSave) return;
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(autoSaveNow, 900);
+}
+
+async function autoSaveNow(){
+  if(autoSaveInFlight) return;
+  
+  const date = document.getElementById('entryDate').value;
+  if(!date) return;
+  
+  autoSaveInFlight = true;
+  try {
+    const result = await saveAllEntryRows(false);
+    if(result.success){
+      lastAutoSaveTime = Date.now();
+      updateLastSync(`Auto-saved - ${new Date().toLocaleTimeString()}`);
+    } else {
+      updateLastSync(`Auto-save failed - ${new Date().toLocaleTimeString()}`);
+    }
+  } catch(e) {
+    console.error('autoSaveNow error:', e);
+    updateLastSync(`Auto-save failed - ${new Date().toLocaleTimeString()}`);
+  } finally {
+    autoSaveInFlight = false;
+  }
+}
+
+// =========================================
+// ORDER CLOSE REPORT
+// =========================================
+async function loadOrderClose() {
+  const cid = await getCompanyId();
+  if(!cid) return;
+  showLoading();
+  
+  const fromDate = document.getElementById('ocFrom').value;
+  const toDate = document.getElementById('ocTo').value;
+  
+  try {
+    const {data, error} = await supabase
+      .from('grey_order_close')
+      .select('*')
+      .eq('company_id', cid)
+      .gte('close_date', fromDate)
+      .lte('close_date', toDate)
+      .order('close_date', {ascending: false});
+    
+    if(error) throw error;
+    
+    allOrderClose = data || [];
+    ocEditingRows = new Set();
+    ocRowBackups = {};
+    ocFilterText = '';
+    ocSelectedBooking = null;
+    ocColumnFilters = {};
+    ocSortCol = null;
+    ocSortDir = 'asc';
+    const filterBox = document.getElementById('ocFilterBox');
+    if(filterBox) filterBox.value = '';
+    
+    renderOrderClose();
+    showToast(`${allOrderClose.length} orders loaded`);
+    
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+  showLoading(false);
+}
+
+function matchesOCFilter(entry){
+  if(!ocFilterText) return true;
+  const haystack = [
+    entry.buyer, entry.booking_no, entry.fab_color, entry.fab_type,
+    entry.remarks, entry.transfer_from_order, entry.transfer_to_order
+  ].map(v => (v||'').toString().toLowerCase()).join(' ');
+  return haystack.includes(ocFilterText);
+}
+
+function applyOCFilter(){
+  ocFilterText = document.getElementById('ocFilterBox').value.trim().toLowerCase();
+  renderOrderClose();
+}
+
+function clearOCFilter(){
+  ocFilterText = '';
+  document.getElementById('ocFilterBox').value = '';
+  renderOrderClose();
+}
+
+function bookingMatchesOCFilter(bookingNo, entries){
+  if(!ocFilterText) return true;
+  return entries.some(e => normKey(e.booking_no) === normKey(bookingNo) && matchesOCFilter(e));
+}
+
+// Groups rows by booking_no, comparing CASE-INSENSITIVELY (normKey) so that
+// "GMST-FB-26-01067" and "gmst-fb-26-01067" are treated as the same booking
+// even if older rows in the database still have inconsistent casing. The
+// display value uses whichever casing was seen FIRST for that booking.
+function groupOCByBooking(entries){
+  const order = [];
+  const groups = {};
+  entries.forEach(entry => {
+    const key = normKey(entry.booking_no) || '(NO BOOKING NO)';
+    if(!groups[key]){
+      groups[key] = {
+        booking_no: entry.booking_no || '',
+        buyer: entry.buyer || '',
+        colorCount: 0,
+        greyQty: 0,
+        finishQty: 0,
+        trfOut: 0,
+        stock: 0,
+        lastCloseDate: entry.close_date || entry.report_date || ''
+      };
+      order.push(key);
+    }
+    const g = groups[key];
+    g.colorCount += 1;
+    g.greyQty += Number(entry.grey_qty || 0);
+    g.finishQty += Number(entry.finish_qty || 0);
+    const totalRcvd = (Number(entry.knitting_receive) || 0) + (Number(entry.transfer_in_qty) || 0);
+    const totalDlv = Number(entry.total_delivery_qty) || 0;
+    const inhand = totalRcvd - totalDlv;
+    const trfOut = Number(entry.transfer_out_qty) || 0;
+    g.trfOut += trfOut;
+    g.stock += (inhand - trfOut);
+    const d = entry.close_date || entry.report_date || '';
+    if(d > g.lastCloseDate) g.lastCloseDate = d;
+  });
+  return order.map(k => groups[k]);
+}
+
+function renderOrderClose() {
+  const countEl = document.getElementById('ocFilterCount');
+  const listWrap = document.getElementById('ocBookingListWrap');
+  const detailWrap = document.getElementById('ocDetailWrap');
+  
+  if(allOrderClose.length === 0) {
+    listWrap.style.display = '';
+    detailWrap.style.display = 'none';
+    document.getElementById('ocBookingListBody').innerHTML = '<tr><td colspan="10" style="padding:30px;color:#94a3b8;text-align:center"><i class="fas fa-clipboard" style="font-size:48px;margin-bottom:12px;opacity:.5"></i><br>No Closed Orders<br><small>Select date range and click Search</small></td></tr>';
+    document.getElementById('ocCount').innerText = 0;
+    document.getElementById('ocColorCount').innerText = 0;
+    document.getElementById('ocGreyQty').innerText = 0;
+    document.getElementById('ocFinishQty').innerText = 0;
+    document.getElementById('ocTfIn').innerText = 0;
+    document.getElementById('ocTfOut').innerText = 0;
+    document.getElementById('ocStock').innerText = 0;
+    if(countEl) countEl.innerText = '';
+    return;
+  }
+  
+  const matchedIdxSet = new Set();
+  allOrderClose.forEach((entry, idx) => { if(matchesOCFilter(entry)) matchedIdxSet.add(idx); });
+  
+  if(countEl){
+    countEl.innerText = ocFilterText ? `${matchedIdxSet.size} / ${allOrderClose.length} rows matched` : '';
+  }
+  
+  let totalGrey = 0, totalFinish = 0, totalTfIn = 0, totalTfOut = 0, totalStock = 0;
+  const uniqueColors = new Set();
+  const uniqueBookings = new Set();
+  allOrderClose.forEach((entry, idx) => {
+    if(!matchedIdxSet.has(idx)) return;
+    uniqueColors.add(normKey(entry.booking_no) + '__' + normKey(entry.fab_color) + '__' + normKey(entry.fab_type));
+    if(entry.booking_no) uniqueBookings.add(normKey(entry.booking_no));
+    totalGrey += Number(entry.grey_qty || 0);
+    totalFinish += Number(entry.finish_qty || 0);
+    totalTfIn += Number(entry.transfer_in_qty || 0);
+    totalTfOut += Number(entry.transfer_out_qty || 0);
+    const totalRcvd = (Number(entry.knitting_receive) || 0) + (Number(entry.transfer_in_qty) || 0);
+    const totalDlv = Number(entry.total_delivery_qty) || 0;
+    const inhand = totalRcvd - totalDlv;
+    const trfOut = Number(entry.transfer_out_qty) || 0;
+    totalStock += (inhand - trfOut);
+  });
+  document.getElementById('ocCount').innerText = uniqueBookings.size;
+  document.getElementById('ocColorCount').innerText = uniqueColors.size;
+  document.getElementById('ocGreyQty').innerText = fmt(totalGrey);
+  document.getElementById('ocFinishQty').innerText = fmt(totalFinish);
+  document.getElementById('ocTfIn').innerText = fmt(totalTfIn);
+  document.getElementById('ocTfOut').innerText = fmt(totalTfOut);
+  document.getElementById('ocStock').innerText = fmt(totalStock);
+  
+  if(ocSelectedBooking && !allOrderClose.some(e => normKey(e.booking_no) === normKey(ocSelectedBooking))){
+    ocSelectedBooking = null;
+  }
+  
+  if(ocSelectedBooking === null){
+    listWrap.style.display = '';
+    detailWrap.style.display = 'none';
+    renderOCBookingList();
+  } else {
+    listWrap.style.display = 'none';
+    detailWrap.style.display = '';
+    document.getElementById('ocDetailTitle').innerText = `${ocSelectedBooking} - shob Color/Type`;
+    renderOCDetail();
+  }
+}
+
+function getOCBaseGroups(){
+  const visibleEntries = ocFilterText ? allOrderClose.filter(matchesOCFilter) : allOrderClose;
+  return groupOCByBooking(visibleEntries);
+}
+
+function passesOCColumnFilters(g){
+  for(const col in ocColumnFilters){
+    const allowed = ocColumnFilters[col];
+    if(allowed && allowed.size > 0 && !allowed.has(String(g[col]))) return false;
+  }
+  return true;
+}
+
+function renderOCBookingList(){
+  const tbody = document.getElementById('ocBookingListBody');
+  let groups = getOCBaseGroups().filter(passesOCColumnFilters);
+  
+  if(ocSortCol){
+    groups.sort((a, b) => {
+      let va = a[ocSortCol], vb = b[ocSortCol];
+      if(typeof va === 'string' || typeof vb === 'string'){
+        va = (va||'').toString().toLowerCase();
+        vb = (vb||'').toString().toLowerCase();
+      }
+      if(va < vb) return ocSortDir === 'asc' ? -1 : 1;
+      if(va > vb) return ocSortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+  
+  updateOCSortFilterIndicators();
+  
+  if(groups.length === 0){
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:30px;color:#94a3b8;text-align:center"><i class="fas fa-search" style="font-size:48px;margin-bottom:12px;opacity:.5"></i><br>Filter e kono booking meleni<br><small>Onno shobdo diye clear chapun</small></td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = '';
+  groups.forEach((g, i) => {
+    const stockClass = g.stock > EPS ? 'stock-warning' : (g.stock < -EPS ? 'negative' : 'stock-clear');
+    const safeBooking = (g.booking_no || '').replace(/'/g, "\\'");
+    tbody.innerHTML += `<tr>
+      <td>${i+1}</td>
+      <td style="cursor:pointer" onclick="selectOCBooking('${safeBooking}')"><b style="color:#60a5fa;text-decoration:underline">${g.booking_no||'(no booking no)'}</b></td>
+      <td>${g.buyer||''}</td>
+      <td><span class="status-badge status-closed">${g.colorCount} Color${g.colorCount>1?'s':''}</span></td>
+      <td>${fmt(g.greyQty)}</td>
+      <td>${fmt(g.finishQty)}</td>
+      <td>${fmt(g.trfOut)}</td>
+      <td class="${stockClass}"><b>${fmt(g.stock)}</b></td>
+      <td>${g.lastCloseDate||''}</td>
+      <td>
+        <button class="btn btn-primary" onclick="selectOCBooking('${safeBooking}')" style="padding:4px 8px;font-size:10px"><i class="fas fa-eye"></i> View</button>
+      </td>
+    </tr>`;
+  });
+}
+
+// =========================================
+// EXCEL-STYLE COLUMN SORT / FILTER (Booking List)
+// =========================================
+function sortOCList(col){
+  if(ocSortCol === col){
+    ocSortDir = ocSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    ocSortCol = col;
+    ocSortDir = 'asc';
+  }
+  renderOrderClose();
+}
+
+function updateOCSortFilterIndicators(){
+  Object.keys(ocColumnLabels).forEach(col => {
+    const sortEl = document.getElementById('sortIcon_' + col);
+    if(sortEl) sortEl.innerHTML = ocSortCol === col ? (ocSortDir === 'asc' ? '^' : 'v') : '';
+    const filterIcon = document.getElementById('filterIcon_' + col);
+    if(filterIcon) filterIcon.classList.toggle('oc-filter-active', !!ocColumnFilters[col]);
+  });
+}
+
+function openOCColumnFilter(evt, col){
+  ocActiveFilterCol = col;
+  const groups = getOCBaseGroups();
+  const uniqueVals = [...new Set(groups.map(g => String(g[col] === undefined || g[col] === null ? '' : g[col])))]
+    .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
+  const selected = ocColumnFilters[col] || new Set(uniqueVals);
+  
+  const panel = document.getElementById('ocFilterPanel');
+  const rect = evt.target.getBoundingClientRect();
+  panel.style.top = (rect.bottom + 6) + 'px';
+  panel.style.left = Math.min(rect.left, window.innerWidth - 250) + 'px';
+  
+  document.getElementById('ocFilterPanelTitle').innerText = (ocColumnLabels[col] || col);
+  document.getElementById('ocFilterSearchBox').value = '';
+  panel.dataset.allValues = JSON.stringify(uniqueVals);
+  renderOCFilterList(col, uniqueVals, selected);
+  
+  panel.classList.add('show');
+}
+
+function renderOCFilterList(col, values, selectedSet){
+  const listEl = document.getElementById('ocFilterListBody');
+  const isNumeric = OC_NUMERIC_COLS.has(col);
+  listEl.innerHTML = '';
+  values.forEach(v => {
+    const checked = selectedSet.has(v) ? 'checked' : '';
+    let displayV;
+    if(v === '') displayV = '(Blank)';
+    else displayV = isNumeric ? fmt(Number(v)) : v;
+    listEl.innerHTML += `<label class="oc-filter-item"><input type="checkbox" value="${v.replace(/"/g,'&quot;')}" ${checked}> ${displayV}</label>`;
+  });
+}
+
+function ocFilterSearchInput(){
+  const col = ocActiveFilterCol;
+  if(!col) return;
+  const q = document.getElementById('ocFilterSearchBox').value.trim().toLowerCase();
+  const panel = document.getElementById('ocFilterPanel');
+  const allValues = JSON.parse(panel.dataset.allValues || '[]');
+  const isNumeric = OC_NUMERIC_COLS.has(col);
+  const filteredValues = q
+    ? allValues.filter(v => (isNumeric ? fmt(Number(v)) : v).toLowerCase().includes(q))
+    : allValues;
+  const selected = ocColumnFilters[col] || new Set(allValues);
+  renderOCFilterList(col, filteredValues, selected);
+}
+
+function ocFilterSelectAll(check){
+  document.querySelectorAll('#ocFilterListBody input[type=checkbox]').forEach(cb => cb.checked = check);
+}
+
+function applyOCColumnFilter(){
+  const col = ocActiveFilterCol;
+  if(!col) return;
+  const panel = document.getElementById('ocFilterPanel');
+  const allValues = JSON.parse(panel.dataset.allValues || '[]');
+  const checked = new Set();
+  document.querySelectorAll('#ocFilterListBody input[type=checkbox]:checked').forEach(cb => checked.add(cb.value));
+  
+  if(checked.size >= allValues.length){
+    delete ocColumnFilters[col];
+  } else {
+    ocColumnFilters[col] = checked;
+  }
+  closeOCFilterPanel();
+  renderOrderClose();
+}
+
+function clearOCColumnFilter(){
+  if(ocActiveFilterCol) delete ocColumnFilters[ocActiveFilterCol];
+  closeOCFilterPanel();
+  renderOrderClose();
+}
+
+function closeOCFilterPanel(){
+  const panel = document.getElementById('ocFilterPanel');
+  if(panel) panel.classList.remove('show');
+  ocActiveFilterCol = null;
+}
+
+function selectOCBooking(bookingNo){
+  ocSelectedBooking = bookingNo;
+  ocEditingRows = new Set();
+  ocRowBackups = {};
+  renderOrderClose();
+}
+
+function backToOCBookingList(){
+  ocSelectedBooking = null;
+  ocEditingRows = new Set();
+  ocRowBackups = {};
+  renderOrderClose();
+}
+
+function renderOCDetail() {
+  const tbody = document.getElementById('ocTableBody');
+  tbody.innerHTML = '';
+  
+  const rowIndices = [];
+  allOrderClose.forEach((entry, idx) => {
+    if(normKey(entry.booking_no) !== normKey(ocSelectedBooking)) return;
+    if(ocFilterText && !matchesOCFilter(entry)) return;
+    rowIndices.push(idx);
+  });
+  
+  if(rowIndices.length === 0){
+    tbody.innerHTML = '<tr><td colspan="22" style="padding:30px;color:#94a3b8;text-align:center"><i class="fas fa-search" style="font-size:48px;margin-bottom:12px;opacity:.5"></i><br>Filter e kono row meleni<br><small>Clear chapun</small></td></tr>';
+    return;
+  }
+  
+  rowIndices.forEach((idx, i) => {
+    const entry = allOrderClose[idx];
+    const totalRcvd = (Number(entry.knitting_receive) || 0) + (Number(entry.transfer_in_qty) || 0);
+    const totalDlv = Number(entry.total_delivery_qty) || 0;
+    const inhand = totalRcvd - totalDlv;
+    const trfOut = Number(entry.transfer_out_qty) || 0;
+    const stock = inhand - trfOut;
+    const knitBL = (Number(entry.grey_qty)||0) - totalRcvd;
+    
+    const stockClass = stock > EPS ? 'stock-warning' : (stock < -EPS ? 'negative' : 'stock-clear');
+    const isEditing = ocEditingRows.has(idx);
+    
+    if(isEditing){
+      tbody.innerHTML += `<tr data-idx="${idx}">
+        <td class="freeze-td-sl">${i+1}</td>
+        <td class="freeze-td-date"><input type="date" class="cell-input" value="${entry.report_date||entry.close_date||''}" onchange="updateOCEntry(${idx},'report_date',this.value)"></td>
+        <td class="freeze-td-booking"><input type="text" class="cell-input wide" value="${entry.booking_no||''}" onchange="updateOCEntry(${idx},'booking_no',this.value)"></td>
+        <td><input type="text" class="cell-input wide" value="${entry.buyer||''}" onchange="updateOCEntry(${idx},'buyer',this.value)"></td>
+        <td><input type="text" class="cell-input" value="${entry.fab_color||''}" onchange="updateOCEntry(${idx},'fab_color',this.value)"></td>
+        <td><input type="text" class="cell-input" value="${entry.fab_type||''}" onchange="updateOCEntry(${idx},'fab_type',this.value)"></td>
+        <td><input type="number" class="cell-input narrow" value="${entry.finish_qty||0}" onchange="updateOCEntry(${idx},'finish_qty',this.value)"></td>
+        <td><input type="number" class="cell-input narrow" value="${entry.pl_percent||0}" onchange="updateOCEntry(${idx},'pl_percent',this.value)"></td>
+        <td><input type="number" class="cell-input narrow" value="${entry.grey_qty||0}" onchange="updateOCEntry(${idx},'grey_qty',this.value);calcOCRow(${idx})"></td>
+        <td><input type="number" class="cell-input narrow" value="${entry.knitting_receive||0}" onchange="updateOCEntry(${idx},'knitting_receive',this.value);calcOCRow(${idx})"></td>
+        <td><input type="number" class="cell-input narrow" value="${entry.transfer_in_qty||0}" onchange="updateOCEntry(${idx},'transfer_in_qty',this.value);calcOCRow(${idx})"></td>
+        <td><input type="text" class="cell-input" value="${entry.transfer_from_order||''}" onchange="updateOCEntry(${idx},'transfer_from_order',this.value)"></td>
+        <td id="octrcvd${idx}"><b>${fmt(totalRcvd)}</b></td>
+        <td id="octbl${idx}">${fmt(knitBL)}</td>
+        <td><input type="number" class="cell-input narrow" value="${entry.total_delivery_qty||0}" onchange="updateOCEntry(${idx},'total_delivery_qty',this.value);calcOCRow(${idx})"></td>
+        <td id="ocinhand${idx}"><b>${fmt(inhand)}</b></td>
+        <td><input type="number" class="cell-input narrow" value="${entry.transfer_out_qty||0}" onchange="updateOCEntry(${idx},'transfer_out_qty',this.value);calcOCRow(${idx})"></td>
+        <td><input type="text" class="cell-input" value="${entry.transfer_to_order||''}" onchange="updateOCEntry(${idx},'transfer_to_order',this.value)"></td>
+        <td id="ocstock${idx}" class="${stockClass}"><b>${fmt(stock)}</b></td>
+        <td><input type="date" class="cell-input" value="${entry.etd||''}" onchange="updateOCEntry(${idx},'etd',this.value)"></td>
+        <td><input type="text" class="cell-input wide" value="${entry.remarks||''}" onchange="updateOCEntry(${idx},'remarks',this.value)"></td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-success" onclick="saveOCRow(${idx})" style="padding:4px 8px;font-size:10px"><i class="fas fa-save"></i> Save</button>
+          <button class="btn btn-warning" onclick="cancelOCEdit(${idx})" style="padding:4px 8px;font-size:10px"><i class="fas fa-times"></i></button>
+        </td>
+      </tr>`;
+    } else {
+      tbody.innerHTML += `<tr data-idx="${idx}">
+        <td class="freeze-td-sl">${i+1}</td>
+        <td class="freeze-td-date">${entry.report_date || entry.close_date || ''}</td>
+        <td class="freeze-td-booking"><b>${entry.booking_no||''}</b></td>
+        <td>${entry.buyer||''}</td>
+        <td>${entry.fab_color||''}</td>
+        <td>${entry.fab_type||''}</td>
+        <td>${fmt(entry.finish_qty)}</td>
+        <td>${fmt(entry.pl_percent)}</td>
+        <td>${fmt(entry.grey_qty)}</td>
+        <td>${fmt(entry.knitting_receive)}</td>
+        <td>${fmt(entry.transfer_in_qty)}</td>
+        <td>${entry.transfer_from_order||''}</td>
+        <td><b>${fmt(totalRcvd)}</b></td>
+        <td>${fmt(knitBL)}</td>
+        <td>${fmt(totalDlv)}</td>
+        <td><b>${fmt(inhand)}</b></td>
+        <td>${fmt(trfOut)}</td>
+        <td>${entry.transfer_to_order||''}</td>
+        <td class="${stockClass}"><b>${fmt(stock)}</b></td>
+        <td>${entry.etd||''}</td>
+        <td style="font-size:9px">${entry.remarks||''}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-primary" onclick="toggleOCEdit(${idx})" style="padding:4px 8px;font-size:10px"><i class="fas fa-pen"></i></button>
+          <button class="btn btn-danger" onclick="deleteOCRow(${idx})" style="padding:4px 8px;font-size:10px"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`;
+    }
+  });
+}
+
+function toggleOCEdit(idx){
+  // Store a full snapshot of the row BEFORE any edits, including its
+  // ORIGINAL key fields (booking_no/fab_color/fab_type/report_date). This is
+  // essential: if the user changes any of these key fields during editing,
+  // we need to know what the row USED to look like so saveOCRow() can find
+  // and update the matching grey_bookings row instead of upserting a new one.
+  ocRowBackups[idx] = {...allOrderClose[idx]};
+  ocEditingRows.add(idx);
+  renderOrderClose();
+}
+
+function cancelOCEdit(idx){
+  if(ocRowBackups[idx]) allOrderClose[idx] = ocRowBackups[idx];
+  ocEditingRows.delete(idx);
+  delete ocRowBackups[idx];
+  renderOrderClose();
+}
+
+function updateOCEntry(idx, field, value){
+  allOrderClose[idx][field] = value;
+}
+
+function calcOCRow(idx){
+  const entry = allOrderClose[idx];
+  const knitRcvd = Number(entry.knitting_receive) || 0;
+  const trfIn = Number(entry.transfer_in_qty) || 0;
+  const totalRcvd = knitRcvd + trfIn;
+  const greyQty = Number(entry.grey_qty) || 0;
+  const knitBL = greyQty - totalRcvd;
+  const totalDlv = Number(entry.total_delivery_qty) || 0;
+  const inhand = totalRcvd - totalDlv;
+  const trfOut = Number(entry.transfer_out_qty) || 0;
+  const stock = inhand - trfOut;
+
+  entry.total_received_qty = totalRcvd;
+  entry.knit_rcvd_bl = knitBL;
+  entry.inhand_stock_qty = inhand;
+  entry.stock = stock;
+
+  document.getElementById(`octrcvd${idx}`).innerHTML = `<b>${fmt(totalRcvd)}</b>`;
+  document.getElementById(`octbl${idx}`).innerText = fmt(knitBL);
+  document.getElementById(`ocinhand${idx}`).innerHTML = `<b>${fmt(inhand)}</b>`;
+  const stockEl = document.getElementById(`ocstock${idx}`);
+  stockEl.innerHTML = `<b>${fmt(stock)}</b>`;
+  stockEl.className = stock > EPS ? 'stock-warning' : (stock < -EPS ? 'negative' : 'stock-clear');
+  
+  if(stock < -EPS){
+    showToast(`${entry.booking_no||'Row'} - Stock Negative (${fmt(stock)}) hoye geche, man check korun`, 'warning');
+  }
+}
+
+// =========================================
+// FIXED: saveOCRow now syncs to grey_bookings by locating the ORIGINAL
+// (pre-edit) row via its exact old key, and updating it BY ID. Previously
+// this did a blind upsert using the NEW key, which — whenever booking_no,
+// fab_color, fab_type, or report_date was edited — created a brand new
+// grey_bookings row and left the OLD row behind untouched as a "ghost".
+// That ghost row is exactly what caused Order Close to show one color count
+// while Daily Entry Search / Stock Check showed a different (usually lower)
+// count for the same booking. This fix removes that root cause going
+// forward; it does not retroactively fix rows that already desynced before
+// this fix was applied (use the one-time SQL cleanup for those).
+// =========================================
+async function saveOCRow(idx){
+  const cid = await getCompanyId();
+  if(!cid) return;
+  const entry = allOrderClose[idx];
+  const backup = ocRowBackups[idx]; // key values BEFORE this edit (set in toggleOCEdit)
+  showLoading();
+  try {
+    const operator = entry.operator || document.getElementById('entryOperator')?.value || 'Unknown';
+    const payload = {
+      ...buildRowPayload(entry, cid, operator),
+      close_date: entry.close_date || entry.report_date || new Date().toISOString().slice(0,10)
+    };
+    const mode = entry.id ? {id: entry.id} : {conflict: 'company_id,close_date,booking_no,fab_color,fab_type'};
+    const {error} = await safeWrite('grey_order_close', payload, mode);
+    if(error) throw error;
+
+    // Sync to grey_bookings: look up the SAME underlying row using the
+    // ORIGINAL key (from before this edit), then update it BY ID. This way,
+    // even if booking_no/fab_color/fab_type/report_date changed, we edit the
+    // same row in place instead of upserting a new key and orphaning the old
+    // row.
+    const bookingPayload = buildRowPayload(entry, cid, operator);
+    const oldKey = backup || entry;
+    let syncErr = null;
+
+    const existingRow = await findRowByExactKey('grey_bookings', cid, oldKey, 'report_date');
+
+    if(existingRow && existingRow.id){
+      const res = await safeWrite('grey_bookings', bookingPayload, {id: existingRow.id});
+      syncErr = res.error;
+    } else {
+      // No matching original row found (shouldn't normally happen) — fall
+      // back to upsert on the new key so the save still goes through.
+      const res = await safeWrite('grey_bookings', bookingPayload,
+        {conflict: 'company_id,report_date,booking_no,fab_color,fab_type'});
+      syncErr = res.error;
+    }
+
+    if(syncErr){
+      console.warn('grey_bookings sync warning (Order Close row still saved):', syncErr);
+      showToast(`Order Close-e saved hoyeche, kintu Stock Check-e sync korte somossa hoyeche: ${syncErr.message}`, 'warning');
+    }
+
+    ocEditingRows.delete(idx);
+    delete ocRowBackups[idx];
+    showToast(`Updated: ${entry.booking_no}`);
+    renderOrderClose();
+  } catch(e){
+    showToast('Update failed: ' + e.message, 'error');
+  }
+  showLoading(false);
+}
+
+// =========================================
+// FIXED (per user request): deleteOCRow now ALSO deletes the matching
+// grey_bookings row(s), so a booking/color deleted from Order Close is
+// removed from Stock Check / Daily Entry Search as well - instead of only
+// deleting the grey_order_close record and leaving a ghost row behind in
+// grey_bookings that Stock Check would keep showing.
+// =========================================
+async function deleteOCRow(idx){
+  const cid = await getCompanyId();
+  const entry = allOrderClose[idx];
+  if(!confirm(`Delete closed order ${entry.booking_no} - ${entry.fab_color}? Eta Order Close aar Stock Check - dutu jaygatei theke delete hoye jabe.`)) return;
+
+  showLoading();
+  try {
+    if(entry.id){
+      const {error} = await supabase.from('grey_order_close').delete().eq('id', entry.id);
+      if(error) throw error;
+    }
+
+    // Also remove the matching grey_bookings row(s) so Stock Check / Daily
+    // Entry Search stay in sync with Order Close.
+    if(cid){
+      try {
+        const {data: matchingRows} = await supabase
+          .from('grey_bookings')
+          .select('id')
+          .eq('company_id', cid)
+          .eq('booking_no', normKey(entry.booking_no))
+          .eq('fab_color', (entry.fab_color || '').toString().trim())
+          .eq('fab_type', (entry.fab_type || '').toString().trim())
+          .eq('report_date', entry.report_date || entry.close_date || '');
+        const ids = (matchingRows || []).map(r => r.id);
+        if(ids.length > 0){
+          const {error: delErr} = await supabase.from('grey_bookings').delete().in('id', ids);
+          if(delErr) console.warn('grey_bookings delete-sync warning:', delErr);
+        }
+      } catch(syncE){
+        console.warn('grey_bookings delete-sync warning:', syncE);
+      }
+    }
+
+    ocEditingRows.delete(idx);
+    delete ocRowBackups[idx];
+    allOrderClose.splice(idx, 1);
+    renderOrderClose();
+    showToast('Order Close aar Stock Check dutu jayga theke Deleted');
+  } catch(e){
+    showToast('Delete failed: ' + e.message, 'error');
+  }
+  showLoading(false);
+}
+
+// =========================================
+// STOCK CHECK
+//
+// GROUPING NOTE: grouping key includes report_date, i.e.
+// booking_no + fab_color + fab_type + report_date, so duplicates are never
+// silently merged/hidden - every underlying row shows up 1:1 with what is
+// really in the database, matching Order Close's per-row count. The key
+// itself is normalized (normKey) so case differences in booking_no/color/
+// type don't split what is really the same row into two.
+// =========================================
+async function checkStock() {
+  const banner = document.getElementById('stockMonthFilterBanner');
+  if(banner) banner.style.display = 'none';
+  const cid = await getCompanyId();
+  if(!cid) return;
+  
+  const bookingNo = document.getElementById('stockBookingNo').value.trim();
+  if(!bookingNo) {
+    showToast('Enter Booking No', 'warning');
+    return;
+  }
+  
+  showLoading();
+  
+  try {
+    const {data, error} = await supabase
+      .from('grey_bookings')
+      .select('*')
+      .eq('company_id', cid)
+      .ilike('booking_no', `%${bookingNo}%`);
+    
+    if(error) throw error;
+    
+    const tbody = document.getElementById('stockTableBody');
+    tbody.innerHTML = '';
+    
+    if(!data || data.length === 0) {
+      stockDisplayData = [];
+      tbody.innerHTML = '<tr><td colspan="12" style="padding:20px;color:#94a3b8;text-align:center">Ei Booking No te kono data paoya jayni</td></tr>';
+    } else {
+      const grouped = groupStockRows(data);
+      stockDisplayData = Object.values(grouped);
+      renderStockRows(stockDisplayData, tbody);
+    }
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+  showLoading(false);
+}
+
+function groupStockRows(rows){
+  const grouped = {};
+  rows.forEach(row => {
+    const key = normKey(row.booking_no) + '__' + normKey(row.fab_color) + '__' + normKey(row.fab_type) + '__' + (row.report_date || '');
+    if(!grouped[key]) grouped[key] = {
+      booking_no: row.booking_no,
+      buyer: row.buyer,
+      fab_color: row.fab_color,
+      fab_type: row.fab_type,
+      report_date: row.report_date || '',
+      totalRcvd: 0,
+      totalDlv: 0,
+      inhand: 0,
+      trfOut: 0,
+      ids: []
+    };
+    if(!grouped[key].buyer && row.buyer) grouped[key].buyer = row.buyer;
+    const totalRcvd = (Number(row.knitting_receive) || 0) + (Number(row.transfer_in_qty) || 0);
+    grouped[key].totalRcvd += totalRcvd;
+    grouped[key].totalDlv += Number(row.total_delivery_qty) || 0;
+    grouped[key].inhand += (totalRcvd - (Number(row.total_delivery_qty) || 0));
+    grouped[key].trfOut += Number(row.transfer_out_qty) || 0;
+    grouped[key].ids.push(row.id);
+  });
+  return grouped;
+}
+
+function renderStockRows(items, tbody){
+  items.forEach((g, idx) => {
+    const stock = g.inhand - g.trfOut;
+    const status = stock > EPS ? 
+      `<span class="status-badge status-open">Stock: ${fmt(stock)} Kg</span>` :
+      stock < -EPS ? 
+      `<span class="status-badge" style="background:#fecaca;color:#991b1b">Negative</span>` :
+      `<span class="status-badge status-closed">Clear</span>`;
+    
+    tbody.innerHTML += `<tr>
+      <td>${g.report_date||''}</td>
+      <td><b>${g.booking_no||''}</b></td>
+      <td>${g.buyer||''}</td>
+      <td>${g.fab_color||''}</td>
+      <td>${g.fab_type||''}</td>
+      <td>${fmt(g.totalRcvd)}</td>
+      <td>${fmt(g.totalDlv)}</td>
+      <td>${fmt(g.inhand)}</td>
+      <td>${fmt(g.trfOut)}</td>
+      <td><b>${fmt(stock)}</b></td>
+      <td>${status}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-primary" onclick="openStockEdit(${idx})" style="padding:4px 8px;font-size:10px" title="Edit"><i class="fas fa-pen"></i></button>
+        <button class="btn btn-danger" onclick="deleteStockGroup(${idx})" style="padding:4px 8px;font-size:10px" title="Delete all rows"><i class="fas fa-trash"></i></button>
+      </td>
+    </tr>`;
+  });
+}
+
+// =========================================
+// DASHBOARD -> STOCK CHECK (click-through by month)
+// =========================================
+function goToStockForMonth(monthStr, monthLabel){
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('stock').classList.add('active');
+  document.querySelectorAll('.tabs .tab').forEach(btn => {
+    if(btn.getAttribute('onclick') && btn.getAttribute('onclick').includes("'stock'")) btn.classList.add('active');
+  });
+  document.getElementById('stockBookingNo').value = '';
+  loadStockForMonth(monthStr, monthLabel);
+}
+
+async function loadStockForMonth(monthStr, monthLabel){
+  const cid = await getCompanyId();
+  if(!cid) return;
+  showLoading();
+  try {
+    const {data, error} = await supabase
+      .from('grey_bookings')
+      .select('*')
+      .eq('company_id', cid)
+      .gte('report_date', monthStr + '-01')
+      .lte('report_date', monthStr + '-31');
+    if(error) throw error;
+
+    const tbody = document.getElementById('stockTableBody');
+    tbody.innerHTML = '';
+
+    const grouped = groupStockRows(data || []);
+    const items = Object.values(grouped);
+    // Problem rows (non-zero stock) first, so exactly what needs fixing/editing surfaces on top
+    items.sort((a,b) => Math.abs(b.inhand - b.trfOut) - Math.abs(a.inhand - a.trfOut));
+    stockDisplayData = items;
+
+    const banner = document.getElementById('stockMonthFilterBanner');
+    banner.style.display = 'flex';
+    document.getElementById('stockMonthFilterText').innerText =
+      `${monthLabel || monthStr} — ${items.length} booking/color/type group dekhano hocche (report date onujayi). Pen icon-e click kore direct edit korun.`;
+
+    if(items.length === 0){
+      tbody.innerHTML = '<tr><td colspan="12" style="padding:20px;color:#94a3b8;text-align:center">Ei month-e kono data paoya jayni</td></tr>';
+    } else {
+      renderStockRows(stockDisplayData, tbody);
+    }
+  } catch(e){
+    showToast(e.message, 'error');
+  }
+  showLoading(false);
+}
+
+async function loadAllStock() {
+  const banner = document.getElementById('stockMonthFilterBanner');
+  if(banner) banner.style.display = 'none';
+  const cid = await getCompanyId();
+  if(!cid) return;
+  showLoading();
+  
+  try {
+    const {data, error} = await supabase
+      .from('grey_bookings')
+      .select('*')
+      .eq('company_id', cid);
+    
+    if(error) throw error;
+    
+    const tbody = document.getElementById('stockTableBody');
+    tbody.innerHTML = '';
+    
+    const grouped = groupStockRows(data || []);
+    const items = Object.values(grouped);
+    items.sort((a,b) => (b.inhand - b.trfOut) - (a.inhand - a.trfOut));
+    stockDisplayData = items;
+    
+    if(items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="12" style="padding:20px;color:#94a3b8;text-align:center">Kono data paoya jayni</td></tr>';
+    } else {
+      renderStockRows(stockDisplayData, tbody);
+    }
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+  showLoading(false);
+}
+
+// =========================================
+// STOCK CHECK - EDIT / DELETE underlying rows
+// =========================================
+async function openStockEdit(idx){
+  const g = stockDisplayData[idx];
+  if(!g) return;
+  const cid = await getCompanyId();
+  if(!cid) return;
+  showLoading();
+  try {
+    const {data, error} = await supabase
+      .from('grey_bookings')
+      .select('*')
+      .eq('company_id', cid)
+      .eq('booking_no', g.booking_no)
+      .eq('fab_color', g.fab_color || '')
+      .eq('fab_type', g.fab_type || '')
+      .order('report_date', {ascending: true});
+    if(error) throw error;
+    stockEditRows = data || [];
+    // Snapshot ORIGINAL key fields for each row before any edits happen.
+    // These inputs save directly onchange (no separate edit-mode toggle),
+    // so without this snapshot we'd lose track of each row's pre-edit key
+    // the moment the user typed anything — and the grey_order_close sync
+    // in saveStockEditRow needs the pre-edit key to find the right row.
+    stockEditRowsOriginal = (data || []).map(r => ({...r}));
+    document.getElementById('stockEditTitle').innerText = `${g.booking_no||'(no booking no)'} - ${g.fab_color||''} - ${g.fab_type||''}`;
+    renderStockEditModal();
+    document.getElementById('stockEditModal').classList.add('show');
+  } catch(e){
+    showToast(e.message, 'error');
+  }
+  showLoading(false);
+}
+
+function renderStockEditModal(){
+  const tbody = document.getElementById('stockEditRows');
+  if(stockEditRows.length === 0){
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:16px;text-align:center;color:#94a3b8">Kono row nei</td></tr>';
+    return;
+  }
+  tbody.innerHTML = '';
+  stockEditRows.forEach((row, i) => {
+    const isGhost = !(row.booking_no||'').trim() || !(row.fab_color||'').trim();
+    tbody.innerHTML += `<tr${isGhost ? ' style="background:rgba(245,158,11,.12)"' : ''}>
+      <td><input type="date" class="cell-input" value="${row.report_date||''}" onchange="updateStockEditRow(${i},'report_date',this.value)"></td>
+      <td><input type="text" class="cell-input wide" value="${row.booking_no||''}" placeholder="Booking No" onchange="updateStockEditRow(${i},'booking_no',this.value)"></td>
+      <td><input type="text" class="cell-input" value="${row.fab_color||''}" placeholder="Color" onchange="updateStockEditRow(${i},'fab_color',this.value)"></td>
+      <td><input type="text" class="cell-input" value="${row.fab_type||''}" placeholder="Type" onchange="updateStockEditRow(${i},'fab_type',this.value)"></td>
+      <td><input type="number" class="cell-input narrow" value="${row.knitting_receive||0}" onchange="updateStockEditRow(${i},'knitting_receive',this.value)"></td>
+      <td><input type="number" class="cell-input narrow" value="${row.transfer_in_qty||0}" onchange="updateStockEditRow(${i},'transfer_in_qty',this.value)"></td>
+      <td><input type="number" class="cell-input narrow" value="${row.total_delivery_qty||0}" onchange="updateStockEditRow(${i},'total_delivery_qty',this.value)"></td>
+      <td><input type="number" class="cell-input narrow" value="${row.transfer_out_qty||0}" onchange="updateStockEditRow(${i},'transfer_out_qty',this.value)"></td>
+      <td><span class="status-badge ${row.status==='Closed'?'status-closed':'status-open'}">${row.status||'Open'}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-success" onclick="saveStockEditRow(${i})" style="padding:4px 8px;font-size:10px"><i class="fas fa-save"></i></button>
+        <button class="btn btn-danger" onclick="deleteStockEditRow(${i})" style="padding:4px 8px;font-size:10px"><i class="fas fa-trash"></i></button>
+      </td>
+    </tr>`;
+  });
+}
+
+function updateStockEditRow(i, field, value){
+  stockEditRows[i][field] = value;
+}
+
+// =========================================
+// FIXED: saveStockEditRow now syncs to grey_order_close (for Closed rows) by
+// locating the ORIGINAL (pre-edit) row via its exact old key from
+// stockEditRowsOriginal, and updating it BY ID — instead of blindly
+// upserting on the NEW key, which could orphan the old grey_order_close
+// record the same way the Order Close -> grey_bookings sync used to.
+// =========================================
+async function saveStockEditRow(i){
+  const cid = await getCompanyId();
+  if(!cid) return;
+  const row = stockEditRows[i];
+  const oldKey = stockEditRowsOriginal[i] || row;
+  showLoading();
+  try {
+    const operator = row.operator || document.getElementById('entryOperator')?.value || 'Unknown';
+    const payload = buildRowPayload(row, cid, operator);
+    const {error} = await safeWrite('grey_bookings', payload, {id: row.id});
+    if(error) throw error;
+
+    if(row.status === 'Closed'){
+      const closePayload = {
+        ...buildRowPayload(row, cid, operator),
+        close_date: row.close_date || row.report_date
+      };
+      const existingOC = await findRowByExactKey('grey_order_close', cid, oldKey, 'close_date');
+      const res = existingOC && existingOC.id
+        ? await safeWrite('grey_order_close', closePayload, {id: existingOC.id})
+        : await safeWrite('grey_order_close', closePayload,
+            {conflict: 'company_id,close_date,booking_no,fab_color,fab_type'});
+      if(res.error) console.warn('grey_order_close sync warning (Stock Check row still saved):', res.error);
+    }
+
+    // Update the snapshot AFTER a successful save so the NEXT edit's "old
+    // key" lookup reflects the key we just saved with, not the original
+    // load-time key.
+    stockEditRowsOriginal[i] = {...row};
+
+    showToast('Updated');
+  } catch(e){
+    showToast('Update failed: ' + e.message, 'error');
+  }
+  showLoading(false);
+}
+
+async function deleteStockEditRow(i){
+  const row = stockEditRows[i];
+  const warning = row.status === 'Closed'
+    ? `Ei row (${row.report_date||''}) ta already Closed - Order Close history-te thekei jabe, kintu Stock Check/Daily Search theke hariye jabe.\n\nSotti delete korte chan?`
+    : `Ei row (${row.report_date||''}) delete korben?`;
+  if(!confirm(warning)) return;
+  showLoading();
+  try {
+    const {error} = await supabase.from('grey_bookings').delete().eq('id', row.id);
+    if(error) throw error;
+    stockEditRows.splice(i, 1);
+    stockEditRowsOriginal.splice(i, 1);
+    renderStockEditModal();
+    showToast('Deleted');
+  } catch(e){
+    showToast('Delete failed: ' + e.message, 'error');
+  }
+  showLoading(false);
+}
+
+function closeStockEditModal(){
+  document.getElementById('stockEditModal').classList.remove('show');
+  if(document.getElementById('stockBookingNo').value.trim()) checkStock();
+  else loadAllStock();
+}
+
+async function deleteStockGroup(idx){
+  const g = stockDisplayData[idx];
+  if(!g || !g.ids || g.ids.length === 0) return;
+  if(!confirm(`${g.booking_no||'(no booking no)'} - ${g.fab_color||''} - ${g.fab_type||''} (${g.report_date||''}) er shobgulo (${g.ids.length}ta) entry Daily Entry theke sthayibhabe delete hoye jabe. Continue?`)) return;
+  showLoading();
+  try {
+    const {error} = await supabase.from('grey_bookings').delete().in('id', g.ids);
+    if(error) throw error;
+    showToast('Deleted');
+    if(document.getElementById('stockBookingNo').value.trim()) await checkStock();
+    else await loadAllStock();
+  } catch(e){
+    showToast('Delete failed: ' + e.message, 'error');
+  }
+  showLoading(false);
+}
+
+// =========================================
+// INHAND STOCK (booking-wise pool)
+//
+// "Inhand" for a given grey_bookings row = (Knit Rcvd + Trf In) - Total Dlv.
+// "Available" (what's left to use/transfer) = Inhand - Trf Out already done.
+// This section lets a user browse every row that still has Available > EPS
+// across ALL bookings, and either:
+//   1) PUSH some of it to another booking (existing color/type row or a
+//      brand-new one) - from the Inhand tab, or
+//   2) PULL some of it into a specific Daily Entry row - from the small
+//      hand-icon button next to Trf In on the Daily Entry sheet.
+// Both directions use the same underlying doInhandTransfer() so the two
+// sides of a transfer always stay consistent: the source row's Trf Out goes
+// up and the target row's Trf In goes up by the exact same qty, and both
+// rows are written back to Supabase (and synced to grey_order_close too, if
+// either side is already Closed).
+//
+// BUG FIX: computeAvailable() now returns a value ROUNDED to 2 decimals
+// (via the numOrZero-style rounding below) and every comparison against it
+// uses the EPS tolerance, so a row that has effectively been fully
+// transferred out (Available = 0.00) actually disappears from the Inhand
+// list, instead of lingering there forever showing "0" while still being
+// counted as an open row.
+// =========================================
+
+function appendToken(existing, token){
+  const t = (token || '').toString().trim();
+  if(!t) return existing || '';
+  const parts = (existing || '').split(',').map(s => s.trim()).filter(Boolean);
+  if(!parts.some(p => normKey(p) === normKey(t))) parts.push(t);
+  return parts.join(', ');
+}
+
+function computeAvailable(row){
+  const totalRcvd = (Number(row.knitting_receive) || 0) + (Number(row.transfer_in_qty) || 0);
+  const inhand = totalRcvd - (Number(row.total_delivery_qty) || 0);
+  const trfOut = Number(row.transfer_out_qty) || 0;
+  return Math.round((inhand - trfOut) * 100) / 100;
+}
+
+async function loadInhand(){
+  const cid = await getCompanyId();
+  if(!cid) return;
+  showLoading();
+  try {
+    const {data, error} = await supabase
+      .from('grey_bookings')
+      .select('*')
+      .eq('company_id', cid)
+      .order('report_date', {ascending: false});
+    if(error) throw error;
+
+    // BUG FIX: use EPS tolerance instead of a bare "> 0" - rows whose real
+    // Available qty is effectively zero (but not exactly 0 due to old
+    // floating-point drift) no longer show up here.
+    inhandRawRows = (data || []).filter(row => computeAvailable(row) > EPS);
+    renderInhandTable();
+  } catch(e){
+    showToast(e.message, 'error');
+  }
+  showLoading(false);
+}
+
+function renderInhandTable(){
+  const q = (document.getElementById('inhandFilterBox')?.value || '').trim().toLowerCase();
+  inhandFilteredRows = !q ? inhandRawRows : inhandRawRows.filter(row => {
+    const hay = [row.booking_no, row.buyer, row.fab_color, row.fab_type].map(v => (v||'').toString().toLowerCase()).join(' ');
+    return hay.includes(q);
+  });
+
+  const tbody = document.getElementById('inhandTableBody');
+  const countEl = document.getElementById('inhandCount');
+  const rowCountEl = document.getElementById('inhandRowCount');
+  const totalQtyEl = document.getElementById('inhandTotalQty');
+
+  let totalQty = 0;
+  inhandFilteredRows.forEach(row => { totalQty += computeAvailable(row); });
+  if(rowCountEl) rowCountEl.innerText = inhandFilteredRows.length;
+  if(totalQtyEl) totalQtyEl.innerText = fmt(totalQty);
+  if(countEl) countEl.innerText = q ? `${inhandFilteredRows.length} / ${inhandRawRows.length} rows matched` : '';
+
+  if(inhandFilteredRows.length === 0){
+    tbody.innerHTML = '<tr><td colspan="8" style="padding:30px;color:#94a3b8;text-align:center"><i class="fas fa-hand-holding" style="font-size:48px;margin-bottom:12px;opacity:.5"></i><br>Kono Inhand stock nei</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = '';
+  inhandFilteredRows.forEach((row) => {
+    const avail = computeAvailable(row);
+    const rawIdx = inhandRawRows.indexOf(row);
+    tbody.innerHTML += `<tr>
+      <td>${row.report_date||''}</td>
+      <td><b>${row.booking_no||''}</b></td>
+      <td>${row.buyer||''}</td>
+      <td>${row.fab_color||''}</td>
+      <td>${row.fab_type||''}</td>
+      <td class="stock-warning"><b>${fmt(avail)}</b></td>
+      <td><span class="status-badge ${row.status==='Closed'?'status-closed':'status-open'}">${row.status||'Open'}</span></td>
+      <td><button class="btn btn-primary" onclick="openInhandTransfer(${rawIdx})" style="padding:4px 8px;font-size:10px"><i class="fas fa-exchange-alt"></i> Transfer</button></td>
+    </tr>`;
+  });
+}
+
+// ---- PUSH mode: opened from the Inhand tab, source is fixed, pick target ----
+function openInhandTransfer(rawIdx){
+  const row = inhandRawRows[rawIdx];
+  if(!row) return;
+  inhandSourceRow = row;
+  inhandPullTargetIdx = null;
+  inhandTargetSelected = null;
+
+  const avail = computeAvailable(row);
+  document.getElementById('inhandTransferSourceInfo').innerHTML =
+    `<b>From:</b> ${row.booking_no||''} - ${row.buyer||''} - ${row.fab_color||''} - ${row.fab_type||''} (${row.report_date||''})<br>
+     <b>Available:</b> <span style="color:#f59e0b">${fmt(avail)} Kg</span>`;
+
+  document.getElementById('inhandTargetBooking').value = '';
+  document.getElementById('inhandTargetColor').value = '';
+  document.getElementById('inhandTargetType').value = '';
+  document.getElementById('inhandTargetDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('inhandTargetMatches').innerHTML = '';
+  document.getElementById('inhandTransferQty').value = avail;
+  document.getElementById('inhandTransferQty').max = avail;
+  document.getElementById('inhandMaxQtyHint').innerText = `Max: ${fmt(avail)} Kg`;
+
+  document.getElementById('inhandTransferModal').classList.add('show');
+}
+
+// ---- PULL mode: opened from a Daily Entry row, target is fixed (that row),
+// pick source from the Inhand list shown inline in the "target pick" area ----
+function openInhandPull(entryIdx){
+  const entry = allEntries[entryIdx];
+  if(!entry) return;
+  if(!entry.id){
+    showToast('Age ei row-ta Save korun, tarpor Inhand theke Pull korte parben', 'warning');
+    return;
+  }
+  inhandPullTargetIdx = entryIdx;
+  inhandSourceRow = null;
+  inhandTargetSelected = {
+    id: entry.id, booking_no: entry.booking_no, fab_color: entry.fab_color,
+    fab_type: entry.fab_type, report_date: entry.report_date
+  };
+
+  document.getElementById('inhandTransferSourceInfo').innerHTML =
+    `<b>Pull into:</b> ${entry.booking_no||''} - ${entry.buyer||''} - ${entry.fab_color||''} - ${entry.fab_type||''} (${entry.report_date||''})<br>
+     <span style="font-size:11px;color:#94a3b8">Niche theke ekta source booking select korun jekhan theke stock pull korben.</span>`;
+
+  const listHtml = inhandRawRows.filter(r => {
+    // can't pull from itself
+    return !(normKey(r.booking_no) === normKey(entry.booking_no) && normKey(r.fab_color) === normKey(entry.fab_color)
+      && normKey(r.fab_type) === normKey(entry.fab_type) && r.report_date === entry.report_date);
+  }).map((r, i) => {
+    const avail = computeAvailable(r);
+    return `<label class="oc-filter-item" style="justify-content:space-between">
+      <span><input type="radio" name="inhandPullSource" value="${i}" onchange="selectInhandPullSource(${i})"> ${r.booking_no||''} - ${r.fab_color||''} - ${r.fab_type||''} (${r.report_date||''})</span>
+      <b style="color:#f59e0b">${fmt(avail)} Kg</b>
+    </label>`;
+  }).join('');
+
+  document.getElementById('inhandTargetBooking').value = '';
+  document.getElementById('inhandTargetColor').value = '';
+  document.getElementById('inhandTargetType').value = '';
+  document.getElementById('inhandTargetDate').value = '';
+  document.getElementById('inhandTargetMatches').innerHTML =
+    `<div style="max-height:180px;overflow-y:auto;border-top:1px solid #334155;border-bottom:1px solid #334155;padding:4px 0">${listHtml || '<div style="padding:10px;color:#94a3b8;font-size:11px">Kono onno booking-e Inhand stock nei</div>'}</div>`;
+  document.getElementById('inhandTransferQty').value = 0;
+  document.getElementById('inhandMaxQtyHint').innerText = 'Prothome ekta source booking select korun';
+
+  document.getElementById('inhandTransferModal').classList.add('show');
+}
+
+function selectInhandPullSource(i){
+  const row = inhandRawRows.filter(r => {
+    const entry = allEntries[inhandPullTargetIdx];
+    return !(normKey(r.booking_no) === normKey(entry.booking_no) && normKey(r.fab_color) === normKey(entry.fab_color)
+      && normKey(r.fab_type) === normKey(entry.fab_type) && r.report_date === entry.report_date);
+  })[i];
+  if(!row) return;
+  inhandSourceRow = row;
+  const avail = computeAvailable(row);
+  document.getElementById('inhandTransferQty').value = avail;
+  document.getElementById('inhandTransferQty').max = avail;
+  document.getElementById('inhandMaxQtyHint').innerText = `Max: ${fmt(avail)} Kg`;
+}
+
+async function findInhandTargetRows(){
+  const cid = await getCompanyId();
+  if(!cid) return;
+  const q = document.getElementById('inhandTargetBooking').value.trim();
+  if(!q){ showToast('Target Booking No likhun', 'warning'); return; }
+  showLoading();
+  try {
+    const {data, error} = await supabase
+      .from('grey_bookings')
+      .select('*')
+      .eq('company_id', cid)
+      .ilike('booking_no', `%${q}%`)
+      .order('report_date', {ascending: false});
+    if(error) throw error;
+
+    const seen = new Set();
+    const matches = (data || []).filter(row => {
+      const key = normKey(row.booking_no)+'__'+normKey(row.fab_color)+'__'+normKey(row.fab_type)+'__'+row.report_date;
+      if(seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const listEl = document.getElementById('inhandTargetMatches');
+    if(matches.length === 0){
+      listEl.innerHTML = '<div style="padding:8px;color:#94a3b8;font-size:11px">Ei Booking No te kono existing row nei - niche Color/Type/Date bhore notun row hisebe transfer korun</div>';
+      return;
+    }
+    listEl.innerHTML = `<div style="max-height:150px;overflow-y:auto;border-top:1px solid #334155;border-bottom:1px solid #334155;padding:4px 0">` +
+      matches.map((m, i) => `<label class="oc-filter-item">
+        <input type="radio" name="inhandTargetPick" value="${i}" onchange="pickInhandTarget(${i})">
+        ${m.booking_no} - ${m.fab_color||''} - ${m.fab_type||''} (${m.report_date||''}) <span class="status-badge ${m.status==='Closed'?'status-closed':'status-open'}" style="margin-left:6px">${m.status||'Open'}</span>
+      </label>`).join('') + `</div>`;
+    listEl.dataset.matches = JSON.stringify(matches);
+  } catch(e){
+    showToast(e.message, 'error');
+  }
+  showLoading(false);
+}
+
+function pickInhandTarget(i){
+  const listEl = document.getElementById('inhandTargetMatches');
+  const matches = JSON.parse(listEl.dataset.matches || '[]');
+  const m = matches[i];
+  if(!m) return;
+  inhandTargetSelected = {id: m.id, booking_no: m.booking_no, fab_color: m.fab_color, fab_type: m.fab_type, report_date: m.report_date};
+  document.getElementById('inhandTargetColor').value = m.fab_color || '';
+  document.getElementById('inhandTargetType').value = m.fab_type || '';
+  document.getElementById('inhandTargetDate').value = m.report_date || '';
+}
+
+function closeInhandTransferModal(){
+  document.getElementById('inhandTransferModal').classList.remove('show');
+  inhandSourceRow = null;
+  inhandTargetSelected = null;
+  inhandPullTargetIdx = null;
+}
+
+async function confirmInhandTransfer(){
+  if(!inhandSourceRow){
+    showToast('Source select korun', 'warning');
+    return;
+  }
+  const qty = numOrZero(document.getElementById('inhandTransferQty').value);
+  const avail = computeAvailable(inhandSourceRow);
+  if(qty <= 0){ showToast('Sothik Qty din', 'warning'); return; }
+  // BUG FIX: allow a small EPS tolerance so "transfer the full available
+  // amount" doesn't get rejected by floating-point rounding noise (e.g.
+  // avail stored as 49.999999 but qty typed as 50).
+  if(qty > avail + EPS){ showToast(`Max Available: ${fmt(avail)} Kg`, 'warning'); return; }
+
+  let targetKey;
+  if(inhandPullTargetIdx !== null){
+    // pull mode - target already fixed to the Daily Entry row
+    targetKey = inhandTargetSelected;
+  } else if(inhandTargetSelected && inhandTargetSelected.id){
+    // push mode, existing row picked via Find Existing
+    targetKey = inhandTargetSelected;
+  } else {
+    // push mode, manual new/target row via Booking No + Color + Type + Date
+    const booking_no = document.getElementById('inhandTargetBooking').value.trim();
+    const fab_color = document.getElementById('inhandTargetColor').value.trim();
+    const fab_type = document.getElementById('inhandTargetType').value.trim();
+    const report_date = document.getElementById('inhandTargetDate').value;
+    if(!booking_no || !fab_color || !report_date){
+      showToast('Target Booking No, Color, aar Date din', 'warning');
+      return;
+    }
+    targetKey = {booking_no, fab_color, fab_type, report_date};
+  }
+
+  if(normKey(targetKey.booking_no) === normKey(inhandSourceRow.booking_no) &&
+     normKey(targetKey.fab_color) === normKey(inhandSourceRow.fab_color) &&
+     normKey(targetKey.fab_type) === normKey(inhandSourceRow.fab_type) &&
+     targetKey.report_date === inhandSourceRow.report_date){
+    showToast('Source aar Target ekই row hote parbe na', 'error');
+    return;
+  }
+
+  showLoading();
+  try {
+    await doInhandTransfer(inhandSourceRow, targetKey, qty);
+    showToast(`${fmt(qty)} Kg transfer hoyeche: ${inhandSourceRow.booking_no} -> ${targetKey.booking_no}`);
+    closeInhandTransferModal();
+    await loadInhand();
+    // If we pulled into a currently-open Daily Entry sheet, refresh it too
+    if(document.getElementById('entry').classList.contains('active')) await loadEntries();
+  } catch(e){
+    showToast('Transfer failed: ' + e.message, 'error');
+  }
+  showLoading(false);
+}
+
+// Core transfer: bumps source's Trf Out and target's Trf In by the SAME qty,
+// writes both grey_bookings rows back by id (creating the target if it
+// doesn't exist yet), and mirrors the change into grey_order_close for
+// whichever side(s) are already Closed - so Order Close view stays correct.
+async function doInhandTransfer(sourceRow, targetKey, qty){
+  const cid = await getCompanyId();
+  if(!cid) throw new Error('Company not found');
+  const operator = document.getElementById('entryOperator')?.value || sourceRow.operator || 'Unknown';
+
+  // --- update source row ---
+  const updatedSource = {...sourceRow};
+  updatedSource.transfer_out_qty = numOrZero((Number(sourceRow.transfer_out_qty) || 0) + qty);
+  updatedSource.transfer_to_order = appendToken(sourceRow.transfer_to_order, targetKey.booking_no);
+  const sourcePayload = buildRowPayload(updatedSource, cid, operator);
+  const {error: srcErr} = await safeWrite('grey_bookings', sourcePayload, {id: sourceRow.id});
+  if(srcErr) throw srcErr;
+  if(sourceRow.status === 'Closed'){
+    const srcClosePayload = {...sourcePayload, close_date: sourceRow.close_date || sourceRow.report_date};
+    const existingOC = await findRowByExactKey('grey_order_close', cid, sourceRow, 'close_date');
+    const res = existingOC && existingOC.id
+      ? await safeWrite('grey_order_close', srcClosePayload, {id: existingOC.id})
+      : await safeWrite('grey_order_close', srcClosePayload, {conflict: 'company_id,close_date,booking_no,fab_color,fab_type'});
+    if(res.error) console.warn('grey_order_close sync warning (source):', res.error);
+  }
+
+  // --- find or create target row ---
+  let targetRow = null;
+  if(targetKey.id){
+    const {data} = await supabase.from('grey_bookings').select('*').eq('id', targetKey.id).maybeSingle();
+    targetRow = data || null;
+  }
+  if(!targetRow){
+    targetRow = await findRowByExactKey('grey_bookings', cid, targetKey, 'report_date');
+    if(targetRow && targetRow.id){
+      const {data} = await supabase.from('grey_bookings').select('*').eq('id', targetRow.id).maybeSingle();
+      targetRow = data || targetRow;
+    }
+  }
+
+  if(targetRow && targetRow.id){
+    const updatedTarget = {...targetRow};
+    updatedTarget.transfer_in_qty = numOrZero((Number(targetRow.transfer_in_qty) || 0) + qty);
+    updatedTarget.transfer_from_order = appendToken(targetRow.transfer_from_order, sourceRow.booking_no);
+    const totalRcvd = numOrZero((Number(updatedTarget.knitting_receive) || 0) + (Number(updatedTarget.transfer_in_qty) || 0));
+    updatedTarget.total_received_qty = totalRcvd;
+    updatedTarget.inhand_stock_qty = numOrZero(totalRcvd - (Number(updatedTarget.total_delivery_qty) || 0));
+    const targetPayload = buildRowPayload(updatedTarget, cid, operator);
+    const {error: tgtErr} = await safeWrite('grey_bookings', targetPayload, {id: targetRow.id});
+    if(tgtErr) throw tgtErr;
+    if(targetRow.status === 'Closed'){
+      const tgtClosePayload = {...targetPayload, close_date: targetRow.close_date || targetRow.report_date};
+      const existingOC = await findRowByExactKey('grey_order_close', cid, targetRow, 'close_date');
+      const res = existingOC && existingOC.id
+        ? await safeWrite('grey_order_close', tgtClosePayload, {id: existingOC.id})
+        : await safeWrite('grey_order_close', tgtClosePayload, {conflict: 'company_id,close_date,booking_no,fab_color,fab_type'});
+      if(res.error) console.warn('grey_order_close sync warning (target):', res.error);
+    }
+  } else {
+    // no existing row for this booking/color/type/date - create a fresh one
+    const newTarget = {
+      booking_no: targetKey.booking_no, fab_color: targetKey.fab_color || '', fab_type: targetKey.fab_type || '',
+      report_date: targetKey.report_date, buyer: sourceRow.buyer || '',
+      finish_qty: 0, pl_percent: 0, knitting_receive: 0,
+      transfer_in_qty: qty, transfer_from_order: sourceRow.booking_no,
+      grey_qty: 0, total_received_qty: qty, knit_rcvd_bl: -qty,
+      total_delivery_qty: 0, inhand_stock_qty: qty, transfer_out_qty: 0, transfer_to_order: '',
+      stock: qty, etd: '', remarks: 'Auto-created via Inhand transfer', status: 'Open'
+    };
+    const targetPayload = buildRowPayload(newTarget, cid, operator);
+    const {error: insErr} = await safeWrite('grey_bookings', targetPayload,
+      {conflict: 'company_id,report_date,booking_no,fab_color,fab_type'});
+    if(insErr) throw insErr;
+  }
+}
+
+// =========================================
+// EXCEL EXPORT (styled: borders + colored header, like the sample report)
+// =========================================
+
+const XLS_NAVY   = '#1e40af';
+const XLS_LBLUE  = '#dbeafe';
+const XLS_GRAY   = '#f1f5f9';
+const XLS_BORDER = '#94a3b8';
+
+function xlsEsc(v){
+  return (v === null || v === undefined ? '' : String(v))
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Builds one full styled "Excel sheet" as an HTML string.
+// opts = {
+//   companyName, companyAddress, reportTitle, subtitle, metaLine, summaryLine,
+//   headers: ['Col1','Col2',...],
+//   rows: [[v1,v2,...], ...],
+//   numericCols: Set of 0-based column indexes that should be right-aligned & number-formatted,
+//   stockCol: 0-based column index whose value should be color-coded (green/orange/red) like the app (optional)
+// }
+function buildStyledExcelHTML(opts){
+  const {
+    companyName = 'GMS Textiles Ltd.',
+    companyAddress = 'Tansutrapur, Kaliakoir, Gazipur',
+    reportTitle = '',
+    subtitle = '',
+    metaLine = '',
+    summaryLine = '',
+    headers = [],
+    rows = [],
+    numericCols = new Set(),
+    stockCol = null,
+    grandTotal = false,
+    totalExcludeCols = new Set(),
+    totalLabelCol = 0,
+    grandTotalLabel = 'GRAND TOTAL'
+  } = opts;
+
+  const colCount = headers.length;
+
+  const cellStyleBase = `border:1px solid ${XLS_BORDER};padding:5px 8px;font-family:Calibri,Arial,sans-serif;font-size:11px;`;
+  const headerStyle = `${cellStyleBase}background:${XLS_NAVY};color:#ffffff;font-weight:bold;text-align:center;`;
+
+  let html = `<html><head><meta charset="UTF-8"></head><body>`;
+  html += `<table style="border-collapse:collapse;font-family:Calibri,Arial,sans-serif;">`;
+
+  // Title rows
+  html += `<tr><td colspan="${colCount}" style="background:${XLS_NAVY};color:#fff;font-size:18px;font-weight:bold;text-align:center;padding:12px;">${xlsEsc(companyName)}</td></tr>`;
+  if(companyAddress){
+    html += `<tr><td colspan="${colCount}" style="background:#93c5fd;color:#1e3a8a;font-size:11px;text-align:center;padding:6px;">${xlsEsc(companyAddress)}</td></tr>`;
+  }
+  if(reportTitle){
+    html += `<tr><td colspan="${colCount}" style="background:${XLS_LBLUE};color:#1e293b;font-size:14px;font-weight:bold;text-align:center;padding:8px;">${xlsEsc(reportTitle)}</td></tr>`;
+  }
+  if(subtitle){
+    html += `<tr><td colspan="${colCount}" style="background:${XLS_LBLUE};color:#1e293b;font-size:11px;text-align:center;padding:5px;">${xlsEsc(subtitle)}</td></tr>`;
+  }
+  if(metaLine){
+    html += `<tr><td colspan="${colCount}" style="background:${XLS_GRAY};color:#334155;font-size:10px;text-align:center;padding:4px;">${xlsEsc(metaLine)}</td></tr>`;
+  }
+  if(summaryLine){
+    html += `<tr><td colspan="${colCount}" style="background:${XLS_GRAY};color:#0f172a;font-size:11px;font-weight:bold;text-align:center;padding:6px;">${xlsEsc(summaryLine)}</td></tr>`;
+  }
+  // spacer row
+  html += `<tr>${'<td style="padding:2px;border:none;"></td>'.repeat(colCount)}</tr>`;
+
+  // Header row
+  html += '<tr>' + headers.map(h => `<th style="${headerStyle}">${xlsEsc(h)}</th>`).join('') + '</tr>';
+
+  // Data rows
+  rows.forEach((r, ri) => {
+    const rowBg = ri % 2 === 0 ? '#ffffff' : '#eef2ff';
+    html += '<tr>';
+    r.forEach((cell, ci) => {
+      let style = `${cellStyleBase}background:${rowBg};`;
+      const isNumeric = numericCols.has(ci);
+      style += isNumeric ? 'text-align:right;' : 'text-align:left;';
+      if(stockCol !== null && ci === stockCol){
+        const n = Number(cell) || 0;
+        if(n > 0.01) style += 'background:#fef3c7;color:#92400e;font-weight:bold;';
+        else if(n < -0.01) style += 'background:#fecaca;color:#991b1b;font-weight:bold;';
+        else style += 'background:#d1fae5;color:#065f46;';
+      }
+      const displayVal = isNumeric ? fmt(cell) : xlsEsc(cell);
+      html += `<td style="${style}">${displayVal}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  // Grand total row
+  if(grandTotal && rows.length){
+    const totals = {};
+    numericCols.forEach(ci => {
+      if(totalExcludeCols.has(ci)) return;
+      let sum = 0;
+      rows.forEach(r => { sum += Number(r[ci]) || 0; });
+      totals[ci] = sum;
+    });
+
+    const totalStyleBase = `border:1px solid ${XLS_BORDER};padding:6px 8px;font-family:Calibri,Arial,sans-serif;font-size:11px;background:#fde68a;color:#78350f;font-weight:bold;border-top:2px solid ${XLS_NAVY};`;
+
+    html += '<tr>';
+    for(let ci = 0; ci < colCount; ci++){
+      let style = totalStyleBase;
+      let val = '';
+      if(ci === totalLabelCol){
+        val = xlsEsc(grandTotalLabel);
+      } else if(numericCols.has(ci)){
+        style += 'text-align:right;';
+        val = totals.hasOwnProperty(ci) ? fmt(totals[ci]) : '';
+      }
+      html += `<td style="${style}">${val}</td>`;
+    }
+    html += '</tr>';
+  }
+
+  html += '</table></body></html>';
+  return html;
+}
+
+function downloadExcelHTML(html, filename){
+  const blob = new Blob(['\ufeff', html], {type: 'application/vnd.ms-excel'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ---------- DASHBOARD ----------
+function exportDashboardExcel() {
+  const headers = ['Month','Order Close','Booking Qty','Received Qty','Delivery Qty','Inhand Stock','Delivery %','T.F %','T.F Out Qty','Present Stock'];
+  const rows = [];
+  document.querySelectorAll('#dashTableBody tr').forEach(tr => {
+    const cells = Array.from(tr.children).map(td => td.innerText.trim());
+    rows.push(cells);
+  });
+
+  const html = buildStyledExcelHTML({
+    reportTitle: 'MONTHLY CLOSING SUMMARY',
+    subtitle: 'Grey Fabric MCD',
+    metaLine: 'Generated: ' + new Date().toLocaleString(),
+    headers,
+    rows,
+    numericCols: new Set([1,2,3,4,5,6,7,8,9]),
+    grandTotal: true,
+    totalExcludeCols: new Set([6,7]),
+    totalLabelCol: 0
+  });
+  downloadExcelHTML(html, `Monthly-Summary-${new Date().toISOString().slice(0,10)}.xls`);
+  showToast('Excel exported');
+}
+
+// ---------- DAILY ENTRY ----------
+function exportEntryExcel() {
+  const headers = ['SL','Date','Buyer','Booking No','Fab Color','Fab Type','Finish Qty','PL %','Knit Rcvd','Trf In','Trf From','Grey Qty','Total Rcvd','Knit BL','Total Dlv','Inhand','Trf Out','Trf To','Stock','ETD','Remarks','Status'];
+  const rows = [];
+
+  allEntries.forEach((entry, i) => {
+    const totalRcvd = (Number(entry.knitting_receive) || 0) + (Number(entry.transfer_in_qty) || 0);
+    const greyQty = Number(entry.grey_qty) || 0;
+    const knitBL = greyQty - totalRcvd;
+    const totalDlv = Number(entry.total_delivery_qty) || 0;
+    const inhand = totalRcvd - totalDlv;
+    const trfOut = Number(entry.transfer_out_qty) || 0;
+    const stock = inhand - trfOut;
+
+    rows.push([
+      i+1, entry.report_date||'', entry.buyer||'', entry.booking_no||'', entry.fab_color||'', entry.fab_type||'',
+      entry.finish_qty||0, entry.pl_percent||0, entry.knitting_receive||0, entry.transfer_in_qty||0,
+      entry.transfer_from_order||'', entry.grey_qty||0, totalRcvd, knitBL,
+      totalDlv, inhand, trfOut, entry.transfer_to_order||'', stock, entry.etd||'', entry.remarks||'', entry.status||'Open'
+    ]);
+  });
+
+  const html = buildStyledExcelHTML({
+    reportTitle: 'BOOKING MAINTAIN SHEET (DAILY ENTRY)',
+    subtitle: 'Date: ' + (document.getElementById('entryDate').value || ''),
+    metaLine: `Total Rows: ${rows.length}`,
+    headers,
+    rows,
+    numericCols: new Set([0,6,7,8,9,11,12,13,14,15,16,18]),
+    stockCol: 18,
+    grandTotal: true,
+    totalExcludeCols: new Set([0,7]),
+    totalLabelCol: 1
+  });
+  downloadExcelHTML(html, `Booking-Maintain-${document.getElementById('entryDate').value}.xls`);
+  showToast('Excel exported');
+}
+
+// ---------- ORDER CLOSE ----------
+function exportOrderCloseExcel() {
+  const exportRows = ocFilterText ? allOrderClose.filter(matchesOCFilter) : allOrderClose;
+  if(exportRows.length === 0){
+    showToast('Export korar moto kono data nei', 'warning');
+    return;
+  }
+  const headers = ['SL','Date','Booking No','Buyer','Fab Color','Fab Type','Finish Qty','PL %','Grey Qty','Knit Rcvd','Trf In','Trf From','Total Rcvd','Knit BL','Total Dlv','Inhand','Trf Out','Trf To','Stock','ETD','Remarks'];
+  const rows = [];
+
+  let bookingsSet = new Set(), colorsSet = new Set();
+  exportRows.forEach((entry, i) => {
+    const totalRcvd = (Number(entry.knitting_receive) || 0) + (Number(entry.transfer_in_qty) || 0);
+    const totalDlv = Number(entry.total_delivery_qty) || 0;
+    const inhand = totalRcvd - totalDlv;
+    const trfOut = Number(entry.transfer_out_qty) || 0;
+    const stock = inhand - trfOut;
+    if(entry.booking_no) bookingsSet.add(normKey(entry.booking_no));
+    colorsSet.add(normKey(entry.booking_no)+'__'+normKey(entry.fab_color)+'__'+normKey(entry.fab_type));
+
+    rows.push([
+      i+1, entry.report_date||entry.close_date||'', entry.booking_no||'', entry.buyer||'', entry.fab_color||'', entry.fab_type||'',
+      entry.finish_qty||0, entry.pl_percent||0, entry.grey_qty||0, entry.knitting_receive||0,
+      entry.transfer_in_qty||0, entry.transfer_from_order||'', totalRcvd, entry.knit_rcvd_bl||0,
+      totalDlv, inhand, trfOut, entry.transfer_to_order||'', stock, entry.etd||'', entry.remarks||''
+    ]);
+  });
+
+  const html = buildStyledExcelHTML({
+    reportTitle: 'ORDER CLOSING REPORT',
+    subtitle: `From: ${document.getElementById('ocFrom').value} — To: ${document.getElementById('ocTo').value}` + (ocFilterText ? ` | Filter: ${document.getElementById('ocFilterBox').value}` : ''),
+    metaLine: 'Generated: ' + new Date().toLocaleString(),
+    summaryLine: `Total Bookings Closed: ${bookingsSet.size}  |  Total Colors Closed: ${colorsSet.size}`,
+    headers,
+    rows,
+    numericCols: new Set([0,6,7,8,9,10,12,13,14,15,16,18]),
+    stockCol: 18,
+    grandTotal: true,
+    totalExcludeCols: new Set([0,7]),
+    totalLabelCol: 1
+  });
+  downloadExcelHTML(html, `Order-Close-${new Date().toISOString().slice(0,10)}.xls`);
+  showToast('Excel exported');
+}
+
+// ---------- STOCK CHECK ----------
+function exportStockExcel(){
+  if(!stockDisplayData || stockDisplayData.length === 0){
+    showToast('Export korar moto kono data nei', 'warning');
+    return;
+  }
+  const headers = ['Date','Booking No','Buyer','Color','Type','Total Rcvd','Total Dlv','Inhand','Trf Out','Stock','Status'];
+  const rows = [];
+
+  stockDisplayData.forEach(g => {
+    const stock = g.inhand - g.trfOut;
+    const status = stock > EPS ? 'Pending' : (stock < -EPS ? 'Negative' : 'Clear');
+    rows.push([g.report_date||'', g.booking_no||'', g.buyer||'', g.fab_color||'', g.fab_type||'', g.totalRcvd, g.totalDlv, g.inhand, g.trfOut, stock, status]);
+  });
+
+  const html = buildStyledExcelHTML({
+    reportTitle: 'STOCK CHECK REPORT',
+    metaLine: 'Generated: ' + new Date().toLocaleString(),
+    summaryLine: `Total Rows: ${rows.length}`,
+    headers,
+    rows,
+    numericCols: new Set([5,6,7,8,9]),
+    stockCol: 9,
+    grandTotal: true,
+    totalLabelCol: 0
+  });
+  downloadExcelHTML(html, `Stock-Check-${new Date().toISOString().slice(0,10)}.xls`);
+  showToast('Excel exported');
+}
+
+// =========================================
+// STICKY OFFSET (header + tabs height)
+// =========================================
+function setStickyOffset(){
+  const header = document.querySelector('.header');
+  const tabs = document.querySelector('.tabs');
+  const offset = (header?.offsetHeight || 0) + (tabs?.offsetHeight || 0);
+  document.documentElement.style.setProperty('--sticky-offset', offset + 'px');
+}
+window.addEventListener('resize', setStickyOffset);
+window.addEventListener('load', setStickyOffset);
+
+// =========================================
+// INIT
+// =========================================
+(function init(){
+  document.getElementById('entryDate').value = new Date().toISOString().slice(0,10);
+  const now = new Date();
+  document.getElementById('dashMonth').value = now.toISOString().slice(0,7);
+  document.getElementById('ocFrom').value = now.toISOString().slice(0,8) + '01';
+  document.getElementById('ocTo').value = now.toISOString().slice(0,10);
+  
+  const lastOp = localStorage.getItem('lastOperator');
+  if(lastOp) document.getElementById('entryOperator').value = lastOp;
+  
+  if(localStorage.getItem('greyTheme') === 'light') document.body.classList.add('light');
+  
+  setStickyOffset();
+  
+  loadEntries();
+  
+  window.addEventListener('beforeunload', () => {
+    const timeSinceLastSave = Date.now() - lastAutoSaveTime;
+    if(allEntries.length > 0 && timeSinceLastSave > 5000){
+      saveAllEntryRows(false);
+    }
+  });
+  
+  window.addEventListener('online', () => {
+    showToast('Online - Syncing...');
+    scheduleAutoSave();
+  });
+
+  window.addEventListener('offline', () => {
+    showToast('Internet songjog nei - Save hobe na, songjog firle abar cheshta korun', 'warning');
+  });
+
+  document.addEventListener('click', (e) => {
+    const panel = document.getElementById('ocFilterPanel');
+    if(panel && panel.classList.contains('show')){
+      if(!panel.contains(e.target) && !e.target.classList.contains('oc-filter-icon')){
+        closeOCFilterPanel();
+      }
+    }
+  });
+})();
+
+// Expose globals
+window.showPage = showPage;
+window.loadDashboard = loadDashboard;
+window.loadEntries = loadEntries;
+window.addNewRow = addNewRow;
+window.saveAllEntries = saveAllEntries;
+window.deleteEntry = deleteEntry;
+window.closeOrder = closeOrder;
+window.confirmCloseOrder = confirmCloseOrder;
+window.closeModal = closeModal;
+window.loadOrderClose = loadOrderClose;
+window.applyOCFilter = applyOCFilter;
+window.clearOCFilter = clearOCFilter;
+window.selectOCBooking = selectOCBooking;
+window.backToOCBookingList = backToOCBookingList;
+window.sortOCList = sortOCList;
+window.openOCColumnFilter = openOCColumnFilter;
+window.ocFilterSearchInput = ocFilterSearchInput;
+window.ocFilterSelectAll = ocFilterSelectAll;
+window.applyOCColumnFilter = applyOCColumnFilter;
+window.clearOCColumnFilter = clearOCColumnFilter;
+window.closeOCFilterPanel = closeOCFilterPanel;
+window.checkStock = checkStock;
+window.loadAllStock = loadAllStock;
+window.exportDashboardExcel = exportDashboardExcel;
+window.exportEntryExcel = exportEntryExcel;
+window.exportOrderCloseExcel = exportOrderCloseExcel;
+window.toggleTheme = toggleTheme;
+window.updateEntry = updateEntry;
+window.calcRow = calcRow;
+window.scheduleAutoSave = scheduleAutoSave;
+window.searchBookingForColor = searchBookingForColor;
+window.addColorRowFromBooking = addColorRowFromBooking;
+window.closeBookingSearchModal = closeBookingSearchModal;
+window.updateOCEntry = updateOCEntry;
+window.calcOCRow = calcOCRow;
+window.saveOCRow = saveOCRow;
+window.deleteOCRow = deleteOCRow;
+window.toggleOCEdit = toggleOCEdit;
+window.cancelOCEdit = cancelOCEdit;
+window.exportStockExcel = exportStockExcel;
+window.openStockEdit = openStockEdit;
+window.renderStockEditModal = renderStockEditModal;
+window.updateStockEditRow = updateStockEditRow;
+window.saveStockEditRow = saveStockEditRow;
+window.deleteStockEditRow = deleteStockEditRow;
+window.closeStockEditModal = closeStockEditModal;
+window.deleteStockGroup = deleteStockGroup;
+window.setStickyOffset = setStickyOffset;
+window.openInhandTransfer = openInhandTransfer;
+window.openInhandPull = openInhandPull;
+window.selectInhandPullSource = selectInhandPullSource;
+window.findInhandTargetRows = findInhandTargetRows;
+window.pickInhandTarget = pickInhandTarget;
+window.closeInhandTransferModal = closeInhandTransferModal;
+window.confirmInhandTransfer = confirmInhandTransfer;
+window.loadInhand = loadInhand;
+window.renderInhandTable = renderInhandTable;
+
+</script>
+</body>
+</html>

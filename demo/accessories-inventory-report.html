@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Accessories Inventory Report</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+<style>
+:root{
+  --bg:#07111f;
+  --card:#101b2d;
+  --text:#fff;
+  --muted:#9fb0c7;
+  --border:#263855;
+  --blue:#2563eb;
+  --green:#16a34a;
+  --red:#dc2626;
+}
+
+body.light{
+  --bg:#f1f5f9;
+  --card:#ffffff;
+  --text:#111827;
+  --muted:#64748b;
+  --border:#cbd5e1;
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:Arial,sans-serif;
+}
+
+.header{
+  text-align:center;
+  padding:12px;
+}
+
+.header h2,.header h3,.header h4{
+  margin:3px;
+}
+
+.controls{
+  text-align:center;
+  margin:10px;
+}
+
+button{
+  padding:10px 14px;
+  border:0;
+  border-radius:8px;
+  color:white;
+  font-weight:bold;
+  margin:4px;
+  cursor:pointer;
+}
+
+.show{background:#2563eb}
+.excel{background:#059669}
+.print{background:#7c3aed}
+.home{background:#0f766e}
+.del{background:#dc2626}
+.edit{background:#f59e0b}
+.save{background:#16a34a}
+.theme{background:#334155}
+
+input,select{
+  font-size:16px;
+  padding:7px;
+  border-radius:6px;
+  border:1px solid #999;
+}
+
+.kpi{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin:10px;
+}
+
+.kpiBox{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:12px;
+  text-align:center;
+}
+
+.kpiBox span{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:bold;
+}
+
+.kpiBox b{
+  display:block;
+  color:#22c55e;
+  font-size:24px;
+  margin-top:5px;
+}
+
+.tableWrap{
+  overflow-x:auto;
+  width:100%;
+}
+
+table{
+  width:98%;
+  margin:10px auto;
+  border-collapse:collapse;
+  background:white;
+  color:black;
+  font-size:11px;
+}
+
+th,td{
+  border:1px solid #000;
+  padding:4px;
+  text-align:center;
+  word-break:break-word;
+}
+
+th{
+  background:#2f6b55;
+  color:white;
+}
+
+td input,td select{
+  width:100%;
+  box-sizing:border-box;
+  border:0;
+  outline:none;
+  text-align:center;
+  font-size:13px;
+}
+
+.totalRow{
+  background:#d9ead3;
+  font-weight:bold;
+}
+
+.toast{
+  position:fixed;
+  right:15px;
+  bottom:15px;
+  background:#22c55e;
+  padding:12px 18px;
+  border-radius:10px;
+  font-weight:bold;
+  display:none;
+}
+
+@media(max-width:700px){
+  .kpi{
+    grid-template-columns:1fr 1fr;
+  }
+
+  table{
+    min-width:1200px;
+  }
+}
+
+@media print{
+  body{
+    background:white;
+    color:black;
+  }
+
+  .controls,.kpi,.noPrint{
+    display:none!important;
+  }
+
+  table{
+    width:100%;
+    font-size:8px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h2>GMS Textiles Ltd</h2>
+  <h4>Tansutrapur, Kaliakair, Gazipur</h4>
+  <h4>Accessories MCD</h4>
+  <h3>Accessories Physically Inventory Report</h3>
+</div>
+
+<div class="controls noPrint">
+
+  From:
+  <input type="date" id="fromDate">
+
+  To:
+  <input type="date" id="toDate">
+
+  <button class="show" onclick="loadReport()">🔍 Show Report</button>
+
+  <button class="excel" onclick="exportExcel()">📊 Excel</button>
+
+  <button class="print" onclick="window.print()">🖨 PDF / Print</button>
+
+  <button class="theme" onclick="toggleTheme()">🌙 / ☀️</button>
+
+  <button class="home" onclick="location.href='accessories-inventory.html'">➕ Posting</button>
+
+  <button class="home" onclick="location.href='index.html'">🏠 Home</button>
+
+</div>
+
+<div class="kpi">
+
+  <div class="kpiBox">
+    <span>📦 Challan Qty</span>
+    <b id="kpiChallan">0</b>
+  </div>
+
+  <div class="kpiBox">
+    <span>✅ Receive Qty</span>
+    <b id="kpiReceive">0</b>
+  </div>
+
+  <div class="kpiBox">
+    <span>⏳ Due Qty</span>
+    <b id="kpiDue">0</b>
+  </div>
+
+  <div class="kpiBox">
+    <span>⚠️ Short / Excess</span>
+    <b id="kpiShortExcess">0 / 0</b>
+  </div>
+
+</div>
+
+<div class="tableWrap">
+
+<table id="reportTable">
+
+<thead>
+<tr>
+  <th>Received Date</th>
+  <th>Challan No</th>
+  <th>Buyer Name</th>
+  <th>Style</th>
+  <th>Order</th>
+  <th>Name of Item</th>
+  <th>Unit</th>
+  <th>Challan Qty</th>
+  <th>Receive Qty</th>
+  <th>Due Qty</th>
+  <th>Short</th>
+  <th>Excess</th>
+  <th>Reported By</th>
+  <th class="noPrint">Action</th>
+</tr>
+</thead>
+
+<tbody id="tbody"></tbody>
+
+<tfoot>
+<tr class="totalRow">
+
+  <td colspan="7">Grand Total</td>
+
+  <td id="gtChallan">0</td>
+  <td id="gtReceive">0</td>
+  <td id="gtDue">0</td>
+  <td id="gtShort">0</td>
+  <td id="gtExcess">0</td>
+
+  <td></td>
+  <td class="noPrint"></td>
+
+</tr>
+</tfoot>
+
+</table>
+</div>
+
+<div id="toast" class="toast">Saved</div>
+
+<script type="module">
+
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  doc,
+  updateDoc,
+  deleteDoc
+}
+from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig={
+
+  apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+
+  authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",
+
+  projectId:"gms-warehouse-tracker-7f57e",
+
+  storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",
+
+  messagingSenderId:"992250313291",
+
+  appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"
+
+};
+
+const app=initializeApp(firebaseConfig);
+
+const db=getFirestore(app);
+
+let reportRows=[];
+
+function today(){
+  return new Date().toISOString().slice(0,10);
+}
+
+document.getElementById("fromDate").value=today();
+document.getElementById("toDate").value=today();
+
+window.toggleTheme=function(){
+
+  document.body.classList.toggle("light");
+
+  localStorage.setItem(
+    "inventoryReportTheme",
+    document.body.classList.contains("light")
+    ? "light"
+    : "dark"
+  );
+};
+
+if(localStorage.getItem("inventoryReportTheme")==="light"){
+  document.body.classList.add("light");
+}
+
+function toast(msg){
+
+  let t=document.getElementById("toast");
+
+  t.innerText=msg;
+
+  t.style.display="block";
+
+  setTimeout(()=>{
+    t.style.display="none";
+  },1500);
+}
+
+function n(v){
+  return Number(v)||0;
+}
+
+function calcDue(r){
+
+  let c=n(r.challanQty);
+
+  let rec=n(r.receiveQty);
+
+  return c>rec ? c-rec : "";
+}
+
+function calcShort(r){
+
+  let c=n(r.challanQty);
+
+  let rec=n(r.receiveQty);
+
+  return c>rec ? c-rec : "";
+}
+
+function calcExcess(r){
+
+  let c=n(r.challanQty);
+
+  let rec=n(r.receiveQty);
+
+  return rec>c ? rec-c : "";
+}
+
+window.loadReport=async function(){
+
+  let from=document.getElementById("fromDate").value;
+
+  let to=document.getElementById("toDate").value;
+
+  let snap=await getDocs(collection(db,"accessoriesInventory"));
+
+  reportRows=[];
+
+  snap.forEach(d=>{
+
+    let x=d.data();
+
+    if(x.postingDate>=from && x.postingDate<=to){
+
+      (x.rows||[]).forEach((r,idx)=>{
+
+        reportRows.push({
+
+          docId:d.id,
+          rowIndex:idx,
+          postingDate:x.postingDate,
+          rows:x.rows,
+          edit:false,
+
+          ...r
+
+        });
+
+      });
+
+    }
+
+  });
+
+  render();
+};
+
+function render(){
+
+  let html="";
+
+  let gtChallan=0;
+  let gtReceive=0;
+  let gtDue=0;
+  let gtShort=0;
+  let gtExcess=0;
+
+  reportRows.forEach((r,i)=>{
+
+    r.dueQty=calcDue(r);
+    r.short=calcShort(r);
+    r.excess=calcExcess(r);
+
+    gtChallan+=n(r.challanQty);
+    gtReceive+=n(r.receiveQty);
+    gtDue+=n(r.dueQty);
+    gtShort+=n(r.short);
+    gtExcess+=n(r.excess);
+
+    if(r.edit){
+
+      html+=`
+      <tr>
+
+      <td><input type="date" value="${r.receivedDate||''}" onchange="reportRows[${i}].receivedDate=this.value"></td>
+
+      <td><input value="${r.challanNo||''}" onchange="reportRows[${i}].challanNo=this.value"></td>
+
+      <td><input value="${r.buyerName||''}" onchange="reportRows[${i}].buyerName=this.value"></td>
+
+      <td><input value="${r.style||''}" onchange="reportRows[${i}].style=this.value"></td>
+
+      <td><input value="${r.orderNo||''}" onchange="reportRows[${i}].orderNo=this.value"></td>
+
+      <td><input value="${r.itemName||''}" onchange="reportRows[${i}].itemName=this.value"></td>
+
+      <td>
+
+      <select onchange="reportRows[${i}].unit=this.value">
+
+      <option value="">Select</option>
+
+      <option ${r.unit==="Pcs"?"selected":""}>Pcs</option>
+
+      <option ${r.unit==="Cone"?"selected":""}>Cone</option>
+
+      <option ${r.unit==="Yds"?"selected":""}>Yds</option>
+
+      </select>
+
+      </td>
+
+      <td><input type="number" value="${r.challanQty||''}" onchange="reportRows[${i}].challanQty=this.value;render()"></td>
+
+      <td><input type="number" value="${r.receiveQty||''}" onchange="reportRows[${i}].receiveQty=this.value;render()"></td>
+
+      <td>${r.dueQty||""}</td>
+
+      <td>${r.short||""}</td>
+
+      <td>${r.excess||""}</td>
+
+      <td>${r.reportedBy||""}</td>
+
+      <td class="noPrint">
+
+      <button class="save" onclick="saveEdit(${i})">💾 Save</button>
+
+      <button class="del" onclick="cancelEdit(${i})">Cancel</button>
+
+      </td>
+
+      </tr>
+      `;
+
+    }else{
+
+      html+=`
+      <tr>
+
+      <td>${r.receivedDate||""}</td>
+      <td>${r.challanNo||""}</td>
+      <td>${r.buyerName||""}</td>
+      <td>${r.style||""}</td>
+      <td>${r.orderNo||""}</td>
+      <td>${r.itemName||""}</td>
+      <td>${r.unit||""}</td>
+      <td>${r.challanQty||""}</td>
+      <td>${r.receiveQty||""}</td>
+      <td>${r.dueQty||""}</td>
+      <td>${r.short||""}</td>
+      <td>${r.excess||""}</td>
+      <td>${r.reportedBy||""}</td>
+
+      <td class="noPrint">
+
+      <button class="edit" onclick="editRow(${i})">✏️ Edit</button>
+
+      <button class="del" onclick="deleteRow(${i})">🗑 Delete</button>
+
+      </td>
+
+      </tr>
+      `;
+    }
+
+  });
+
+  document.getElementById("tbody").innerHTML=
+  html || `<tr><td colspan="14">No Data Found</td></tr>`;
+
+  document.getElementById("gtChallan").innerText=gtChallan;
+  document.getElementById("gtReceive").innerText=gtReceive;
+  document.getElementById("gtDue").innerText=gtDue;
+  document.getElementById("gtShort").innerText=gtShort;
+  document.getElementById("gtExcess").innerText=gtExcess;
+
+  document.getElementById("kpiChallan").innerText=gtChallan;
+  document.getElementById("kpiReceive").innerText=gtReceive;
+  document.getElementById("kpiDue").innerText=gtDue;
+
+  document.getElementById("kpiShortExcess").innerText=
+  gtShort+" / "+gtExcess;
+}
+
+window.editRow=function(i){
+
+  reportRows[i].edit=true;
+
+  render();
+};
+
+window.cancelEdit=function(i){
+
+  reportRows[i].edit=false;
+
+  loadReport();
+};
+
+window.saveEdit=async function(i){
+
+  let r=reportRows[i];
+
+  let cleanRow={
+
+    receivedDate:r.receivedDate||"",
+    challanNo:r.challanNo||"",
+    buyerName:r.buyerName||"",
+    style:r.style||"",
+    orderNo:r.orderNo||"",
+    itemName:r.itemName||"",
+    unit:r.unit||"",
+    challanQty:r.challanQty||"",
+    receiveQty:r.receiveQty||"",
+    dueQty:calcDue(r),
+    short:calcShort(r),
+    excess:calcExcess(r),
+    reportedBy:r.reportedBy||""
+
+  };
+
+  let allRows=[...r.rows];
+
+  allRows[r.rowIndex]=cleanRow;
+
+  await updateDoc(
+    doc(db,"accessoriesInventory",r.docId),
+    {
+      rows:allRows,
+      updatedAt:new Date().toISOString()
+    }
+  );
+
+  toast("Updated ✅");
+
+  loadReport();
+};
+
+window.deleteRow=async function(i){
+
+  if(!confirm("Delete this row?")) return;
+
+  let r=reportRows[i];
+
+  let allRows=[...r.rows];
+
+  allRows.splice(r.rowIndex,1);
+
+  if(allRows.length===0){
+
+    await deleteDoc(
+      doc(db,"accessoriesInventory",r.docId)
+    );
+
+  }else{
+
+    await updateDoc(
+      doc(db,"accessoriesInventory",r.docId),
+      {
+        rows:allRows,
+        updatedAt:new Date().toISOString()
+      }
+    );
+  }
+
+  toast("Deleted ✅");
+
+  loadReport();
+};
+
+window.exportExcel=function(){
+
+  let clone=document.getElementById("reportTable").cloneNode(true);
+
+  clone.querySelectorAll(".noPrint").forEach(x=>x.remove());
+
+  let html=`
+
+  <html>
+
+  <head>
+  <meta charset="UTF-8">
+  </head>
+
+  <body>
+
+  <h2>GMS Textiles Ltd</h2>
+
+  <h3>Accessories Physically Inventory Report</h3>
+
+  ${clone.outerHTML}
+
+  </body>
+
+  </html>
+  `;
+
+  let file=new Blob(
+    [html],
+    {type:"application/vnd.ms-excel"}
+  );
+
+  let a=document.createElement("a");
+
+  a.href=URL.createObjectURL(file);
+
+  a.download="accessories-inventory-report.xls";
+
+  a.click();
+};
+
+document.addEventListener("keydown",function(e){
+
+  if(
+    e.key==="Enter" &&
+    (
+      e.target.tagName==="INPUT" ||
+      e.target.tagName==="SELECT"
+    )
+  ){
+
+    e.preventDefault();
+
+    let inputs=[
+      ...document.querySelectorAll("td input,td select")
+    ];
+
+    let index=inputs.indexOf(e.target);
+
+    if(inputs[index+1]){
+      inputs[index+1].focus();
+    }
+  }
+});
+
+loadReport();
+
+</script>
+
+</body>
+</html>

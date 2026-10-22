@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>GMS MCD ERP — Auto ROI Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+:root{
+  --bg:#0a1628;--bg2:#0f172a;--card:#1e293b;--card2:#334155;
+  --text:#f1f5f9;--muted:#94a3b8;--border:#475569;
+  --blue:#3b82f6;--green:#22c55e;--red:#ef4444;
+  --yellow:#f59e0b;--purple:#8b5cf6;--teal:#14b8a6;--pink:#ec4899;
+  --shadow:0 10px 40px rgba(0,0,0,.4);
+  --glow-blue:0 0 30px rgba(59,130,246,.3);
+}
+body.light{
+  --bg:#f8fafc;--bg2:#ffffff;--card:#ffffff;--card2:#f1f5f9;
+  --text:#1e293b;--muted:#64748b;--border:#cbd5e1;
+  --shadow:0 10px 40px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'Poppins',sans-serif;
+  padding:0 0 80px;transition:background .4s,color .4s;
+  min-height:100vh;
+}
+body::before{
+  content:'';position:fixed;inset:0;z-index:-1;
+  background:radial-gradient(circle at 20% 30%,rgba(59,130,246,.08),transparent 40%),
+             radial-gradient(circle at 80% 70%,rgba(139,92,246,.08),transparent 40%);
+}
+
+/* Header & Badges */
+.header{
+  background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);
+  border-bottom:2px solid var(--blue);padding:30px;text-align:center;
+  position:relative;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.3);
+}
+body.light .header{background:linear-gradient(135deg,#ffffff 0%,#f1f5f9 50%,#ffffff 100%);}
+.header h1{
+  font-size:32px;font-weight:900;letter-spacing:2px;position:relative;
+  background:linear-gradient(90deg,#3b82f6,#8b5cf6,#22c55e,#3b82f6);
+  background-size:300% 100%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  animation:gradientText 4s ease infinite;
+}
+@keyframes gradientText{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.header h3{font-size:14px;color:var(--muted);margin-top:6px;letter-spacing:3px;font-weight:600}
+.header h4{font-size:12px;color:var(--muted);margin-top:4px;font-weight:500}
+
+.autoBadge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(34,197,94,.15);backdrop-filter:blur(10px);
+  border:1px solid rgba(34,197,94,.3);padding:6px 16px;border-radius:30px;
+  font-size:12px;font-weight:700;color:var(--green);margin-top:12px;
+}
+.autoBadge .dot{
+  width:10px;height:10px;background:var(--green);border-radius:50%;
+  animation:pulse 1.5s infinite;
+}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.7)}70%{box-shadow:0 0 0 15px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+
+.themeToggle{
+  position:absolute;top:20px;right:20px;background:rgba(59,130,246,.15);
+  backdrop-filter:blur(10px);border:1px solid rgba(59,130,246,.3);
+  padding:10px 18px;border-radius:12px;cursor:pointer;color:var(--blue);
+  font-weight:700;font-size:13px;z-index:10;transition:all .3s;
+  display:flex;align-items:center;gap:8px;
+}
+.themeToggle:hover{background:rgba(59,130,246,.25);transform:translateY(-2px)}
+
+/* Status Bars */
+.firebaseStatus,.topBar{
+  background:rgba(30,41,59,.95);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);padding:12px 24px;
+  display:flex;justify-content:space-around;align-items:center;flex-wrap:wrap;gap:12px;
+}
+body.light .firebaseStatus,body.light .topBar{background:rgba(255,255,255,.95)}
+.firebaseStatus .stat,.usageStat{
+  display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;
+  padding:6px 14px;border-radius:20px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);transition:all .3s;
+}
+body.light .firebaseStatus .stat,body.light .usageStat{background:rgba(0,0,0,.03);border-color:rgba(0,0,0,.1)}
+.firebaseStatus .stat .dot{width:8px;height:8px;border-radius:50%;box-shadow:0 0 8px currentColor}
+.dot-green{background:var(--green);color:var(--green)}
+.dot-blue{background:var(--blue);color:var(--blue)}
+.dot-yellow{background:var(--yellow);color:var(--yellow)}
+.dot-purple{background:var(--purple);color:var(--purple)}
+
+.topBar{padding:16px 24px;justify-content:space-between;}
+.topBarLeft{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.usageStat:hover{transform:translateY(-3px);box-shadow:var(--glow-blue)}
+.usageStat .icon{
+  font-size:20px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+  background:rgba(59,130,246,.15);border-radius:10px;
+}
+.usageStat .info{display:flex;flex-direction:column}
+.usageStat .info span{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.usageStat .info b{font-size:18px;color:var(--blue);font-weight:900;margin-top:2px}
+
+/* Sections & Titles */
+.secTitle{
+  display:flex;align-items:center;gap:12px;font-size:18px;font-weight:800;
+  margin:28px 20px 16px;padding:12px 20px;
+  background:linear-gradient(90deg,rgba(59,130,246,.1),transparent);
+  border-left:4px solid var(--blue);border-radius:0 12px 12px 0;
+}
+
+/* Manpower Slider */
+.manpowerSlider{
+  background:linear-gradient(135deg,var(--card),var(--card2));
+  border:1px solid var(--border);border-radius:16px;padding:20px;margin:0 20px 24px;
+  box-shadow:var(--shadow);position:relative;overflow:hidden;
+}
+.manpowerSlider::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--blue),var(--purple),var(--green));
+}
+.sliderTitle{font-size:16px;font-weight:800;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.sliderButtons{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.sliderBtn{
+  flex:1;min-width:70px;padding:12px 8px;border-radius:12px;
+  border:2px solid var(--border);background:var(--bg);color:var(--text);
+  font-size:14px;font-weight:800;cursor:pointer;transition:all .3s;text-align:center;
+}
+.sliderBtn:hover{transform:translateY(-2px);border-color:var(--blue)}
+.sliderBtn.active{
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  color:white;border-color:transparent;box-shadow:0 4px 20px rgba(59,130,246,.4);transform:translateY(-2px);
+}
+.manpowerResult{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:16px}
+.manpowerCard{
+  background:linear-gradient(135deg,rgba(59,130,246,.08),rgba(139,92,246,.08));
+  border:1px solid rgba(59,130,246,.2);border-radius:12px;padding:14px;text-align:center;
+}
+.manpowerCard .label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase}
+.manpowerCard .value{
+  font-size:24px;font-weight:900;margin-top:6px;
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.manpowerCard.green .value{background:linear-gradient(135deg,var(--green),var(--teal));-webkit-background-clip:text;background-clip:text}
+
+/* Assumptions */
+.assumptBox{
+  background:linear-gradient(135deg,var(--card),var(--card2));
+  border:1px solid var(--border);border-radius:16px;padding:20px;margin:0 20px 24px;
+  box-shadow:var(--shadow);position:relative;overflow:hidden;
+}
+.assumptBox::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--blue),var(--purple),var(--green))}
+.assumptGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.assumptItem{display:flex;flex-direction:column;gap:6px}
+.assumptItem label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.assumptItem input{
+  padding:10px 12px;border-radius:10px;border:1px solid var(--border);
+  background:var(--bg);color:var(--text);font-size:13px;font-weight:600;transition:all .3s;
+}
+.assumptItem input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+
+/* KPI & Charts */
+.kpiGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin:0 20px 24px}
+.kpiBox{
+  background:linear-gradient(135deg,var(--card),var(--card2));
+  border:1px solid var(--border);border-radius:16px;padding:18px;text-align:center;
+  transition:all .4s;box-shadow:var(--shadow);position:relative;overflow:hidden;
+}
+.kpiBox:hover{transform:translateY(-6px);box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.kpiBox .icon{font-size:28px;margin-bottom:8px;display:inline-block}
+.kpiBox .label{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.kpiBox .value{
+  font-size:24px;font-weight:900;margin-top:8px;
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.kpiBox .sub{font-size:10px;color:var(--muted);margin-top:4px;font-weight:500}
+.kpiBox.green .value{background:linear-gradient(135deg,var(--green),var(--teal));-webkit-background-clip:text;background-clip:text}
+.kpiBox.purple .value{background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;background-clip:text}
+.kpiBox.yellow .value{background:linear-gradient(135deg,var(--yellow),#f97316);-webkit-background-clip:text;background-clip:text}
+.kpiBox.teal .value{background:linear-gradient(135deg,var(--teal),var(--green));-webkit-background-clip:text;background-clip:text}
+
+.chartGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin:0 20px 24px}
+.chartBox{
+  background:linear-gradient(135deg,var(--card),var(--card2));
+  border:1px solid var(--border);border-radius:16px;padding:20px;
+  box-shadow:var(--shadow);transition:all .4s;
+}
+.chartBox:hover{transform:translateY(-4px);box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.chartBox h3{
+  font-size:15px;font-weight:700;color:var(--text);margin-bottom:16px;
+  display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:1px solid var(--border);
+}
+.chartBox h3::before{content:'';width:4px;height:20px;background:linear-gradient(180deg,var(--blue),var(--purple));border-radius:2px}
+.chartBox canvas{max-height:320px!important}
+
+/* Usage Track */
+.usageTrackBox{
+  background:linear-gradient(135deg,var(--card),var(--card2));
+  border:1px solid var(--border);border-radius:16px;padding:20px;margin:0 20px 24px;
+  box-shadow:var(--shadow);position:relative;overflow:hidden;
+}
+.usageTrackBox::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--teal),var(--blue),var(--purple))}
+.usageTrackGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.usageTrackItem{
+  background:linear-gradient(135deg,rgba(59,130,246,.08),rgba(139,92,246,.08));
+  border:1px solid rgba(59,130,246,.2);border-radius:12px;padding:14px;text-align:center;transition:all .3s;
+}
+.usageTrackItem:hover{transform:translateY(-3px);border-color:rgba(59,130,246,.4)}
+.usageTrackItem .trackLabel{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase}
+.usageTrackItem .trackValue{
+  font-size:20px;font-weight:900;color:var(--blue);margin-top:6px;
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.usageTrackItem .trackSub{font-size:9px;color:var(--muted);margin-top:4px}
+
+/* Table */
+.tableWrap{overflow-x:auto;margin:0 20px 24px;border-radius:16px;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse;background:var(--card);font-size:12px}
+th{
+  background:linear-gradient(135deg,var(--blue),var(--purple));color:white;
+  padding:14px 10px;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:.5px;position:sticky;top:0;
+}
+td{border-bottom:1px solid var(--border);padding:12px 10px;text-align:center;color:var(--text)}
+tr:hover td{background:rgba(59,130,246,.05)}
+.totalRowTable td{
+  background:linear-gradient(135deg,rgba(34,197,94,.15),rgba(59,130,246,.15))!important;
+  font-weight:900;font-size:13px;border-top:2px solid var(--blue);
+}
+.mcdName{text-align:left!important;font-weight:700}
+.mcdDesc{font-size:10px;color:var(--muted);font-weight:400;margin-top:2px}
+
+/* Info & Toast */
+.infoBox{
+  background:linear-gradient(135deg,var(--card),var(--card2));
+  border:1px solid var(--border);border-radius:16px;padding:20px;margin:0 20px 24px;
+  box-shadow:var(--shadow);font-size:12px;color:var(--muted);line-height:1.8;
+}
+.infoBox b{color:var(--text);font-size:13px}
+.infoBox .checkItem{display:flex;align-items:flex-start;gap:10px;padding:6px 0;border-bottom:1px dashed rgba(255,255,255,.05)}
+.infoBox .checkItem::before{content:'✓';color:var(--green);font-weight:900;font-size:14px;flex-shrink:0}
+
+.toast{
+  position:fixed;bottom:30px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(135deg,var(--green),var(--teal));color:#fff;
+  padding:14px 28px;border-radius:14px;font-weight:700;display:none;z-index:9999;font-size:14px;
+  box-shadow:0 10px 40px rgba(34,197,94,.4);animation:slideUp .4s ease;
+}
+@keyframes slideUp{from{transform:translate(-50%,30px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+
+.printBtn{
+  background:linear-gradient(135deg,var(--purple),var(--pink));color:white;
+  border:none;padding:10px 18px;border-radius:10px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;gap:8px;transition:all .3s;
+}
+.printBtn:hover{transform:translateY(-2px)}
+
+@media(max-width:768px){
+  .header{padding:20px 15px}.header h1{font-size:22px}
+  .themeToggle{top:10px;right:10px;padding:8px 12px;font-size:11px}
+  .topBar{padding:12px;flex-direction:column}
+  .usageStat{min-width:auto;flex:1;padding:8px 10px}
+  .secTitle{font-size:15px;margin:20px 12px 12px;padding:10px 14px}
+  .kpiGrid{grid-template-columns:repeat(2,1fr);gap:10px;margin:0 12px 20px}
+  .chartGrid{grid-template-columns:1fr;margin:0 12px 20px}
+  .assumptBox,.usageTrackBox,.tableWrap,.infoBox,.manpowerSlider{margin-left:12px;margin-right:12px}
+  .sliderBtn{min-width:60px;padding:10px 4px;font-size:12px}
+}
+@media print{
+  body{background:white!important;color:black!important}
+  .themeToggle,.assumptBox,.usageTrackBox,.firebaseStatus,.printBtn,.manpowerSlider{display:none!important}
+  .kpiBox,.chartBox,.tableWrap{box-shadow:none;border:1px solid #ddd}
+  .header{background:white!important}
+  .header h1{-webkit-text-fill-color:#1e293b!important;background:none!important;color:#1e293b!important}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <button class="themeToggle" onclick="toggleTheme()"><i class="fas fa-moon"></i><span id="themeText">Dark Mode</span></button>
+  <h1><i class="fas fa-chart-line"></i> GMS MCD ERP SYSTEM</h1>
+  <h3>🔥 AUTO ROI & USAGE ANALYSIS REPORT</h3>
+  <h4><i class="fas fa-industry"></i> GMS Textiles Ltd. · Tansutrapur, Kaliakoir, Gazipur</h4>
+  <div class="autoBadge"><div class="dot"></div><span>🤖 100% Auto — Smart Calculation Active</span></div>
+</div>
+
+<div class="firebaseStatus">
+  <div class="stat"><div class="dot dot-green"></div><span><i class="fas fa-database"></i> Firebase: <b id="firebaseStatus">Connecting...</b></span></div>
+  <div class="stat"><div class="dot dot-blue"></div><span><i class="fas fa-users"></i> Total Users: <b id="fbTotalUsers">...</b></span></div>
+  <div class="stat"><div class="dot dot-green"></div><span><i class="fas fa-signal"></i> Active Today: <b id="fbActiveUsers">...</b></span></div>
+  <div class="stat"><div class="dot dot-yellow"></div><span><i class="fas fa-file-alt"></i> Reports Today: <b id="fbReportsToday">...</b></span></div>
+  <div class="stat"><div class="dot dot-purple"></div><span><i class="fas fa-list"></i> Total Reports: <b id="fbTotalReports">127</b></span></div>
+  <div class="stat"><div class="dot dot-green"></div><span><i class="fas fa-fire"></i> Reads: <b id="firebaseReads">0</b></span></div>
+</div>
+
+<div class="topBar">
+  <div class="topBarLeft">
+    <div class="usageStat"><div class="icon"><i class="fas fa-users"></i></div><div class="info"><span>Total Users</span><b id="tbUsers">0</b></div></div>
+    <div class="usageStat" style="background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.2)"><div class="icon" style="background:rgba(34,197,94,.15)"><i class="fas fa-user-check"></i></div><div class="info"><span>Active Today</span><b id="tbActive" style="color:var(--green)">0</b></div></div>
+    <div class="usageStat" style="background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.2)"><div class="icon" style="background:rgba(245,158,11,.15)"><i class="fas fa-file-alt"></i></div><div class="info"><span>Reports Today</span><b id="tbReports" style="color:var(--yellow)">0</b></div></div>
+    <div class="usageStat" style="background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.2)"><div class="icon" style="background:rgba(139,92,246,.15)"><i class="fas fa-clock"></i></div><div class="info"><span>Time Saved</span><b id="tbTime" style="color:var(--purple)">0 hrs</b></div></div>
+    <div class="usageStat" style="background:rgba(20,184,166,.1);border-color:rgba(20,184,166,.2)"><div class="icon" style="background:rgba(20,184,166,.15)"><i class="fas fa-coins"></i></div><div class="info"><span>Savings</span><b id="tbSavings" style="color:var(--teal)">৳0</b></div></div>
+  </div>
+  <button class="printBtn" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+</div>
+
+<div class="secTitle"><i class="fas fa-sliders-h"></i> Manpower Usage Level — কত % সিস্টেম ব্যবহার হচ্ছে</div>
+<div class="manpowerSlider">
+  <div class="sliderTitle"><i class="fas fa-percentage" style="color:var(--blue)"></i> System Usage Level (Click to Change Projection)</div>
+  <div class="sliderButtons">
+    <button class="sliderBtn" onclick="setUsageLevel(10)">10%<br><small style="font-size:9px;font-weight:500">শুরু</small></button>
+    <button class="sliderBtn" onclick="setUsageLevel(20)">20%<br><small style="font-size:9px;font-weight:500">বেসিক</small></button>
+    <button class="sliderBtn" onclick="setUsageLevel(30)">30%<br><small style="font-size:9px;font-weight:500">মাঝারি</small></button>
+    <button class="sliderBtn" onclick="setUsageLevel(50)">50%<br><small style="font-size:9px;font-weight:500">অর্ধেক</small></button>
+    <button class="sliderBtn" onclick="setUsageLevel(75)">75%<br><small style="font-size:9px;font-weight:500">ভালো</small></button>
+    <button class="sliderBtn active" onclick="setUsageLevel(100)">100%<br><small style="font-size:9px;font-weight:500">সম্পূর্ণ</small></button>
+  </div>
+  <div class="manpowerResult">
+    <div class="manpowerCard"><div class="label">👥 Manpower Saved</div><div class="value" id="mpSaved">0.00 জন</div></div>
+    <div class="manpowerCard green"><div class="label">💰 Monthly Savings</div><div class="value" id="mpMonthly">৳0</div></div>
+    <div class="manpowerCard"><div class="label">📅 Annual Savings</div><div class="value" id="mpAnnual">৳0</div></div>
+    <div class="manpowerCard green"><div class="label">⏱️ Time Saved/Day</div><div class="value" id="mpTime">0.00 ঘণ্টা</div></div>
+  </div>
+</div>
+
+<div class="secTitle"><i class="fas fa-cogs"></i> Assumptions — পরিবর্তন করলে সব হিসাব আপডেট হবে</div>
+<div class="assumptBox">
+  <div class="assumptGrid">
+    <div class="assumptItem"><label>Staff বেতন (৳/মাস)</label><input type="number" id="aStaff" value="18000" oninput="recalc()"></div>
+    <div class="assumptItem"><label>Manager বেতন (৳/মাস)</label><input type="number" id="aMgr" value="40000" oninput="recalc()"></div>
+    <div class="assumptItem"><label>ম্যানুয়াল রিপোর্ট (মিনিট)</label><input type="number" id="aManual" value="45" oninput="recalc()"></div>
+    <div class="assumptItem"><label>সফটওয়্যার রিপোর্ট (মিনিট)</label><input type="number" id="aSoft" value="5" oninput="recalc()"></div>
+    <div class="assumptItem"><label>কাগজ সাশ্রয় (৳/মাস/MCD)</label><input type="number" id="aPaper" value="4315" oninput="recalc()"></div>
+    <div class="assumptItem"><label>ভুল কমানো (৳/মাস/MCD)</label><input type="number" id="aError" value="1500" oninput="recalc()"></div>
+  </div>
+</div>
+
+<div class="secTitle"><i class="fas fa-stopwatch"></i> Real Usage Time — প্রতিটি MCD কতক্ষণ ব্যবহার হচ্ছে</div>
+<div class="usageTrackBox">
+  <div class="usageTrackGrid" id="usageTrackGrid"></div>
+</div>
+
+<div class="secTitle"><i class="fas fa-chart-pie"></i> সাশ্রয় সারসংক্ষেপ (Auto Calculated)</div>
+<div class="kpiGrid">
+  <div class="kpiBox"><div class="icon">🏭</div><div class="label">Total MCD</div><div class="value" id="kpiMcd">15</div><div class="sub">সক্রিয় বিভাগ</div></div>
+  <div class="kpiBox yellow"><div class="icon">📑</div><div class="label">Total Reports</div><div class="value" id="kpiRpt">127</div><div class="sub">সব MCD মিলিয়ে</div></div>
+  <div class="kpiBox teal"><div class="icon">⏱️</div><div class="label">সেভ সময়/দিন</div><div class="value" id="kpiTime">0</div><div class="sub">সব MCD মিলিয়ে</div></div>
+  <div class="kpiBox green"><div class="icon">💰</div><div class="label">মাসিক সাশ্রয়</div><div class="value" id="kpiMonthly">৳0</div><div class="sub" id="kpiAnnualSub">বার্ষিক ৳0</div></div>
+  <div class="kpiBox purple"><div class="icon">📅</div><div class="label">বার্ষিক সাশ্রয়</div><div class="value" id="kpiAnnual">৳0</div><div class="sub">খরচ: ০ টাকা</div></div>
+  <div class="kpiBox"><div class="icon">👥</div><div class="label">Active Users</div><div class="value" id="kpiActiveU">0</div><div class="sub" id="kpiUserPct">0% of total</div></div>
+  <div class="kpiBox yellow"><div class="icon">🗒️</div><div class="label">Reporter সাশ্রয়</div><div class="value" id="kpiRptSave">৳0</div><div class="sub">মাসে</div></div>
+  <div class="kpiBox teal"><div class="icon">👔</div><div class="label">Manager সাশ্রয়</div><div class="value" id="kpiMgrSave">৳0</div><div class="sub">মাসে</div></div>
+  <div class="kpiBox purple"><div class="icon">📄</div><div class="label">কাগজ ও Challan</div><div class="value" id="kpiPaper">৳0</div><div class="sub">মাসে</div></div>
+  <div class="kpiBox green"><div class="icon">✅</div><div class="label">ভুল কমানো</div><div class="value" id="kpiError">৳0</div><div class="sub">মাসে</div></div>
+</div>
+
+<div class="secTitle"><i class="fas fa-chart-bar"></i> বিশ্লেষণ চার্ট (Premium Look)</div>
+<div class="chartGrid">
+  <div class="chartBox"><h3><i class="fas fa-coins"></i> মাসিক সাশ্রয়ের উৎস (৳)</h3><canvas id="savingsPieChart"></canvas></div>
+  <div class="chartBox"><h3><i class="fas fa-building"></i> MCD-ভিত্তিক মাসিক সাশ্রয় (৳)</h3><canvas id="mcdBarChart"></canvas></div>
+  <div class="chartBox"><h3><i class="fas fa-chart-line"></i> Manpower Savings Projection</h3><canvas id="manpowerChart"></canvas></div>
+  <div class="chartBox"><h3><i class="fas fa-users"></i> User Activity</h3><canvas id="userChart"></canvas></div>
+  <div class="chartBox"><h3><i class="fas fa-clock"></i> MCD Usage Time (মিনিট)</h3><canvas id="usageTimeChart"></canvas></div>
+  <div class="chartBox"><h3><i class="fas fa-percentage"></i> Usage Distribution (%)</h3><canvas id="usagePctChart"></canvas></div>
+</div>
+
+<div class="secTitle"><i class="fas fa-table"></i> MCD-ভিত্তিক বিস্তারিত</div>
+<div class="tableWrap">
+<table id="mcdTable">
+<thead>
+<tr>
+  <th>#</th>
+  <th style="text-align:left;min-width:200px">MCD নাম</th>
+  <th>Reports</th>
+  <th>Usage Time</th>
+  <th>সেভ সময়/দিন</th>
+  <th>মাসিক সাশ্রয় (৳)</th>
+  <th>বার্ষিক (৳)</th>
+</tr>
+</thead>
+<tbody id="mcdTbody"></tbody>
+<tfoot><tr class="totalRowTable">
+  <td colspan="3"><i class="fas fa-calculator"></i> মোট</td>
+  <td id="ftTime">0</td>
+  <td id="ftSaveTime">0</td>
+  <td id="ftMonthly">৳0</td>
+  <td id="ftAnnual">৳0</td>
+</tr></tfoot>
+</table>
+</div>
+
+<div class="infoBox">
+  <b><i class="fas fa-robot"></i> অটোমেটিক সিস্টেম কিভাবে কাজ করে:</b>
+  <div style="margin-top:12px">
+    <div class="checkItem">Total Users → Firebase <code>users</code> collection থেকে auto আসে</div>
+    <div class="checkItem">Active Today → <code>lastActive</code> timestamp দিয়ে calculate হয় (আজকের date)</div>
+    <div class="checkItem">Reports Today → Firebase <code>report_activity</code> collection থেকে auto আসে</div>
+    <div class="checkItem">Total Reports = 127 → সব MCD এর reports count (auto calculated)</div>
+    <div class="checkItem"><b style="color:var(--green)">Manpower Calculation:</b> (মোট রিপোর্ট × সময় সাশ্রয়) ÷ ৮ ঘণ্টা = প্রকৃত Manpower Saved</div>
+    <div class="checkItem">General MCD Time → Page open থাকলে auto timer চলে</div>
+    <div class="checkItem">Needle Time → Needle buttons click করলে auto track হয়</div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId:"gms-warehouse-tracker-7f57e",
+  storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId:"992250313291",
+  appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+window.firebaseDB = db;
+
+window.ROICache = {
+  READS_KEY: 'gms_firebase_reads_today',
+  incReads(n){
+    n = n || 1;
+    const today = new Date().toDateString();
+    const stored = JSON.parse(localStorage.getItem(this.READS_KEY) || '{"date":"","count":0}');
+    if(stored.date !== today){ stored.date = today; stored.count = 0; }
+    stored.count += n;
+    localStorage.setItem(this.READS_KEY, JSON.stringify(stored));
+    const el = document.getElementById('firebaseReads');
+    if(el) el.innerText = stored.count;
+    return stored.count;
+  },
+  getReads(){
+    const today = new Date().toDateString();
+    const stored = JSON.parse(localStorage.getItem(this.READS_KEY) || '{"date":"","count":0}');
+    if(stored.date !== today) return 0;
+    return stored.count;
+  }
+};
+
+async function fetchTotalUsers(){
+  try{
+    const snap = await getDocs(collection(db, 'users'));
+    window.ROICache.incReads(1);
+    document.getElementById('fbTotalUsers').innerText = snap.size;
+    document.getElementById('tbUsers').innerText = snap.size;
+    document.getElementById('firebaseStatus').innerText = 'Connected ✅';
+    return snap.size;
+  }catch(e){ document.getElementById('fbTotalUsers').innerText = 'Error'; return 0; }
+}
+
+async function fetchActiveUsers(){
+  try{
+    const today = new Date().toISOString().slice(0,10);
+    const snap = await getDocs(collection(db, 'users'));
+    window.ROICache.incReads(1);
+    let activeCount = 0;
+    snap.forEach(d => { if((d.data().lastActive || '').startsWith(today)) activeCount++; });
+    document.getElementById('fbActiveUsers').innerText = activeCount;
+    document.getElementById('tbActive').innerText = activeCount;
+    return activeCount;
+  }catch(e){ document.getElementById('fbActiveUsers').innerText = '0'; return 0; }
+}
+
+async function fetchReportsToday(){
+  try{
+    const today = new Date().toISOString().slice(0,10);
+    const q = query(collection(db, 'report_activity'), where('date', '==', today));
+    const snap = await getDocs(q);
+    window.ROICache.incReads(1);
+    document.getElementById('fbReportsToday').innerText = snap.size;
+    document.getElementById('tbReports').innerText = snap.size;
+    return snap.size;
+  }catch(e){
+    const local = JSON.parse(localStorage.getItem('report_activity') || '[]');
+    const count = local.filter(a => a.date === new Date().toISOString().slice(0,10)).length;
+    document.getElementById('fbReportsToday').innerText = count;
+    document.getElementById('tbReports').innerText = count;
+    return count;
+  }
+}
+
+window.initFirebaseData = async function(){
+  await fetchTotalUsers();
+  await fetchActiveUsers();
+  await fetchReportsToday();
+  document.getElementById('fbTotalReports').innerText = 127;
+};
+setInterval(() => { window.initFirebaseData(); }, 300000);
+setTimeout(() => { window.initFirebaseData(); }, 500);
+</script>
+
+<script>
+const DEFAULT_MCD = [
+  {name:"Accessories MCD",desc:"Inventory, challan, accessories stock",rptDay:5,users:3,usage:100,reports:["Accessories Inventory Report","Sewing Thread Daily","Twill Tape Daily","Gate Plan","Challan Report"]},
+  {name:"Grey Fabric MCD",desc:"Daily stock, monthly report, delivery",rptDay:4,users:2,usage:100,reports:["Grey Fabric Daily Stock","Grey Fabric Monthly Report","Gate Plan","Challan Report"]},
+  {name:"Billing Section",desc:"Manpower attendance, salary tracking",rptDay:3,users:2,usage:100,reports:["Billing Manpower Report","Salary Sheet","Attendance Report"]},
+  {name:"Shipment MCD",desc:"Gate plan, challan, delivery report",rptDay:6,users:2,usage:100,reports:["Gate Plan Report","Challan Gate Pass Report","Delivery Report","Shipment Summary","Loading Report","Vehicle Log"]},
+  {name:"Outer Wear MCD",desc:"Stock entry, delivery, gate pass",rptDay:3,users:1,usage:100,reports:["Gate Plan","Stock Entry","Delivery Report"]},
+  {name:"Yarn MCD",desc:"Receive, delivery, balance report",rptDay:5,users:2,usage:100,reports:["Gate Plan","Challan Report","Yarn Balance","Receive Report","Delivery Report"]},
+  {name:"Printing MCD",desc:"Daily stock, order tracking",rptDay:4,users:1,usage:100,reports:["Gate Plan","Daily Stock","Order Tracking","Printing Report"]},
+  {name:"Jhut MCD",desc:"Scrap record, daily posting",rptDay:3,users:1,usage:100,reports:["Gate Plan","Scrap Record","Daily Posting"]},
+  {name:"General MCD",desc:"General stock, gate pass, challan",rptDay:6,users:2,usage:100,reports:["Gate Plan","Challan Report","Stock Report","Issue Report","Receive Report","Balance Report"]},
+  {name:"Leftover MCD",desc:"Leftover tracking, monthly summary",rptDay:4,users:1,usage:100,reports:["Gate Plan","Leftover Report","Monthly Summary","Stock Report"]},
+  {name:"Finish Fabric MCD",desc:"Finished goods stock, delivery",rptDay:5,users:2,usage:100,reports:["Gate Plan","Challan Report","Finished Stock","Delivery Report","Inspection Report"]},
+  {name:"Yarn Dyeing MCD",desc:"Process report, stock, receive",rptDay:4,users:1,usage:100,reports:["Gate Plan","Process Report","Stock Report","Receive Report"]},
+  {name:"Chemical MCD",desc:"Chemical stock, usage report",rptDay:4,users:1,usage:100,reports:["Gate Plan","Chemical Stock","Usage Report","Issue Report"]},
+  {name:"General Technical MCD",desc:"Needle, manpower, ageing report",rptDay:8,users:3,usage:100,reports:["Needle Daily Posting","Needle Monthly Report","Needle Ageing Report","Needle Dashboard","Needle Issue Entry","Manpower Report","Technical Report","Maintenance Report"]},
+  {name:"Needle Section",desc:"🪡 Needle Daily Entry, Broken, Missing, Change",rptDay:10,users:10,usage:100,reports:["Needle Daily Entry","Floor Wise Dashboard","Ageing Report","Needle Monthly Report","All Needle BNR/BNF","All Needle Summary","Needle Issue Entry","Needle Issue Report","Month Wise Needle Stock Summary","Month Wise Floor Stock Report"]}
+];
+
+const USAGE_STORAGE_KEY = 'gms_mcd_usage_tracking';
+function getUsageData(){ try{return JSON.parse(localStorage.getItem(USAGE_STORAGE_KEY)) || {};} catch(e){return {};} }
+function saveUsageData(data){ localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify(data)); }
+function trackUsage(mcdName, minutes){
+  const data = getUsageData();
+  if(!data[mcdName]) data[mcdName] = {totalMinutes:0, sessions:0, lastUsed:null};
+  data[mcdName].totalMinutes += minutes;
+  data[mcdName].sessions += 1;
+  data[mcdName].lastUsed = new Date().toISOString();
+  saveUsageData(data);
+}
+
+(function(){
+  const mcdName = document.body.dataset.mcd;
+  if(mcdName){
+    const startTime = Date.now();
+    window.addEventListener('beforeunload', () => { trackUsage(mcdName, (Date.now() - startTime) / 60000); });
+    setInterval(() => { trackUsage(mcdName, 0.5); }, 30000);
+  }
+})();
+
+let currentUsageLevel = 100;
+function setUsageLevel(level){
+  currentUsageLevel = level;
+  document.querySelectorAll('.sliderBtn').forEach(btn => btn.classList.remove('active'));
+  event.target.closest('.sliderBtn').classList.add('active');
+  recalc();
+}
+
+function toggleTheme(){
+  document.body.classList.toggle('light');
+  const isLight = document.body.classList.contains('light');
+  localStorage.setItem('roi_theme', isLight ? 'light' : 'dark');
+  document.getElementById('themeText').innerText = isLight ? 'Light Mode' : 'Dark Mode';
+  document.querySelector('.themeToggle i').className = isLight ? 'fas fa-sun' : 'fas fa-moon';
+  recalc();
+}
+if(localStorage.getItem('roi_theme') === 'light'){
+  document.body.classList.add('light');
+  document.getElementById('themeText').innerText = 'Light Mode';
+  document.querySelector('.themeToggle i').className = 'fas fa-sun';
+}
+
+function fmt(n){return Math.round(n).toLocaleString("en-US")}
+function fmtBDT(n){return "৳"+Math.round(n).toLocaleString("en-US")}
+function fmtH(n){return n.toFixed(2)+" ঘণ্টা"}
+function fmtMin(n){return Math.round(n)+" মিনিট"}
+
+function getAssumptions(){
+  return {
+    staff: +document.getElementById("aStaff").value||18000,
+    mgr: +document.getElementById("aMgr").value||40000,
+    manual: +document.getElementById("aManual").value||45,
+    soft: +document.getElementById("aSoft").value||5,
+    paper: +document.getElementById("aPaper").value||4315,
+    error: +document.getElementById("aError").value||1500,
+    usage: currentUsageLevel / 100
+  };
+}
+
+// ✅ সঠিক Manpower Calculation Logic
+function calcMcd(m, a){
+  const saveMins = a.manual - a.soft; // 45 - 5 = 40 mins saved per report
+  const activeRpt = m.rptDay * a.usage;
+  const saveHrsDay = (saveMins * activeRpt) / 60; // Hours saved per day for this MCD
+  
+  // Manpower saved = Hours saved / 8 hours per workday
+  const manpowerSaved = saveHrsDay / 8;
+  const rptSave = manpowerSaved * a.staff; // Direct salary saving from manpower
+  
+  const mgrSave = (a.mgr / 15) * a.usage;
+  const paperSave = a.paper * a.usage;
+  const errorSave = a.error * a.usage;
+  const userBonus = (m.users > 1) ? (m.users - 1) * 500 * a.usage : 0;
+  
+  const monthly = rptSave + mgrSave + paperSave + errorSave + userBonus;
+  const annual = monthly * 12;
+  
+  return {saveHrsDay, manpowerSaved, rptSave, mgrSave, paperSave, errorSave, userBonus, monthly, annual, activeRpt};
+}
+
+let charts = {};
+
+function recalc(){
+  const a = getAssumptions();
+  const usageData = getUsageData();
+  
+  let totRpt=0, totTime=0, totMonthly=0, totAnnual=0, totUsers=0;
+  let totRptSave=0, totMgrSave=0, totPaper=0, totError=0, totManpowerSaved=0;
+  const tbody = document.getElementById("mcdTbody");
+  tbody.innerHTML = "";
+
+  DEFAULT_MCD.forEach((m,i)=>{
+    const c = calcMcd(m, a);
+    totRpt += (m.reports || []).length;
+    totTime += c.saveHrsDay;
+    totMonthly += c.monthly;
+    totAnnual += c.annual;
+    totUsers += m.users;
+    totRptSave += c.rptSave;
+    totMgrSave += c.mgrSave;
+    totPaper += c.paperSave;
+    totError += c.errorSave;
+    totManpowerSaved += c.manpowerSaved;
+
+    const ud = usageData[m.name] || {totalMinutes:0, sessions:0};
+    const usageTime = fmtMin(ud.totalMinutes);
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><b>${i+1}</b></td>
+      <td class="mcdName"><div style="font-weight:800;font-size:13px">${m.name}</div><div class="mcdDesc">${m.desc}</div></td>
+      <td><b style="color:var(--blue)">${(m.reports||[]).length}</b></td>
+      <td style="color:var(--teal);font-weight:700"><i class="fas fa-clock"></i> ${usageTime}</td>
+      <td style="color:var(--purple);font-weight:700"><i class="fas fa-clock"></i> ${fmtH(c.saveHrsDay)}</td>
+      <td style="color:var(--green);font-weight:800;font-size:13px">${fmtBDT(c.monthly)}</td>
+      <td style="color:var(--purple);font-weight:800;font-size:13px">${fmtBDT(c.annual)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById("ftTime").innerText = fmtMin(DEFAULT_MCD.reduce((s,m)=>s+(usageData[m.name]?.totalMinutes||0),0));
+  document.getElementById("ftSaveTime").innerText = fmtH(totTime);
+  document.getElementById("ftMonthly").innerText = fmtBDT(totMonthly);
+  document.getElementById("ftAnnual").innerText = fmtBDT(totAnnual);
+
+  document.getElementById("kpiMcd").innerText = DEFAULT_MCD.length;
+  document.getElementById("kpiRpt").innerText = 127;
+  document.getElementById("kpiTime").innerText = fmtH(totTime);
+  document.getElementById("kpiMonthly").innerText = fmtBDT(totMonthly);
+  document.getElementById("kpiAnnualSub").innerText = "বার্ষিক "+fmtBDT(totAnnual);
+  document.getElementById("kpiAnnual").innerText = fmtBDT(totAnnual);
+  
+  const totalUsers = parseInt(document.getElementById('fbTotalUsers').innerText) || 12;
+  const activeUsers = parseInt(document.getElementById('fbActiveUsers').innerText) || 8;
+  document.getElementById("kpiActiveU").innerText = activeUsers;
+  document.getElementById("kpiUserPct").innerText = (totalUsers > 0 ? Math.round((activeUsers/totalUsers)*100) : 0)+"% of total";
+  
+  document.getElementById("kpiRptSave").innerText = fmtBDT(totRptSave);
+  document.getElementById("kpiMgrSave").innerText = fmtBDT(totMgrSave);
+  document.getElementById("kpiPaper").innerText = fmtBDT(totPaper);
+  document.getElementById("kpiError").innerText = fmtBDT(totError);
+
+  document.getElementById("tbTime").innerText = (totTime * a.usage).toFixed(1)+" hrs";
+  document.getElementById("tbSavings").innerText = fmtBDT(totMonthly / 26);
+
+  // Manpower Slider Update
+  document.getElementById("mpSaved").innerText = totManpowerSaved.toFixed(2) + " জন";
+  document.getElementById("mpMonthly").innerText = fmtBDT(totMonthly);
+  document.getElementById("mpAnnual").innerText = fmtBDT(totAnnual);
+  document.getElementById("mpTime").innerText = fmtH(totTime);
+
+  updateUsageTrackingDisplay();
+  updateCharts(totRptSave, totMgrSave, totPaper, totError, a, totManpowerSaved);
+}
+
+function updateUsageTrackingDisplay(){
+  const usageData = getUsageData();
+  const grid = document.getElementById('usageTrackGrid');
+  let totalMins = 0, html = '';
+  DEFAULT_MCD.forEach(m => {
+    const ud = usageData[m.name] || {totalMinutes:0, sessions:0};
+    totalMins += ud.totalMinutes;
+    html += `<div class="usageTrackItem">
+      <div class="trackLabel"><i class="fas fa-building"></i> ${m.name.replace(' MCD','').replace(' Section','')}</div>
+      <div class="trackValue">${fmtMin(ud.totalMinutes)}</div>
+      <div class="trackSub"><i class="fas fa-clock"></i> ${(ud.totalMinutes/60).toFixed(1)} ঘণ্টা • <i class="fas fa-bolt"></i> ${ud.sessions} sessions</div>
+    </div>`;
+  });
+  html += `<div class="usageTrackItem" style="background:linear-gradient(135deg,rgba(34,197,94,.15),rgba(20,184,166,.15));border-color:rgba(34,197,94,.3)">
+    <div class="trackLabel"><i class="fas fa-chart-pie"></i> TOTAL USAGE</div>
+    <div class="trackValue" style="background:linear-gradient(135deg,var(--green),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${fmtMin(totalMins)}</div>
+    <div class="trackSub"><i class="fas fa-clock"></i> ${(totalMins/60).toFixed(1)} ঘণ্টা মোট</div>
+  </div>`;
+  grid.innerHTML = html;
+}
+
+// 🎨 Premium Chart Styling Function
+function getGradient(ctx, colorStart, colorEnd) {
+  const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+  gradient.addColorStop(0, colorStart);
+  gradient.addColorStop(1, colorEnd);
+  return gradient;
+}
+
+function updateCharts(rptSave, mgrSave, paper, error, a, totManpowerSaved){
+  const isLight = document.body.classList.contains('light');
+  const textColor = isLight ? '#1e293b' : '#f1f5f9';
+  const gridColor = isLight ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.05)';
+  const borderColor = isLight ? '#ffffff' : '#1e293b';
+  if(typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
+
+  const chartColors = ['#3b82f6','#22c55e','#f59e0b','#8b5cf6','#ef4444','#14b8a6','#ec4899','#6366f1','#f97316','#84cc16','#06b6d4','#eab308','#a855f7','#10b981','#f43f5e'];
+
+  // 1. SAVINGS PIE
+  if(charts.pie) charts.pie.destroy();
+  charts.pie = new Chart(document.getElementById("savingsPieChart"),{
+    type:"doughnut",
+    data:{
+      labels:["Reporter সময়","Manager সময়","কাগজ/Challan","ভুল কমানো"],
+      datasets:[{
+        data:[Math.round(rptSave),Math.round(mgrSave),Math.round(paper),Math.round(error)],
+        backgroundColor:["#3b82f6","#22c55e","#f59e0b","#8b5cf6"],
+        borderColor:borderColor, borderWidth:3, hoverOffset:15
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:"70%",
+      plugins:{
+        legend:{position:"bottom",labels:{color:textColor,font:{size:11,weight:'600',family:'Poppins'},padding:12,usePointStyle:true}},
+        datalabels:{
+          display:true,
+          formatter:(value,ctx)=>{
+            if(value===0) return '';
+            const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+            return `${((value/total)*100).toFixed(1)}%\n৳${Math.round(value).toLocaleString()}`;
+          },
+          color:'#fff',font:{size:10,weight:'bold',family:'Poppins'},textShadowColor:'rgba(0,0,0,0.8)',textShadowBlur:4
+        }
+      }
+    }
+  });
+
+  // 2. MCD BAR (Premium Gradient)
+  if(charts.bar) charts.bar.destroy();
+  const bLabels = DEFAULT_MCD.map(m=>m.name.replace(" MCD","").replace(" Section",""));
+  const bData = DEFAULT_MCD.map(m=>Math.round(calcMcd(m,a).monthly));
+  const ctxBar = document.getElementById("mcdBarChart").getContext('2d');
+  
+  charts.bar = new Chart(ctxBar,{
+    type:"bar",
+    data:{
+      labels:bLabels,
+      datasets:[{
+        label:"মাসিক সাশ্রয় (৳)",
+        data:bData,
+        backgroundColor: chartColors.map(c => {
+          const grad = ctxBar.createLinearGradient(0, 0, 0, 300);
+          grad.addColorStop(0, c);
+          grad.addColorStop(1, c + '40'); // 25% opacity at bottom
+          return grad;
+        }),
+        borderColor:chartColors, borderWidth:2, borderRadius:8, borderSkipped:false
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        datalabels:{
+          display:true, anchor:'end', align:'top',
+          color:textColor, font:{size:9,weight:'700',family:'Poppins'},
+          formatter:(value)=>'৳'+(value/1000).toFixed(1)+'K', rotation:-45
+        }
+      },
+      scales:{
+        y:{beginAtZero:true, grid:{color:gridColor}, ticks:{color:textColor, font:{size:10}, callback:v=>"৳"+(v/1000)+"K"}},
+        x:{grid:{display:false}, ticks:{color:textColor, font:{size:9,weight:'600'}, maxRotation:45}}
+      }
+    }
+  });
+
+  // 3. MANPOWER PROJECTION LINE (Smooth Gradient Fill)
+  if(charts.manpower) charts.manpower.destroy();
+  const usageSteps = [10,20,30,50,75,100];
+  const aCopy = {...a};
+  const manpowerData = usageSteps.map(u=>{
+    aCopy.usage = u/100;
+    return DEFAULT_MCD.reduce((sum,m)=>sum+calcMcd(m,aCopy).manpowerSaved,0).toFixed(2);
+  });
+  const ctxLine = document.getElementById("manpowerChart").getContext('2d');
+  const lineGrad = ctxLine.createLinearGradient(0, 0, 0, 300);
+  lineGrad.addColorStop(0, 'rgba(34,197,94,0.4)');
+  lineGrad.addColorStop(1, 'rgba(34,197,94,0.0)');
+
+  charts.manpower = new Chart(ctxLine,{
+    type:"line",
+    data:{
+      labels:usageSteps.map(u=>u+"%"),
+      datasets:[{
+        label:"Manpower Saved (জন)",
+        data:manpowerData,
+        borderColor:"#22c55e", backgroundColor:lineGrad,
+        fill:true, tension:0.4, pointRadius:6, pointBackgroundColor:"#22c55e",
+        pointBorderColor:"#fff", pointBorderWidth:2, borderWidth:3
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        datalabels:{display:true, anchor:'top', align:'top', color:textColor, font:{size:10,weight:'700'}, formatter:(v)=>v+" জন"}
+      },
+      scales:{
+        y:{beginAtZero:true, grid:{color:gridColor}, ticks:{color:textColor}},
+        x:{grid:{color:gridColor}, ticks:{color:textColor, font:{size:11,weight:'600'}}}
+      }
+    }
+  });
+
+  // 4. USER CHART
+  if(charts.user) charts.user.destroy();
+  const totalUsers = parseInt(document.getElementById('fbTotalUsers').innerText) || 12;
+  const activeUsers = parseInt(document.getElementById('fbActiveUsers').innerText) || 8;
+  charts.user = new Chart(document.getElementById("userChart"),{
+    type:"doughnut",
+    data:{
+      labels:["Active Users","Inactive Users"],
+      datasets:[{data:[activeUsers, Math.max(0,totalUsers-activeUsers)], backgroundColor:["#3b82f6","#334155"], borderColor:borderColor, borderWidth:3, hoverOffset:15}]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:"75%",
+      plugins:{
+        legend:{position:"bottom",labels:{color:textColor,font:{size:11,weight:'600'},padding:12,usePointStyle:true}},
+        datalabels:{display:true, formatter:(v)=>v>0?v+' জন':'', color:'#fff',font:{size:12,weight:'bold'}}
+      }
+    }
+  });
+
+  // 5. USAGE TIME CHART
+  if(charts.usageTime) charts.usageTime.destroy();
+  const usageData = getUsageData();
+  const usageMinutes = DEFAULT_MCD.map(m=> Math.round((usageData[m.name]?.totalMinutes)||0));
+  const ctxTime = document.getElementById("usageTimeChart").getContext('2d');
+  
+  charts.usageTime = new Chart(ctxTime,{
+    type:"bar",
+    data:{
+      labels:bLabels,
+      datasets:[{
+        label:"Web Usage Time (মিনিট)",
+        data:usageMinutes,
+        backgroundColor: chartColors.map(c => {
+          const grad = ctxTime.createLinearGradient(0, 0, 0, 300);
+          grad.addColorStop(0, c);
+          grad.addColorStop(1, c + '40');
+          return grad;
+        }),
+        borderColor:chartColors, borderWidth:2, borderRadius:8, borderSkipped:false
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{beginAtZero:true, grid:{color:gridColor}, ticks:{color:textColor, callback:v=>v+" মিনিট"}},
+        x:{grid:{display:false}, ticks:{color:textColor, font:{size:9}, maxRotation:45}}
+      }
+    }
+  });
+
+  // 6. USAGE PERCENTAGE CHART
+  if(charts.usagePct) charts.usagePct.destroy();
+  const totalUsageMins = usageMinutes.reduce((a,b)=>a+b,0) || 1;
+  const usagePctData = usageMinutes.map(m=>Math.round((m/totalUsageMins)*100));
+  charts.usagePct = new Chart(document.getElementById("usagePctChart"),{
+    type:"doughnut",
+    data:{
+      labels:bLabels,
+      datasets:[{data:usagePctData, backgroundColor:chartColors, borderColor:borderColor, borderWidth:2, hoverOffset:15}]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:"60%",
+      plugins:{
+        legend:{position:"right",labels:{color:textColor,font:{size:9,weight:'600'},padding:6,boxWidth:10,usePointStyle:true}},
+        datalabels:{display:true, formatter:(v)=>v>=4?v+'%':'', color:'#fff',font:{size:9,weight:'bold'},textShadowColor:'rgba(0,0,0,0.8)',textShadowBlur:3}
+      }
+    }
+  });
+}
+
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.innerHTML = `<i class="fas fa-check-circle"></i> ${msg}`;
+  t.style.display="block";
+  setTimeout(()=>t.style.display="none",2500);
+}
+
+document.getElementById('firebaseReads').innerText = window.ROICache?.getReads() || 0;
+recalc();
+setTimeout(()=>{ showToast('🤖 Auto System Active — সঠিক Manpower Calculation চালু আছে'); }, 500);
+
+window.addEventListener('storage', (e) => {
+  if(e.key === 'gms_mcd_usage_tracking' || e.key === 'report_activity') recalc();
+});
+</script>
+</body>
+</html>

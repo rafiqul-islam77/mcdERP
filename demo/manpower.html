@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Manpower List</title>
+
+<style>
+body{
+  margin:0;
+  background:#0b0f19;
+  color:white;
+  font-family:Arial
+}
+
+.box{
+  padding:20px
+}
+
+h2,h3{
+  text-align:center;
+  margin:4px
+}
+
+.top{
+  text-align:center;
+  margin-top:10px
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:15px;
+  background:white;
+  color:black
+}
+
+th,td{
+  border:1px solid #000;
+  padding:8px;
+  text-align:center
+}
+
+input,select{
+  padding:8px;
+  border-radius:6px;
+  border:1px solid #333
+}
+
+button{
+  padding:10px 18px;
+  background:#2563eb;
+  color:white;
+  border:0;
+  border-radius:8px;
+  font-weight:bold;
+  cursor:pointer;
+  margin:4px
+}
+
+.deleteBtn{
+  background:#dc2626
+}
+
+.editBtn{
+  background:#f59e0b
+}
+
+.excelBtn{
+  background:#16a34a
+}
+
+.pdfBtn{
+  background:#7c3aed
+}
+
+.clearBtn{
+  background:#64748b
+}
+
+.total{
+  background:#92d050;
+  font-weight:bold
+}
+
+.empImg{
+  width:45px;
+  height:45px;
+  border-radius:50%;
+  object-fit:cover
+}
+
+.formBox{
+  display:none;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin-top:15px
+}
+
+.summary{
+  font-size:20px;
+  font-weight:bold;
+  text-align:center;
+  margin-top:10px
+}
+
+#searchBox{
+  width:300px;
+  margin-left:10px
+}
+
+#toast{
+  position:fixed;
+  right:20px;
+  top:20px;
+  background:#16a34a;
+  color:white;
+  padding:14px 22px;
+  border-radius:10px;
+  display:none;
+  font-weight:bold;
+  z-index:9999
+}
+
+#spinner{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,.45);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:9998
+}
+
+.loader{
+  width:55px;
+  height:55px;
+  border:6px solid #ddd;
+  border-top:6px solid #2563eb;
+  border-radius:50%;
+  animation:spin 1s linear infinite
+}
+
+@keyframes spin{
+  100%{
+    transform:rotate(360deg)
+  }
+}
+
+@media print{
+  body{
+    background:white;
+    color:black
+  }
+
+  button,.top,.formBox,#searchBox{
+    display:none!important
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div id="toast"></div>
+
+<div id="spinner">
+  <div class="loader"></div>
+</div>
+
+<div class="box">
+
+<h2>GMS TEXTILES LTD</h2>
+<h3>Tansutrapur, Kaliakair, Gazipur.</h3>
+<h3 id="mcdTitle">GREY FABRIC MCD</h3>
+<h3>Manpower List</h3>
+
+<div class="top">
+
+Company:
+<select id="company" onchange="startRealtime()">
+</select>
+
+MCD:
+<select id="mcd" onchange="startRealtime()">
+</select>
+
+<input
+id="searchBox"
+placeholder="Search ID Card / Employee ID / Name..."
+oninput="filterSearch()"
+>
+
+<br>
+
+<button onclick="showForm()">Add Manpower</button>
+
+<button class="excelBtn" onclick="exportExcel()">
+Export Excel
+</button>
+
+<button class="pdfBtn" onclick="exportPDF()">
+PDF / Print
+</button>
+
+<button onclick="location.href='index.html'">
+Back Home
+</button>
+
+</div>
+
+<div id="formBox" class="formBox">
+
+<input id="image" placeholder="Image Link">
+<input id="empId" placeholder="Employee ID / ID Card">
+<input id="empName" placeholder="Employee Name">
+<input id="designation" placeholder="Designation">
+
+<input
+id="joinDate"
+type="date"
+onchange="updateJobAge()"
+>
+
+<input id="jobAge" placeholder="Job Age" readonly>
+
+<input id="section" placeholder="Section Name">
+
+<input
+id="salary"
+type="number"
+placeholder="Salary"
+>
+
+<input id="jobDesc" placeholder="Job Description">
+
+<button id="saveBtn" onclick="saveData()">
+Save Employee
+</button>
+
+<button class="clearBtn" onclick="clearForm()">
+Clear
+</button>
+
+</div>
+
+<div class="summary">
+Total Manpower:
+<span id="totalManpower">0</span>
+
+&nbsp;&nbsp; | &nbsp;&nbsp;
+
+Total Salary:
+<span id="totalSalary">0</span>
+</div>
+
+<table id="reportTable">
+
+<thead>
+<tr>
+<th>Image</th>
+<th>Employee ID</th>
+<th>Employee Name</th>
+<th>Designation</th>
+<th>Join Date</th>
+<th>Job Age</th>
+<th>Section Name</th>
+<th>Selery</th>
+<th>Job Description</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody id="tableBody"></tbody>
+
+<tfoot>
+<tr class="total">
+<td colspan="10" id="mcdTotal">
+Total: 0 | Salary: 0
+</td>
+</tr>
+</tfoot>
+
+</table>
+
+</div>
+
+<script type="module">
+
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  deleteDoc,
+  collection,
+  onSnapshot,
+  addDoc
+}
+from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain: "gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId: "gms-warehouse-tracker-7f57e",
+  storageBucket: "gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId: "992250313291",
+  appId: "1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const user = JSON.parse(localStorage.getItem("gmsUser") || "null");
+
+if(!user){
+  window.location.href="login.html";
+}
+
+const userRole = user.role || "user";
+
+const userCompanies = Array.isArray(user.userCompanies) ? user.userCompanies : [];
+const userMCDs = Array.isArray(user.mcdAccess)
+? user.mcdAccess
+: (user.mcd ? [user.mcd] : []);
+
+// 🔥 FIXED: সঠিক ফিল্ড রিড এবং অ্যাক্সেস চেক
+const mpLevel = user.manpowerAccessLevel || (user.manpowerAccess === true ? "all" : "none");
+const mpMcdList = Array.isArray(user.manpowerMcdAccess) ? user.manpowerMcdAccess : [];
+
+function canAccessManpower(targetMcd) {
+  if(userRole === "admin" || userRole === "full") return true;
+  if(mpLevel === "all") return true;
+  if(mpLevel === "selected") return mpMcdList.includes(targetMcd);
+  return false;
+}
+
+const hasAnyAccess = (userRole==="admin" || userRole==="full") || mpLevel === "all" || mpMcdList.length > 0;
+
+if(!hasAnyAccess){
+  alert("⚠️ Manpower Access nai. Admin theke 'Selected MCD' ba 'All MCD' permission nite hobe.");
+  window.location.href="index.html";
+}
+
+const ALL_COMPANIES = ["GMS TEXTILES LTD", "GMS COMPOSITE KNITTING"];
+const ALL_MCD = [
+"GREY FABRIC MCD",
+"SHIPMENT MCD",
+"BILLING SECTION",
+"OUTER WEAR MCD",
+"YARN MCD",
+"PRINTING MCD",
+"JHUT MCD",
+"GENERAL MCD",
+"ACCESSORIES MCD",
+"LEFTOVER MCD",
+"FINISH FABRIC MCD",
+"YARN DYEING MCD",
+"CHEMICAL MCD",
+"GENERAL TECHNICAL MCD"
+];
+
+// 🔥 FIXED: ইউজারের এক্সেস অনুযায়ী কোম্পানি ড্রপডাউন সেট করবে
+function setupCompanyDropdown(){
+  let allowedComps = (userRole==="admin" || userRole==="full")
+  ? ALL_COMPANIES
+  : userCompanies;
+
+  let compSelect = document.getElementById("company");
+  compSelect.innerHTML = allowedComps.map(c =>
+    `<option>${c}</option>`
+  ).join("");
+}
+
+function allowedMCDList(){
+  return (userRole==="admin" || userRole==="full")
+  ? ALL_MCD
+  : userMCDs;
+}
+
+// 🔥 FIXED: শুধু যেই MCD তে এক্সেস আছে সেটাই ড্রপডাউনে দেখাবে
+function setupMcdDropdown(){
+
+  let list = allowedMCDList().filter(mcd => canAccessManpower(mcd));
+
+  let mcdSelect = document.getElementById("mcd");
+
+  mcdSelect.innerHTML = list.map(m =>
+    `<option>${m}</option>`
+  ).join("");
+}
+
+let unsubscribe = null;
+let editMode = false;
+
+window.currentRows = [];
+
+function toast(msg,color="#16a34a"){
+
+  let t = document.getElementById("toast");
+
+  t.innerText = msg;
+  t.style.background = color;
+  t.style.display = "block";
+
+  setTimeout(()=>{
+    t.style.display = "none";
+  },2500);
+}
+
+function spinner(show){
+  document.getElementById("spinner").style.display =
+  show ? "flex" : "none";
+}
+
+function showForm(){
+  document.getElementById("formBox").style.display="grid";
+}
+
+function getJobAge(joinDate){
+
+  if(!joinDate) return "";
+
+  let start = new Date(joinDate);
+  let today = new Date();
+
+  let y = today.getFullYear() - start.getFullYear();
+  let m = today.getMonth() - start.getMonth();
+
+  if(today.getDate() < start.getDate()){
+    m--;
+  }
+
+  if(m < 0){
+    y--;
+    m += 12;
+  }
+
+  if(y < 0) return "";
+
+  return y + " Year " + m + " Month";
+}
+
+function updateJobAge(){
+  document.getElementById("jobAge").value =
+  getJobAge(document.getElementById("joinDate").value);
+}
+
+function getFormData(){
+
+  return {
+    company:document.getElementById("company").value,
+    mcd:document.getElementById("mcd").value,
+    image:document.getElementById("image").value.trim(),
+    empId:document.getElementById("empId").value.trim(),
+    empName:document.getElementById("empName").value.trim(),
+    designation:document.getElementById("designation").value.trim(),
+    joinDate:document.getElementById("joinDate").value,
+    section:document.getElementById("section").value.trim(),
+    salary:Number(document.getElementById("salary").value)||0,
+    jobDesc:document.getElementById("jobDesc").value.trim()
+  };
+}
+
+async function saveLog(action,module,item){
+
+  await addDoc(collection(db,"activityLogs"),{
+    user: user?.name || "Unknown",
+    action,
+    module,
+    item,
+    time: new Date().toLocaleString()
+  });
+}
+
+async function saveData(){
+
+  let x = getFormData();
+
+  if(!x.empId){
+    toast("Employee ID dao","#dc2626");
+    return;
+  }
+
+  spinner(true);
+
+  try{
+
+    await setDoc(
+      doc(db,"manpower",x.mcd+"_"+x.empId),
+      x
+    );
+
+    clearForm();
+
+    toast(
+      editMode
+      ? "Updated Successfully ✅"
+      : "Saved Successfully ✅"
+    );
+
+    editMode = false;
+
+    document.getElementById("saveBtn").innerText =
+    "Save Employee";
+
+  }catch(e){
+
+    toast("Save failed ❌","#dc2626");
+  }
+
+  spinner(false);
+}
+
+function editEmployee(empId){
+
+  let row = window.currentRows.find(x=>x.empId===empId);
+
+  if(!row) return;
+
+  showForm();
+
+  document.getElementById("image").value =
+  row.image || "";
+
+  document.getElementById("empId").value =
+  row.empId || "";
+
+  document.getElementById("empName").value =
+  row.empName || "";
+
+  document.getElementById("designation").value =
+  row.designation || "";
+
+  document.getElementById("joinDate").value =
+  row.joinDate || "";
+
+  document.getElementById("jobAge").value =
+  getJobAge(row.joinDate) || "";
+
+  document.getElementById("section").value =
+  row.section || "";
+
+  document.getElementById("salary").value =
+  row.salary || "";
+
+  document.getElementById("jobDesc").value =
+  row.jobDesc || "";
+
+  editMode = true;
+
+  document.getElementById("saveBtn").innerText =
+  "Update Employee";
+}
+
+async function deleteEmployee(empId){
+
+  let row = window.currentRows.find(x=>x.empId===empId);
+
+  let empName = row?.empName || "";
+
+  let mcd = document.getElementById("mcd").value;
+
+  if(!confirm("Ei employee delete korba?")) return;
+
+  spinner(true);
+
+  try{
+
+    await deleteDoc(
+      doc(db,"manpower",mcd+"_"+empId)
+    );
+
+    await saveLog(
+      "DELETE",
+      mcd,
+      empId + " (" + empName + ")"
+    );
+
+    toast("Deleted Successfully ✅");
+
+  }catch(e){
+
+    toast("Delete failed ❌","#dc2626");
+  }
+
+  spinner(false);
+}
+
+function render(rows){
+
+  let mcd = document.getElementById("mcd").value;
+
+  document.getElementById("mcdTitle").innerText = mcd;
+
+  let html = "";
+  let totalSalary = 0;
+
+  rows.forEach(x=>{
+
+    totalSalary += Number(x.salary) || 0;
+
+    html += `
+    <tr>
+
+      <td>
+      ${x.image
+      ? `<img class="empImg" src="${x.image}">`
+      : ""}
+      </td>
+
+      <td>${x.empId||""}</td>
+      <td>${x.empName||""}</td>
+      <td>${x.designation||""}</td>
+      <td>${x.joinDate||""}</td>
+      <td>${getJobAge(x.joinDate)||""}</td>
+      <td>${x.section||""}</td>
+      <td>${Number(x.salary)||0}</td>
+      <td>${x.jobDesc||""}</td>
+
+      <td>
+        <button
+        class="editBtn"
+        onclick="editEmployee('${x.empId}')">
+        Edit
+        </button>
+
+        <button
+        class="deleteBtn"
+        onclick="deleteEmployee('${x.empId}')">
+        Delete
+        </button>
+      </td>
+
+    </tr>`;
+  });
+
+  document.getElementById("tableBody").innerHTML = html;
+
+  document.getElementById("totalManpower").innerText =
+  rows.length;
+
+  document.getElementById("totalSalary").innerText =
+  totalSalary;
+
+  document.getElementById("mcdTotal").innerText =
+  mcd + " Total: " + rows.length +
+  " | Salary: " + totalSalary;
+}
+
+function filterSearch(){
+
+  let q = document
+  .getElementById("searchBox")
+  .value
+  .toLowerCase()
+  .trim();
+
+  if(q===""){
+    render(window.currentRows);
+    return;
+  }
+
+  let filtered = window.currentRows.filter(x =>
+
+    (x.empId || "").toLowerCase().includes(q) ||
+
+    (x.empName || "").toLowerCase().includes(q) ||
+
+    (x.designation || "").toLowerCase().includes(q) ||
+
+    (x.section || "").toLowerCase().includes(q) ||
+
+    (x.jobDesc || "").toLowerCase().includes(q)
+  );
+
+  render(filtered);
+}
+
+// 🔥 FIXED: কোম্পানি + MCD দুটোই সঠিকভাবে ফিল্টার করবে
+function startRealtime(){
+
+  let mcd = document.getElementById("mcd").value;
+  let company = document.getElementById("company").value;
+
+  document.getElementById("mcdTitle").innerText = company + " - " + mcd;
+
+  document.getElementById("searchBox").value = "";
+
+  if(!canAccessManpower(mcd)){
+    document.getElementById("tableBody").innerHTML =
+    `<tr><td colspan="10" style="padding:20px; color:#ef4444; font-weight:bold; text-align:center;">
+    ⚠️ এই MCD-এর (<b>${mcd}</b>) Salary দেখার পারমিশন নেই।<br>
+    <span style="font-size:12px; color:#666;">Admin থেকে 'Selected MCD' এক্সেস নিন।</span>
+    </td></tr>`;
+    document.getElementById("totalManpower").innerText = "0";
+    document.getElementById("totalSalary").innerText = "0";
+    document.getElementById("mcdTotal").innerText = mcd + " - Access Denied";
+    return;
+  }
+
+  if(unsubscribe) unsubscribe();
+
+  spinner(true);
+
+  unsubscribe = onSnapshot(
+    collection(db,"manpower"),
+
+    snap=>{
+
+      let rows = [];
+
+      snap.forEach(docSnap=>{
+
+        let x = docSnap.data();
+
+        // 🔥 FIX: শুধু সিলেক্টেড কোম্পানি এবং MCD এর ডাটাই দেখাবে
+        if(x.company===company && x.mcd===mcd && canAccessManpower(mcd)){
+          rows.push(x);
+        }
+      });
+
+      rows.sort((a,b)=>
+        (a.empId||"")
+        .localeCompare(b.empId||"")
+      );
+
+      window.currentRows = rows;
+
+      render(rows);
+
+      spinner(false);
+    }
+  );
+}
+
+function clearForm(){
+
+  [
+    "image",
+    "empId",
+    "empName",
+    "designation",
+    "joinDate",
+    "jobAge",
+    "section",
+    "salary",
+    "jobDesc"
+  ].forEach(id=>{
+
+    document.getElementById(id).value="";
+  });
+
+  editMode=false;
+
+  document.getElementById("saveBtn").innerText =
+  "Save Employee";
+}
+
+function exportExcel(){
+
+  let title = `
+  <h2>${document.getElementById("company").value}</h2>
+  <h3>${document.getElementById("mcd").value}</h3>
+  <h3>Manpower List</h3>
+  <h3>Total Manpower:
+  ${document.getElementById("totalManpower").innerText}
+  </h3>
+
+  <h3>Total Salary:
+  ${document.getElementById("totalSalary").innerText}
+  </h3>
+  `;
+
+  let table =
+  document.getElementById("reportTable").outerHTML;
+
+  let file = new Blob(
+    [title+table],
+    {type:"application/vnd.ms-excel"}
+  );
+
+  let a = document.createElement("a");
+
+  a.href = URL.createObjectURL(file);
+
+  a.download = "manpower-report.xls";
+
+  a.click();
+}
+
+function exportPDF(){
+  window.print();
+}
+
+window.showForm = showForm;
+window.saveData = saveData;
+window.deleteEmployee = deleteEmployee;
+window.editEmployee = editEmployee;
+window.clearForm = clearForm;
+window.updateJobAge = updateJobAge;
+window.startRealtime = startRealtime;
+window.filterSearch = filterSearch;
+window.exportExcel = exportExcel;
+window.exportPDF = exportPDF;
+
+setupCompanyDropdown();
+setupMcdDropdown();
+startRealtime();
+
+</script>
+
+</body>
+</html>

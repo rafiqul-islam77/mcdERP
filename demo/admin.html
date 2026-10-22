@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>GMS Admin Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+:root{
+  --bg:#07111f;--card:#101b2d;--card2:#14233a;
+  --text:#fff;--muted:#9fb0c7;--border:#263855;
+  --blue:#2563eb;--green:#22c55e;--red:#ef4444;--orange:#f59e0b;--purple:#8b5cf6;
+}
+body.light{
+  --bg:#eef3f9;--card:#fff;--card2:#f8fafc;
+  --text:#0f172a;--muted:#64748b;--border:#cbd5e1;
+}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:Segoe UI,Arial,sans-serif;
+}
+.header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:15px 22px;
+  background:var(--card);
+  border-bottom:1px solid var(--border);
+}
+.logoArea{display:flex;align-items:center;gap:10px}
+.logoArea img{width:42px;height:42px;object-fit:contain;border-radius:8px}
+.logo{font-size:22px;font-weight:900}
+.sub{font-size:12px;color:var(--muted)}
+.btn{
+  border:0;
+  border-radius:10px;
+  padding:10px 15px;
+  background:var(--blue);
+  color:white;
+  font-weight:900;
+  cursor:pointer;
+  margin:3px;
+}
+.btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.3);}
+.btn.red{background:var(--red)}
+.btn.green{background:var(--green)}
+.btn.orange{background:var(--orange)}
+.btn.purple{background:var(--purple)}
+.page{padding:18px}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+  margin-bottom:16px;
+}
+.card{
+  background:linear-gradient(135deg,var(--card),var(--card2));
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:16px;
+  box-shadow:0 8px 20px rgba(0,0,0,.18);
+}
+.label{font-size:12px;color:var(--muted);font-weight:900}
+.num{font-size:26px;color:var(--green);font-weight:900;margin-top:6px}
+.formGrid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+}
+input,select{
+  width:100%;
+  box-sizing:border-box;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:var(--card);
+  color:var(--text);
+  font-size:14px;
+}
+.companyWrap{display:flex;gap:12px;margin:10px 0;flex-wrap:wrap;}
+.companyWrap label{
+  flex:1;min-width:180px;padding:10px;border:2px solid var(--border);
+  border-radius:10px;background:var(--card2);display:flex;align-items:center;
+  gap:8px;cursor:pointer;transition:all .2s;font-weight:600;
+}
+.companyWrap label:hover{border-color:var(--blue);transform:translateY(-2px)}
+.companyWrap label.active-textile{border-color:var(--green);background:rgba(34,197,94,.12);color:var(--green);}
+.companyWrap label.active-composite{border-color:var(--purple);background:rgba(139,92,246,.12);color:var(--purple);}
+.companyWrap input{width:auto;margin:0;}
+.mcdBox{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  margin-top:10px;
+  max-height:150px;
+  overflow-y:auto;
+  padding:4px;
+}
+.checkItem{
+  background:rgba(255,255,255,.04);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:8px;
+  font-size:12px;
+  font-weight:800;
+}
+.checkItem input{width:auto;margin-right:6px;}
+.smallNote{
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+  margin-top:6px;
+  padding:8px;
+  background:rgba(245,158,11,.1);
+  border-radius:8px;
+  border-left:3px solid var(--orange);
+}
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:16px;
+  background:var(--card);
+}
+th,td{
+  border:1px solid var(--border);
+  padding:9px;
+  text-align:center;
+  font-size:12px;
+}
+th{background:var(--card2)}
+.roleAdmin{color:var(--green);font-weight:900}
+.roleFull{color:var(--orange);font-weight:900}
+.roleUser{color:var(--blue);font-weight:900}
+.compBadge{display:inline-block;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:700;margin:2px;}
+.compBadge.t{background:rgba(34,197,94,.15);color:var(--green)}
+.compBadge.c{background:rgba(139,92,246,.15);color:var(--purple);}
+
+/* 🔥 NEW: Grey Order Close Badge Style */
+.grey-oc-badge{
+  display:inline-block;
+  padding:3px 8px;
+  border-radius:12px;
+  font-size:11px;
+  font-weight:700;
+  margin:2px;
+}
+.grey-oc-badge.yes{background:rgba(16,185,129,.15);color:var(--green);}
+.grey-oc-badge.no{background:rgba(148,163,184,.15);color:var(--muted);}
+
+.toast{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  background:var(--green);
+  color:white;
+  padding:13px 20px;
+  border-radius:12px;
+  font-weight:900;
+  display:none;
+  z-index:1000;
+  animation:slideIn .3s;
+}
+@keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
+@media(max-width:900px){
+  .grid,.formGrid,.companyWrap,.mcdBox{grid-template-columns:1fr}
+  .header{display:block;text-align:center}
+  .companyWrap label{min-width:100%}
+}
+body.light .card,body.light .mcdBox,body.light input,body.light select,body.light .checkItem{
+  background:var(--card)!important;border-color:var(--border)!important;color:var(--text)!important;
+}
+body.light .checkItem:hover{background:var(--card2)!important;}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <div class="logoArea">
+    <img src="logo.png" onerror="this.style.display='none'">
+    <div>
+      <div class="logo">👑 GMS ADMIN PANEL</div>
+      <div class="sub">Company • User • MCD • Needle • Manpower • Grey Order</div>
+    </div>
+  </div>
+
+  <div>
+    <button class="btn" onclick="location.href='index.html'">🏠 Dashboard</button>
+    <button class="btn" onclick="toggleTheme()">🌙 / ☀️</button>
+    <button class="btn red" onclick="logout()">🚪 Logout</button>
+  </div>
+</div>
+
+<div class="page">
+
+  <div class="grid">
+    <div class="card"><div class="label">👤 Total Users</div><div class="num" id="totalUsers">0</div></div>
+    <div class="card"><div class="label">👑 Admin</div><div class="num" id="totalAdmin">0</div></div>
+    <div class="card"><div class="label">🏭 Textiles Users</div><div class="num" id="totalTextile" style="color:var(--green)">0</div></div>
+    <div class="card"><div class="label">🏢 Composite Users</div><div class="num" id="totalComposite" style="color:var(--purple)">0</div></div>
+  </div>
+
+  <div class="card">
+    <h2 id="formTitle">➕ Add User</h2>
+
+    <input type="hidden" id="editId">
+
+    <!-- 🔥 Company Selection -->
+    <div style="margin-bottom:16px;">
+      <label class="label">🏢 Assign Company (Select 1 or Both)</label>
+      <div class="companyWrap">
+        <label id="lblTextile">
+          <input type="checkbox" id="cmpTextile" value="GMS TEXTILES LTD" onchange="updateCompanyUI()">
+          🏭 GMS TEXTILES LTD
+        </label>
+        <label id="lblComposite">
+          <input type="checkbox" id="cmpComposite" value="GMS COMPOSITE KNITTING" onchange="updateCompanyUI()">
+          🏢 GMS COMPOSITE KNITTING
+        </label>
+      </div>
+      <div class="smallNote" id="companyNote">🔐 ইউজার শুধু সিলেক্টেড কোম্পানির ডাটা পাবে।</div>
+    </div>
+
+    <div class="formGrid">
+      <input id="name" placeholder="User Name">
+      <input id="email" placeholder="Email">
+      <input id="password" placeholder="Password">
+
+      <select id="role">
+        <option value="user">Normal User</option>
+        <option value="full">Full Access User</option>
+        <option value="admin">Admin</option>
+      </select>
+
+      <select id="needleAccess">
+        <option value="no">🪡 Needle Access: No</option>
+        <option value="yes">🪡 Needle Access: Yes</option>
+      </select>
+
+      <!-- 🔥 NEW: Needle Composite Access -->
+      <select id="needleCompositeAccess">
+        <option value="no">🪡 Needle Composite: No</option>
+        <option value="yes">🪡 Needle Composite: Yes</option>
+      </select>
+
+      <!-- 🔥 NEW: Grey Order Close Access -->
+      <select id="greyOrderCloseAccess">
+        <option value="no">📋 Grey Order Close: No</option>
+        <option value="yes">📋 Grey Order Close: Yes</option>
+      </select>
+
+      <select id="manpowerAccess" onchange="toggleManpowerSections()">
+        <option value="none">Manpower: None</option>
+        <option value="all">Manpower: All MCD</option>
+        <option value="selected">Manpower: Selected MCD</option>
+      </select>
+
+      <button class="btn green" onclick="saveUser()">💾 Save User</button>
+    </div>
+
+    <!-- 🔥 Password Security Note -->
+    <div class="smallNote" style="border-left-color: var(--blue); background: rgba(37,99,235,.1); margin-top: 10px;">
+      🔒 <b>Edit</b> করার সময় Password খালি রাখলে আগের Password-ই বহাল থাকবে। নতুন দিলে তা Hash (এনক্রিপ্ট) হয়ে সেভ হবে।
+    </div>
+
+    <!-- 🔥 Grey Order Close Info Note -->
+    <div class="smallNote" style="border-left-color: var(--green); background: rgba(16,185,129,.1); margin-top: 10px;">
+      📋 <b>Grey Order Close:</b> Admin এবং Full Access user automatically পাবে। Normal user কে Yes দিলে পাবে, No দিলে পাবে না।
+    </div>
+
+    <div class="smallNote" id="manpowerNote">
+      Manpower None দিলে user manpower পাবে না।
+    </div>
+
+    <!-- 🔥 Section 1: Normal MCD Access -->
+    <h3 style="margin-top:16px;">📂 General MCD Access (Dashboard & Reports)</h3>
+    <div class="smallNote">✅ এখানে টিক করা MCD Dashboard/Reports/Entries এ কাজ করবে।</div>
+    <div id="mcdChecks" class="mcdBox"></div>
+
+    <!-- 🔥 Section 2: Manpower MCD Access (Hidden by default) -->
+    <div id="manpowerSection" style="display:none; margin-top:16px;">
+      <h3>👨‍💼 Manpower MCD Access (Manpower Module)</h3>
+      <div class="smallNote">✅ এখানে টিক করা MCD শুধু Manpower পেজে কাজ করবে। Normal MCD থেকে আলাদা।</div>
+      <div id="manpowerMcdChecks" class="mcdBox"></div>
+    </div>
+
+    <button class="btn orange" onclick="clearForm()" style="margin-top:16px;">🧹 Clear Form</button>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>👥 User List</h2>
+
+    <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn" onclick="filterUsers('all')">All</button>
+      <button class="btn green" onclick="filterUsers('textile')">🏭 Textiles</button>
+      <button class="btn purple" onclick="filterUsers('composite')">🏢 Composite</button>
+      <button class="btn orange" onclick="filterUsers('admin')">👑 Admin Only</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Company</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>MCD Access</th>
+          <th>🪡 Needle</th>
+          <th>🪡 Composite</th>
+          <th>📋 Grey OC</th>
+          <th>👨‍💼 Manpower</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="userTable"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<div id="toast" class="toast">Saved ✅</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  doc,
+  updateDoc
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain: "gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId: "gms-warehouse-tracker-7f57e",
+  storageBucket: "gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId: "992250313291",
+  appId: "1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// 🛡️ SECURITY: Admin Access Check
+const currentUser = JSON.parse(localStorage.getItem('gmsUser') || 'null');
+if (!currentUser || currentUser.role !== 'admin') {
+    alert("🚫 Access Denied! Only Admins can access this page.");
+    window.location.href = "login.html";
+}
+
+// 🔐 SECURITY: Password Hash Function (SHA-256)
+async function hashPassword(password) {
+    try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) {
+        let hash = 0;
+        for (let i = 0; i < password.length; i++) {
+            const char = password.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return "fallback_" + Math.abs(hash).toString(16);
+    }
+}
+
+// 🔐 MCD to Company Mapping
+const MCD_COMPANY_MAP = {
+  "GREY FABRIC MCD": "textile",
+  "YARN MCD": "textile",
+  "SHIPMENT MCD": "composite",
+  "BILLING SECTION": "composite",
+  "OUTER WEAR MCD": "composite",
+  "PRINTING MCD": "both",
+  "JHUT MCD": "both",
+  "GENERAL MCD": "both",
+  "ACCESSORIES MCD": "both",
+  "LEFTOVER MCD": "both",
+  "FINISH FABRIC MCD": "both",
+  "YARN DYEING MCD": "both",
+  "CHEMICAL MCD": "both",
+  "GENERAL TECHNICAL MCD": "both"
+};
+
+const MCD_LIST = Object.keys(MCD_COMPANY_MAP);
+let allUsers = [];
+let currentFilter = "all";
+
+window.toggleTheme=function(){
+  document.body.classList.toggle("light");
+  localStorage.setItem("adminTheme",document.body.classList.contains("light") ? "light" : "dark");
+};
+
+if(localStorage.getItem("adminTheme")==="light"){
+  document.body.classList.add("light");
+}
+
+window.logout=function(){
+  localStorage.removeItem("gmsUser");
+  localStorage.removeItem("userMCD");
+  window.location.href="login.html";
+};
+
+function toast(msg){
+  let t=document.getElementById("toast");
+  t.innerText=msg;
+  t.style.display="block";
+  setTimeout(()=>t.style.display="none",1800);
+}
+
+// 🔄 Toggle Manpower Section & Note
+window.toggleManpowerSections=function(){
+  let v=document.getElementById("manpowerAccess").value;
+  let note=document.getElementById("manpowerNote");
+  let sec=document.getElementById("manpowerSection");
+
+  sec.style.display = (v === "selected") ? "block" : "none";
+
+  if(v==="none"){
+    note.innerText="Manpower None দিলে user manpower পাবে না।";
+  }else if(v==="all"){
+    note.innerText="Manpower All দিলে user সব MCD manpower পাবে।";
+    sec.style.display = "none";
+  }else{
+    note.innerText="Manpower Selected দিলে নিচে আলাদা MCD tick করতে হবে।";
+  }
+};
+
+// 🏢 Update Company UI + Refresh Both MCD Boxes
+window.updateCompanyUI=function(){
+  const t = document.getElementById("cmpTextile");
+  const c = document.getElementById("cmpComposite");
+  
+  document.getElementById("lblTextile").classList.toggle("active-textile", t.checked);
+  document.getElementById("lblComposite").classList.toggle("active-composite", c.checked);
+  
+  const note = document.getElementById("companyNote");
+  if(!t.checked && !c.checked) {
+    note.innerHTML = "⚠️ অন্তত ১টা কোম্পানি সিলেক্ট করুন!";
+    note.style.borderColor = "var(--red)";
+  } else {
+    note.innerHTML = "✅ ইউজার শুধু সিলেক্টেড কোম্পানির ডাটা পাবে।";
+    note.style.borderColor = "var(--orange)";
+  }
+
+  const selectedCompanies = [];
+  if(t.checked) selectedCompanies.push("GMS TEXTILES LTD");
+  if(c.checked) selectedCompanies.push("GMS COMPOSITE KNITTING");
+
+  renderMcdChecks("mcdChecks", getNormalMCD(), selectedCompanies);
+  renderMcdChecks("manpowerMcdChecks", getManpowerMCD(), selectedCompanies);
+};
+
+function renderMcdChecks(containerId, selected=[], allowedCompanies=[]){
+  let box = document.getElementById(containerId);
+  if(!box) return;
+  
+  let html="";
+  const filteredMCDs = MCD_LIST.filter(mcd => {
+    const type = MCD_COMPANY_MAP[mcd] || "both";
+    if(allowedCompanies.length === 0) return true;
+    if(type === "both") return true;
+    if(allowedCompanies.includes("GMS TEXTILES LTD") && type === "textile") return true;
+    if(allowedCompanies.includes("GMS COMPOSITE KNITTING") && type === "composite") return true;
+    return false;
+  });
+
+  if(filteredMCDs.length === 0) {
+    box.innerHTML = `<div style="padding:10px;color:var(--muted);text-align:center;">No MCD available</div>`;
+    return;
+  }
+
+  filteredMCDs.forEach(mcd=>{
+    let checked = selected.includes(mcd) ? "checked" : "";
+    html += `
+      <label class="checkItem">
+        <input type="checkbox" class="mcdCheck-${containerId}" value="${mcd}" ${checked}>
+        ${mcd}
+      </label>
+    `;
+  });
+  box.innerHTML=html;
+}
+
+function getNormalMCD(){
+  return [...document.querySelectorAll("#mcdChecks .mcdCheck-mcdChecks:checked")].map(c=>c.value);
+}
+function getManpowerMCD(){
+  return [...document.querySelectorAll("#manpowerMcdChecks .mcdCheck-manpowerMcdChecks:checked")].map(c=>c.value);
+}
+
+function normalizeManpowerAccess(u){
+  if(u.manpowerAccessLevel==="all" || u.manpowerAccessLevel==="selected" || u.manpowerAccessLevel==="none"){
+    return u.manpowerAccessLevel;
+  }
+  if(u.manpowerAccess===true){
+    if(u.role==="admin" || u.role==="full") return "all";
+    return "selected";
+  }
+  return "none";
+}
+
+function manpowerText(u){
+  let access=normalizeManpowerAccess(u);
+  if(access==="none") return "❌ None";
+  if(access==="all") return "✅ All MCD";
+  
+  let list = Array.isArray(u.manpowerMcdAccess) ? u.manpowerMcdAccess : [];
+  return "✅ Selected: " + (list.length ? list.slice(0,2).join(", ") + (list.length>2?" +...":"") : "No MCD");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🔥 NEW: Grey Order Close Access Text Function
+// ═══════════════════════════════════════════════════════════════
+function greyOrderCloseText(u){
+  // Admin এবং Full Access user সবসময় পাবে
+  if(u.role === "admin" || u.role === "full"){
+    return '<span class="grey-oc-badge yes">✅ Auto (Admin)</span>';
+  }
+  // Normal user এর জন্য explicit setting check
+  if(u.greyOrderCloseAccess === true){
+    return '<span class="grey-oc-badge yes">✅ Yes</span>';
+  }
+  // যদি MCD Access এ GREY FABRIC MCD থাকে
+  if(Array.isArray(u.mcdAccess) && u.mcdAccess.includes('GREY FABRIC MCD')){
+    return '<span class="grey-oc-badge yes">✅ Via MCD</span>';
+  }
+  return '<span class="grey-oc-badge no">❌ No</span>';
+}
+
+window.clearForm=function(){
+  document.getElementById("formTitle").innerText="➕ Add User";
+  document.getElementById("editId").value="";
+  document.getElementById("name").value="";
+  document.getElementById("email").value="";
+  document.getElementById("password").value="";
+  document.getElementById("password").placeholder = "Password"; // Reset placeholder
+  document.getElementById("role").value="user";
+  document.getElementById("needleAccess").value="no";
+  document.getElementById("needleCompositeAccess").value="no"; // Reset Needle Composite
+  document.getElementById("greyOrderCloseAccess").value="no"; // 🔥 NEW: Reset Grey Order Close
+  document.getElementById("manpowerAccess").value="none";
+  document.getElementById("cmpTextile").checked = false;
+  document.getElementById("cmpComposite").checked = false;
+  
+  updateCompanyUI();
+  toggleManpowerSections();
+  window.scrollTo({top:0,behavior:"smooth"});
+};
+
+// 💾 SMART SAVE: Hashes new passwords, keeps old 3-letter passwords intact
+window.saveUser=async function(){
+  const cmps = [...document.querySelectorAll("#cmpTextile:checked,#cmpComposite:checked")].map(c => c.value);
+  if(cmps.length === 0) { alert("⚠️ অন্তত ১টা কোম্পানি সিলেক্ট করুন!"); return; }
+
+  let editId=document.getElementById("editId").value;
+  let name=document.getElementById("name").value.trim();
+  let email=document.getElementById("email").value.trim();
+  let password=document.getElementById("password").value.trim();
+  let role=document.getElementById("role").value;
+  
+  let normalMCD = getNormalMCD();
+  let mpMCD = getManpowerMCD();
+  let needleAccess=document.getElementById("needleAccess").value==="yes";
+  let needleCompositeAccess=document.getElementById("needleCompositeAccess").value==="yes"; // NEW
+  let greyOrderCloseAccess=document.getElementById("greyOrderCloseAccess").value==="yes"; // 🔥 NEW
+  let manpowerAccess=document.getElementById("manpowerAccess").value;
+
+  if(!name || !email){ alert("Name এবং Email লাগবে"); return; }
+  if(manpowerAccess==="selected" && mpMCD.length===0){ alert("Manpower Selected দিলে অন্তত ১টা MCD tick করতে হবে"); return; }
+
+  let manpowerAccessBoolean = (manpowerAccess !== "none");
+
+  let userData={
+    name:name,
+    email:email,
+    role:role,
+    userCompanies: cmps,
+    mcdAccess: normalMCD,
+    needleAccess: needleAccess,
+    needleCompositeAccess: needleCompositeAccess,
+    greyOrderCloseAccess: greyOrderCloseAccess, // 🔥 NEW FIELD
+    manpowerAccess: manpowerAccessBoolean,
+    manpowerAccessLevel: manpowerAccess,
+    manpowerMcdAccess: mpMCD,
+    updatedAt:new Date().toISOString()
+  };
+
+  if(editId){
+    // 🔥 EDITING EXISTING USER
+    if(password) {
+      // If new password is provided, Hash it
+      userData.passwordHash = await hashPassword(password);
+    } else {
+      // If password is blank, keep the old password/hash exactly as it is
+      let existingUser = allUsers.find(x => x.id === editId);
+      if(existingUser) {
+        if(existingUser.data.passwordHash) {
+          userData.passwordHash = existingUser.data.passwordHash;
+        } else if(existingUser.data.password) {
+          // Keep legacy plain text password (for your old 3-letter passwords)
+          userData.password = existingUser.data.password; 
+        }
+      }
+    }
+    
+    await updateDoc(doc(db,"users",editId),userData);
+    toast("User Updated ✅");
+  } else {
+    // 🔥 CREATING NEW USER
+    if(!password){ alert("নতুন ইউজারের জন্য Password লাগবে!"); return; }
+    
+    // Hash the password before saving
+    userData.passwordHash = await hashPassword(password);
+    userData.createdAt=new Date().toISOString();
+    
+    await addDoc(collection(db,"users"),userData);
+    toast("User Saved ✅");
+  }
+
+  clearForm();
+  loadUsers();
+};
+
+// ✏️ Edit User (Password field kept blank for security)
+window.editUser=function(id){
+  let found=allUsers.find(x=>x.id===id);
+  if(!found) return;
+
+  let u=found.data;
+  let access=normalizeManpowerAccess(u);
+
+  document.getElementById("formTitle").innerText="✏️ Edit User";
+  document.getElementById("editId").value=id;
+  document.getElementById("name").value=u.name || "";
+  document.getElementById("email").value=u.email || "";
+  
+  // 🔥 SECURITY: Do NOT show password. Change placeholder to indicate it's optional
+  document.getElementById("password").value = "";
+  document.getElementById("password").placeholder = "Leave blank to keep current password";
+  
+  document.getElementById("role").value=u.role || "user";
+  document.getElementById("needleAccess").value=u.needleAccess ? "yes" : "no";
+  document.getElementById("needleCompositeAccess").value=u.needleCompositeAccess ? "yes" : "no"; // NEW
+  document.getElementById("greyOrderCloseAccess").value=u.greyOrderCloseAccess ? "yes" : "no"; // 🔥 NEW
+  
+  const companies = u.userCompanies || [];
+  document.getElementById("cmpTextile").checked = companies.includes("GMS TEXTILES LTD");
+  document.getElementById("cmpComposite").checked = companies.includes("GMS COMPOSITE KNITTING");
+  
+  document.getElementById("manpowerAccess").value = u.manpowerAccessLevel || access;
+  toggleManpowerSections();
+  updateCompanyUI();
+
+  let normalSelected = Array.isArray(u.mcdAccess) ? u.mcdAccess : [];
+  let mpSelected = Array.isArray(u.manpowerMcdAccess) ? u.manpowerMcdAccess : [];
+  
+  renderMcdChecks("mcdChecks", normalSelected, companies);
+  renderMcdChecks("manpowerMcdChecks", mpSelected, companies);
+  
+  window.scrollTo({top:0,behavior:"smooth"});
+};
+
+window.deleteUser=async function(id){
+  if(confirm("Delete this user?")){
+    await deleteDoc(doc(db,"users",id));
+    toast("User Deleted ✅");
+    loadUsers();
+  }
+};
+
+window.filterUsers = (f) => { currentFilter = f; loadUsers(); };
+
+async function loadUsers(){
+  try {
+    let snap=await getDocs(collection(db,"users"));
+    let html="";
+    let total=0,admin=0,tx=0,cx=0;
+    allUsers=[];
+
+    snap.forEach(d=>{
+      let u=d.data();
+      allUsers.push({id:d.id,data:u});
+      total++;
+
+      if(u.role==="admin" || u.role==="full") admin++;
+      
+      const cmps = u.userCompanies || [];
+      if(cmps.includes("GMS TEXTILES LTD")) tx++;
+      if(cmps.includes("GMS COMPOSITE KNITTING")) cx++;
+
+      if(currentFilter !== "all") {
+        if(currentFilter === "admin" && u.role !== "admin") return;
+        if(currentFilter === "textile" && !cmps.includes("GMS TEXTILES LTD")) return;
+        if(currentFilter === "composite" && !cmps.includes("GMS COMPOSITE KNITTING")) return;
+      }
+
+      let roleClass = u.role==="admin" ? "roleAdmin" : u.role==="full" ? "roleFull" : "roleUser";
+
+      let mcdText="";
+      if(Array.isArray(u.mcdAccess)){
+        mcdText = u.mcdAccess.slice(0,2).join(", ") + (u.mcdAccess.length>2 ? " +...":"");
+      }else{
+        mcdText = u.mcd || "";
+      }
+
+      const badges = cmps.map(c => 
+        `<span class="compBadge ${c === 'GMS TEXTILES LTD' ? 't' : 'c'}">
+          ${c === 'GMS TEXTILES LTD' ? '🏭' : '🏢'} ${c.split(' ')[0]}
+        </span>`
+      ).join('');
+
+      // Needle Composite Badge
+      let needleCompBadge = u.needleCompositeAccess 
+        ? '<span style="color:var(--purple);font-weight:900">✅ Yes</span>' 
+        : '<span style="color:var(--muted)">❌ No</span>';
+
+      // 🔥 NEW: Grey Order Close Badge
+      let greyOCBadge = greyOrderCloseText(u);
+
+      html+=`
+        <tr>
+          <td><b>${u.name || ""}</b></td>
+          <td>${badges || '—'}</td>
+          <td>${u.email || ""}</td>
+          <td class="${roleClass}">${u.role || ""}</td>
+          <td style="text-align:left">${mcdText}</td>
+          <td>${u.needleAccess ? "✅ Yes" : "❌ No"}</td>
+          <td>${needleCompBadge}</td>
+          <td>${greyOCBadge}</td>
+          <td>${manpowerText(u)}</td>
+          <td>
+            <button class="btn orange" onclick="editUser('${d.id}')" style="padding:4px 8px;font-size:11px">✏️</button>
+            <button class="btn red" onclick="deleteUser('${d.id}')" style="padding:4px 8px;font-size:11px">🗑</button>
+          </td>
+        </tr>
+      `;
+    });
+
+    document.getElementById("userTable").innerHTML=html || '<tr><td colspan="10" style="padding:20px;color:var(--muted)">📭 No users found</td></tr>';
+    document.getElementById("totalUsers").innerText=total;
+    document.getElementById("totalAdmin").innerText=admin;
+    document.getElementById("totalTextile").innerText=tx;
+    document.getElementById("totalComposite").innerText=cx;
+    
+  } catch(err) {
+    console.error("Load error:", err);
+    document.getElementById("userTable").innerHTML = 
+      `<tr><td colspan="10" style="padding:20px;color:var(--red)">❌ Error loading users</td></tr>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🔄 AUTO MIGRATION: Set userCompanies for legacy users
+// ═══════════════════════════════════════════════════════════════
+const COMPOSITE_MCDS = ['SHIPMENT MCD','BILLING SECTION','OUTER WEAR MCD'];
+const TEXTILE_MCDS   = ['GREY FABRIC MCD','YARN MCD','ACCESSORIES MCD','GENERAL MCD',
+                        'PRINTING MCD','JHUT MCD','LEFTOVER MCD','FINISH FABRIC MCD',
+                        'YARN DYEING MCD','CHEMICAL MCD','GENERAL TECHNICAL MCD'];
+
+async function autoMigrateLegacyUsers(){
+  try{
+    console.log('🔄 Auto-migration: checking legacy users...');
+    var snap = await getDocs(collection(db,'users'));
+    var migrated = 0;
+
+    for(var d of snap.docs){
+      var u = d.data();
+
+      // Skip if already has userCompanies
+      if(Array.isArray(u.userCompanies) && u.userCompanies.length > 0){
+        continue;
+      }
+
+      // Skip admin/full — they get both companies
+      if(u.role === 'admin' || u.role === 'full'){
+        await updateDoc(doc(db,'users',d.id),{
+          userCompanies: ['GMS TEXTILES LTD','GMS COMPOSITE KNITTING']
+        });
+        migrated++;
+        console.log('✅ Admin/Full migrated:', u.name);
+        continue;
+      }
+
+      // Get user MCD list
+      var userMcds = Array.isArray(u.mcdAccess) ? u.mcdAccess : (u.mcd ? [u.mcd] : []);
+
+      if(userMcds.length === 0){
+        // No MCD info — default to textile
+        await updateDoc(doc(db,'users',d.id),{
+          userCompanies: ['GMS TEXTILES LTD']
+        });
+        migrated++;
+        console.log('⚠️ No MCD found, defaulted to Textile:', u.name);
+        continue;
+      }
+
+      var hasTextile  = userMcds.some(function(m){ return TEXTILE_MCDS.includes(m); });
+      var hasComposite = userMcds.some(function(m){ return COMPOSITE_MCDS.includes(m); });
+
+      var companies = [];
+      if(hasTextile)   companies.push('GMS TEXTILES LTD');
+      if(hasComposite) companies.push('GMS COMPOSITE KNITTING');
+      if(companies.length === 0) companies.push('GMS TEXTILES LTD'); // fallback
+
+      await updateDoc(doc(db,'users',d.id),{
+        userCompanies: companies
+      });
+      migrated++;
+      console.log('✅ Migrated:', u.name, '→', companies);
+    }
+
+    if(migrated > 0){
+      console.log('✅ Migration complete:', migrated, 'users updated');
+      toast('✅ Auto-migration: '+migrated+' users updated!');
+      loadUsers(); // Refresh table
+    } else {
+      console.log('✅ All users already have userCompanies — no migration needed');
+    }
+
+  }catch(e){
+    console.error('❌ Migration error:', e);
+  }
+}
+
+// 🚀 Initialize
+renderMcdChecks("mcdChecks", [], []);
+renderMcdChecks("manpowerMcdChecks", [], []);
+updateCompanyUI();
+toggleManpowerSections();
+loadUsers();
+
+// Run migration once automatically
+// Uses localStorage to avoid running every time
+var migrationKey = 'GMS_MIGRATION_V1_DONE';
+if(!localStorage.getItem(migrationKey)){
+  autoMigrateLegacyUsers().then(function(){
+    localStorage.setItem(migrationKey, new Date().toISOString());
+    console.log('🔒 Migration flag set — will not run again');
+  });
+} else {
+  console.log('✅ Migration already done previously — skipping');
+}
+</script>
+
+</body>
+</html>

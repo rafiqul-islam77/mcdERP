@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Month Wise Needle Stock Summary</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+<style>
+body{margin:0;background:#07111f;color:white;font-family:Arial,sans-serif}
+.header{text-align:center;padding:12px 5px 4px}
+.header h2,.header h3,.header h4{margin:2px}
+.controls{text-align:center;margin:10px}
+input{padding:8px;border-radius:6px;border:1px solid #999;font-weight:bold}
+button{padding:10px 16px;border:0;border-radius:8px;color:white;font-weight:bold;cursor:pointer;margin:4px}
+.show{background:#2563eb}.excel{background:#059669}.print{background:#7c3aed}.home{background:#0f766e}
+.reportBox{width:520px;max-width:98%;margin:10px auto;background:white;color:black}
+table{width:100%;border-collapse:collapse;background:white;color:black;font-size:14px}
+th,td{border:1px solid #000;padding:4px 6px;text-align:center}
+th{background:#b7c9df;font-weight:bold}
+.totalRow{background:#e8f1dd;font-weight:bold;font-size:20px}
+.titleTable td{border:0;font-weight:bold}
+.companyTitle{font-size:24px}.subTitle{font-size:14px}.reportTitle{font-size:15px}
+@page{size:A4 portrait;margin:8mm}
+@media print{
+  body{background:white;color:black}
+  .controls{display:none!important}
+  .reportBox{width:100%;margin:0 auto}
+  table{font-size:13px}
+  th,td{padding:3px 5px}
+  .companyTitle{font-size:22px}
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h2>GMS Textiles Ltd</h2>
+  <h4>Tansutrapur, Kaliakoir, Gazipur</h4>
+  <h3>Month Wise Needle Stock Qty & Value Report</h3>
+</div>
+
+<div class="controls">
+  From: <input type="month" id="fromMonth">
+  To: <input type="month" id="toMonth">
+  <button class="show" onclick="loadReport()">🔍 Show Report</button>
+  <button class="excel" onclick="exportExcel()">📊 Excel</button>
+  <button class="print" onclick="window.print()">🖨 PDF / Print</button>
+  <button class="home" onclick="location.href='index.html'">🏠 Home</button>
+</div>
+
+<div class="reportBox" id="reportArea">
+<table class="titleTable">
+<tr><td colspan="4" class="companyTitle">Gms Textiles Ltd</td></tr>
+<tr><td colspan="4" class="subTitle">Tansutrapur, Kaliakoir, Gazipur</td></tr>
+<tr><td colspan="4" class="reportTitle" id="reportTitle">Month Wise Needle Stock Qty & Value Report-2025-2026</td></tr>
+</table>
+
+<table id="reportTable">
+<thead>
+<tr>
+  <th style="width:65px">Sl no</th>
+  <th style="width:115px">Year</th>
+  <th>Acce.Needle Stock Qty</th>
+  <th style="width:135px">Remarks</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+<tfoot>
+<tr class="totalRow">
+  <td colspan="2">Total</td>
+  <td id="grandTotal">0</td>
+  <td></td>
+</tr>
+</tfoot>
+</table>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId:"gms-warehouse-tracker-7f57e",
+  storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId:"992250313291",
+  appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+
+// Demo/approved stock list. Firebase e oi month er data thakle Firebase value nibe,
+// na thakle ei value show korbe.
+const STOCK_FALLBACK={
+  "2025-01":29189,
+  "2025-02":21910,
+  "2025-03":25169,
+  "2025-04":24508,
+  "2025-05":19142,
+  "2025-06":17950,
+  "2025-07":15390,
+  "2025-08":19044,
+  "2025-09":15885,
+  "2025-10":16430,
+  "2025-11":16324,
+  "2025-12":16683,
+  "2026-01":13680,
+  "2026-02":17506,
+  "2026-03":12864,
+  "2026-04":8913
+};
+
+const FLOOR_GROUPS=[
+  ["Shapla R","Shapla N"],
+  ["Poddo R","Poddo N"],
+  ["Sample R","Sample N"],
+  ["EMBROIDERY R","EMBROIDERY N"],
+  ["Belly R","Belly N"],
+  ["Kadom R","Kadom N"]
+];
+
+const monthShort=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+document.getElementById("fromMonth").value="2025-01";
+document.getElementById("toMonth").value="2026-04";
+
+function fmt(n){return Number(n||0).toLocaleString("en-US");}
+
+function monthLabel(ym){
+  let [y,m]=ym.split("-");
+  return monthShort[Number(m)-1]+"-"+y.slice(2);
+}
+
+function ymFromDate(d){
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+}
+
+function getMonthList(from,to){
+  let list=[];
+  let [fy,fm]=from.split("-").map(Number);
+  let [ty,tm]=to.split("-").map(Number);
+  let d=new Date(fy,fm-1,1);
+  let end=new Date(ty,tm-1,1);
+  while(d<=end){
+    list.push(ymFromDate(d));
+    d.setMonth(d.getMonth()+1);
+  }
+  return list;
+}
+
+function rowSum(rows,field){
+  let total=0;
+  (rows||[]).forEach(r=>total+=Number(r[field])||0);
+  return total;
+}
+
+async function getDailyPosting(){
+  let snap=await getDocs(collection(db,"dailyPosting"));
+  let data=[];
+  snap.forEach(d=>{
+    let x=d.data();
+    if(x.date && x.month && x.floor && Array.isArray(x.rows)) data.push(x);
+  });
+  return data;
+}
+
+function calcMonthPresent(allDocs,month){
+  let total=0;
+  let found=false;
+
+  FLOOR_GROUPS.forEach(group=>{
+    group.forEach(floor=>{
+      let docs=allDocs
+        .filter(x=>x.month===month && x.floor===floor)
+        .sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+
+      if(docs.length){
+        found=true;
+        let last=docs[docs.length-1];
+        total+=rowSum(last.rows,"present");
+      }
+    });
+  });
+
+  if(found) return total;
+  return STOCK_FALLBACK[month] || 0;
+}
+
+window.loadReport=async function(){
+  let from=document.getElementById("fromMonth").value;
+  let to=document.getElementById("toMonth").value;
+
+  if(!from || !to){alert("Month select koro");return}
+  if(from>to){alert("From month To month er cheye boro hote parbe na");return}
+
+  let months=getMonthList(from,to);
+  let allDocs=await getDailyPosting();
+
+  document.getElementById("reportTitle").innerText =
+    "Month Wise Needle Stock Qty & Value Report-" + from.slice(0,4) + "-" + to.slice(0,4);
+
+  let html="";
+  let grand=0;
+
+  months.forEach((m,i)=>{
+    let stock=calcMonthPresent(allDocs,m);
+    grand+=stock;
+
+    html+=`
+    <tr>
+      <td>${i+1}</td>
+      <td>${monthLabel(m)}</td>
+      <td>${fmt(stock)}</td>
+      <td></td>
+    </tr>`;
+  });
+
+  document.getElementById("tbody").innerHTML=html || `<tr><td colspan="4">No data found</td></tr>`;
+  document.getElementById("grandTotal").innerText=fmt(grand);
+};
+
+window.exportExcel=function(){
+  let html=`<html><head><meta charset="UTF-8"></head><body>${document.getElementById("reportArea").outerHTML}</body></html>`;
+  let file=new Blob([html],{type:"application/vnd.ms-excel"});
+  let a=document.createElement("a");
+  a.href=URL.createObjectURL(file);
+  a.download="month-wise-needle-stock-summary.xls";
+  a.click();
+};
+
+loadReport();
+</script>
+
+</body>
+</html>

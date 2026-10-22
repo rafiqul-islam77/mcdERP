@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Online Users</title>
+
+<style>
+:root{
+  --bg:#07111f;--card:#101b2d;--card2:#14233a;
+  --text:#fff;--muted:#9fb0c7;--border:#263855;
+  --blue:#2563eb;--green:#22c55e;--red:#ef4444;
+}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:Segoe UI,Arial,sans-serif;
+}
+.header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:16px 22px;background:var(--card);
+  border-bottom:1px solid var(--border);
+}
+.logo{font-size:24px;font-weight:900}
+.sub{font-size:12px;color:var(--muted)}
+.btn{
+  border:0;border-radius:12px;padding:12px 18px;
+  background:var(--blue);color:white;font-weight:900;cursor:pointer;
+}
+.page{padding:18px}
+.grid{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:14px;margin-bottom:16px;
+}
+.card{
+  background:linear-gradient(135deg,var(--card),var(--card2));
+  border:1px solid var(--border);border-radius:18px;
+  padding:16px;box-shadow:0 8px 20px rgba(0,0,0,.18);
+}
+.label{font-size:12px;color:var(--muted);font-weight:900}
+.num{font-size:26px;color:var(--green);font-weight:900;margin-top:6px}
+.userItem{
+  display:flex;align-items:center;justify-content:space-between;
+  border:1px solid var(--border);border-radius:14px;
+  padding:12px;margin-top:10px;background:rgba(255,255,255,.03);
+}
+.userLeft{display:flex;align-items:center;gap:10px}
+.userLeft img{
+  width:42px;height:42px;border-radius:50%;
+  object-fit:cover;border:2px solid var(--green);background:white;
+}
+.name{font-weight:900}
+.meta{font-size:12px;color:var(--muted);margin-top:3px}
+.status{
+  font-weight:900;border-radius:20px;padding:6px 10px;
+  font-size:12px;
+}
+.online{background:rgba(34,197,94,.15);color:#86efac}
+.offline{background:rgba(239,68,68,.15);color:#fca5a5}
+.dot{
+  display:inline-block;width:8px;height:8px;border-radius:50%;
+  background:#22c55e;margin-right:5px;
+  animation:pulse 1s infinite;
+}
+@keyframes pulse{
+  0%{transform:scale(1);opacity:1}
+  50%{transform:scale(1.4);opacity:.5}
+  100%{transform:scale(1);opacity:1}
+}
+@media(max-width:900px){
+  .grid{grid-template-columns:1fr}
+  .header{display:block;text-align:center}
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <div>
+    <div class="logo">🟢 ONLINE USERS</div>
+    <div class="sub">Live user status monitoring</div>
+  </div>
+  <div>
+    <button class="btn" onclick="location.href='index.html'">🏠 Dashboard</button>
+  </div>
+</div>
+
+<div class="page">
+
+  <div class="grid">
+    <div class="card">
+      <div class="label">👤 Total Users</div>
+      <div class="num" id="totalUsers">0</div>
+    </div>
+    <div class="card">
+      <div class="label">🟢 Online</div>
+      <div class="num" id="onlineUsers">0</div>
+    </div>
+    <div class="card">
+      <div class="label">🔴 Offline</div>
+      <div class="num" id="offlineUsers">0</div>
+    </div>
+    <div class="card">
+      <div class="label">👑 Admin</div>
+      <div class="num" id="adminUsers">0</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>👥 User Status List</h2>
+    <div id="userList">Loading...</div>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain: "gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId: "gms-warehouse-tracker-7f57e",
+  storageBucket: "gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId: "992250313291",
+  appId: "1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+function isOnline(lastActive){
+  if(!lastActive) return false;
+  let diff = Date.now() - new Date(lastActive).getTime();
+  return diff < 5 * 60 * 1000;
+}
+
+async function loadUsers(){
+  let snap = await getDocs(collection(db,"users"));
+
+  let total=0, online=0, offline=0, admin=0;
+  let html="";
+
+  snap.forEach(d=>{
+    let u=d.data();
+    total++;
+
+    let active=isOnline(u.lastActive);
+    if(active) online++;
+    else offline++;
+
+    if(u.role==="admin") admin++;
+
+    let last=u.lastActive ? new Date(u.lastActive).toLocaleString() : "Never";
+
+    html+=`
+      <div class="userItem">
+        <div class="userLeft">
+          <img src="${u.photoUrl || 'logo.png'}" onerror="this.src='logo.png'">
+          <div>
+            <div class="name">${u.name || 'User'}</div>
+            <div class="meta">${u.email || ''}</div>
+            <div class="meta">Role: ${u.role || 'user'} • Last: ${last}</div>
+          </div>
+        </div>
+
+        <div class="status ${active ? 'online' : 'offline'}">
+          ${active ? '<span class="dot"></span>ONLINE' : '🔴 OFFLINE'}
+        </div>
+      </div>
+    `;
+  });
+
+  document.getElementById("totalUsers").innerText=total;
+  document.getElementById("onlineUsers").innerText=online;
+  document.getElementById("offlineUsers").innerText=offline;
+  document.getElementById("adminUsers").innerText=admin;
+  document.getElementById("userList").innerHTML=html || "No users found";
+}
+
+loadUsers();
+setInterval(loadUsers,30000);
+</script>
+
+</body>
+</html>

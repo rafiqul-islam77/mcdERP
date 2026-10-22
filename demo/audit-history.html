@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Audit History</title>
+
+<style>
+:root{
+  --bg:#07111f;
+  --card:#101b2d;
+  --card2:#14233a;
+  --text:#ffffff;
+  --muted:#9fb0c7;
+  --border:#263855;
+  --blue:#2563eb;
+  --green:#22c55e;
+  --red:#ef4444;
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:Segoe UI,Arial,sans-serif;
+}
+
+.header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:16px 22px;
+  background:var(--card);
+  border-bottom:1px solid var(--border);
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.logo{
+  font-size:24px;
+  font-weight:900;
+}
+
+.sub{
+  color:var(--muted);
+  font-size:12px;
+}
+
+.btn{
+  border:none;
+  border-radius:12px;
+  padding:12px 18px;
+  background:var(--blue);
+  color:white;
+  font-weight:900;
+  cursor:pointer;
+  transition:all 0.2s ease;
+}
+
+.btn:hover{
+  background:#1d4ed8;
+  transform:translateY(-2px);
+}
+
+.page{
+  padding:18px;
+}
+
+.card{
+  background:linear-gradient(135deg,var(--card),var(--card2));
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:18px;
+}
+
+.topBar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:16px;
+}
+
+.search{
+  padding:12px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:#0b1728;
+  color:white;
+  width:320px;
+  max-width:100%;
+  outline:none;
+  transition:border-color 0.2s;
+}
+
+.search:focus{
+  border-color:var(--blue);
+}
+
+.auditItem{
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:14px;
+  margin-top:12px;
+  background:rgba(255,255,255,.03);
+  transition:transform 0.2s, box-shadow 0.2s;
+}
+
+.auditItem:hover{
+  transform:translateY(-2px);
+  box-shadow:0 8px 20px rgba(0,0,0,0.3);
+  border-color:var(--blue);
+}
+
+.top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.user{
+  font-weight:900;
+  color:var(--green);
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+
+.date{
+  color:var(--muted);
+  font-size:12px;
+  white-space:nowrap;
+}
+
+.action{
+  font-size:15px;
+  line-height:1.7;
+  color:var(--text);
+}
+
+.badge{
+  display:inline-block;
+  padding:5px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+  margin-right:6px;
+  text-transform:uppercase;
+}
+
+.add{
+  background:#14532d;
+  color:#86efac;
+}
+
+.delete{
+  background:#450a0a;
+  color:#fca5a5;
+}
+
+.update{
+  background:#1e3a8a;
+  color:#93c5fd;
+}
+
+.empty{
+  text-align:center;
+  color:var(--muted);
+  padding:40px;
+}
+
+.count{
+  color:var(--muted);
+  font-size:14px;
+}
+
+.loading{
+  text-align:center;
+  padding:30px;
+  color:var(--muted);
+}
+
+@media(max-width:700px){
+  .header{
+    padding:14px;
+  }
+  .logo{
+    font-size:20px;
+  }
+  .search{
+    width:100%;
+  }
+  .btn{
+    width:100%;
+  }
+  .top{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <div>
+    <div class="logo">📜 AUDIT HISTORY</div>
+    <div class="sub">Live User Activity Tracking</div>
+  </div>
+  <button class="btn" onclick="location.href='index.html'">
+    🏠 Dashboard
+  </button>
+</div>
+
+<div class="page">
+  <div class="card">
+    <div class="topBar">
+      <div>
+        <h2 style="margin:0">🕒 System Activity</h2>
+        <div class="count" id="totalLogs">Total Logs: 0</div>
+      </div>
+      <input
+        id="searchBox"
+        class="search"
+        placeholder="Search user / floor / action / item..."
+        oninput="filterLogs()"
+      >
+    </div>
+    <div id="auditList" class="loading">Loading audit logs...</div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+
+import {
+  getFirestore,
+  collection,
+  onSnapshot,
+  query,
+  orderBy
+}
+from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain: "gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId: "gms-warehouse-tracker-7f57e",
+  storageBucket: "gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId: "992250313291",
+  appId: "1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+window.auditRows = [];
+
+function getBadge(action){
+  let a = (action || "").toUpperCase();
+  if(a.includes("DELETE")){
+    return `<span class="badge delete">DELETE</span>`;
+  }
+  if(a.includes("UPDATE")){
+    return `<span class="badge update">UPDATE</span>`;
+  }
+  return `<span class="badge add">ADD</span>`;
+}
+
+function formatDetails(details){
+  if(!details) return "-";
+  
+  if(typeof details === 'string') return details;
+  
+  if(details.msg) return details.msg;
+  
+  if(details.changedItems && Array.isArray(details.changedItems)){
+    return `📝 ${details.changedItems.length} items modified`;
+  }
+  
+  if(details.deletedFloor){
+    return `🗑️ Deleted: ${details.deletedFloor} (${details.deletedDate})`;
+  }
+  
+  if(details.totalItems){
+    return `📦 ${details.totalItems} items posted`;
+  }
+  
+  return JSON.stringify(details).slice(0, 100) + "...";
+}
+
+function renderLogs(rows){
+  if(rows.length === 0){
+    document.getElementById("auditList").innerHTML = 
+      '<div class="empty">📭 No activity found</div>';
+    document.getElementById("totalLogs").innerText = "Total Logs: 0";
+    return;
+  }
+
+  let html = "";
+  
+  // Newest first
+  [...rows].reverse().forEach(x => {
+    html += `
+      <div class="auditItem">
+        <div class="top">
+          <div class="user">👤 ${x.user || "Unknown"}</div>
+          <div class="date">🕐 ${x.time || ""}</div>
+        </div>
+        <div class="action">
+          ${getBadge(x.action)}
+          <b>${x.action || ""}</b> 
+          → 🏭 ${x.module || "General"} 
+          → 📦 ${x.item || "-"}
+        </div>
+      </div>
+    `;
+  });
+
+  document.getElementById("auditList").innerHTML = html;
+  document.getElementById("totalLogs").innerText = "Total Logs: " + rows.length;
+}
+
+function filterLogs(){
+  let q = document.getElementById("searchBox").value.toLowerCase().trim();
+  
+  if(q === ""){
+    renderLogs(window.auditRows);
+    return;
+  }
+
+  let filtered = window.auditRows.filter(x =>
+    (x.user || "").toLowerCase().includes(q) ||
+    (x.action || "").toLowerCase().includes(q) ||
+    (x.module || "").toLowerCase().includes(q) ||
+    (x.item || "").toLowerCase().includes(q) ||
+    (x.time || "").toLowerCase().includes(q)
+  );
+
+  renderLogs(filtered);
+}
+
+function loadAudit(){
+  // ✅ FIXED: "auditLogs" collection + orderBy for newest first
+  const q = query(
+    collection(db, "auditLogs"),
+    orderBy("timestamp", "desc")
+  );
+
+  onSnapshot(q, snap => {
+    let rows = [];
+
+    snap.forEach(d => {
+      let data = d.data();
+      
+      // 🔧 DATA MAPPING: Main app format → Audit page format
+      rows.push({
+        user: data.operator || "Unknown",
+        time: data.timestamp ? 
+          new Date(data.timestamp.seconds * 1000).toLocaleString('en-GB') : "-",
+        action: data.action || "-",
+        module: data.floor || "General",
+        item: formatDetails(data.details)
+      });
+    });
+
+    window.auditRows = rows;
+    renderLogs(rows);
+  }, error => {
+    console.error("Audit load error:", error);
+    document.getElementById("auditList").innerHTML = 
+      `<div class="empty" style="color:var(--red)">
+        ❌ Error loading logs.<br>
+        <small>Check Firestore Index for "auditLogs.timestamp"</small>
+      </div>`;
+  });
+}
+
+window.filterLogs = filterLogs;
+
+// Initialize
+loadAudit();
+</script>
+
+</body>
+</html>

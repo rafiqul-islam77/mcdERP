@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>All Needle Summary - GMS Composite</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta charset="UTF-8">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#07111f;color:white;font-family:'Arial',sans-serif;padding-bottom:30px}
+.header{text-align:center;padding:14px 8px 6px}
+.header h2{margin:4px;font-size:20px;background:linear-gradient(135deg,#8b5cf6,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header h3{margin:2px;font-size:13px;color:#94a3b8}
+.controls{text-align:center;margin:10px 6px;background:rgba(30,41,59,0.8);padding:10px;border-radius:10px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center}
+label{font-size:12px;color:#94a3b8;font-weight:600}
+input[type="date"],input[type="month"]{font-size:13px;padding:6px 8px;border-radius:6px;border:1px solid #475569;background:#1e293b;color:white}
+button{padding:8px 14px;border:0;border-radius:8px;color:white;font-weight:bold;cursor:pointer;font-size:12px;transition:all 0.2s}
+button:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(0,0,0,0.3)}
+.btn-show{background:#2563eb}.btn-month{background:#0891b2}
+.btn-excel{background:#16a34a}.btn-print{background:#7c3aed}
+.btn-entry{background:#0f766e}.btn-home{background:#475569}
+.kpi{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:10px}
+.kpiBox{background:#101b2d;border:1px solid #263855;border-radius:12px;padding:10px;text-align:center}
+.kpiBox span{font-size:10px;color:#9fb0c7;font-weight:bold;display:block}
+.kpiBox b{display:block;font-size:20px;margin-top:4px;color:#22c55e}
+.kpiBox.warn b{color:#f59e0b}
+.kpiBox.danger b{color:#ef4444}
+.kpiBox.info b{color:#3b82f6}
+.loading{text-align:center;padding:30px;color:#64748b;font-size:14px;display:none}
+.spinner{width:36px;height:36px;border:3px solid #334155;border-top-color:#3b82f6;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tableWrap{overflow-x:auto;width:100%;margin-top:6px}
+table{min-width:1100px;width:98%;margin:6px auto;border-collapse:collapse;background:white;color:black;font-size:11px}
+th,td{border:1px solid #aaa;padding:5px 4px;text-align:center}
+thead tr{background:#1e3a5f;color:white}
+thead th{font-size:11px;font-weight:bold}
+.totalRow{background:#d9ead3;font-weight:bold}
+.grandRow{background:#ffe599;font-weight:bold;font-size:13px}
+.age-green{background:#d1fae5;color:#065f46;font-weight:bold}
+.age-yellow{background:#fef3c7;color:#92400e;font-weight:bold}
+.age-red{background:#fee2e2;color:#991b1b;font-weight:bold}
+.floor-group-header{background:#e0e7ff;color:#1e1b4b;font-weight:bold;font-size:10px;text-align:left;padding:4px 6px}
+.no-data{text-align:center;color:#94a3b8;padding:30px;font-size:13px}
+.badge-new{background:#10b981;color:white;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:bold}
+.badge-run{background:#3b82f6;color:white;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:bold}
+.info-bar{text-align:center;font-size:10px;color:#64748b;margin:4px 0}
+@media(max-width:700px){
+  .kpi{grid-template-columns:1fr 1fr}
+  .controls{gap:5px}
+  input[type="date"],input[type="month"]{font-size:11px;padding:4px 6px;max-width:130px}
+  button{padding:6px 10px;font-size:10px}
+}
+@page{size:A4 landscape;margin:5mm}
+@media print{
+  body{background:white;color:black}
+  .controls,.kpi,.loading,.info-bar{display:none!important}
+  .header h2{font-size:16px;-webkit-text-fill-color:#000;background:none}
+  .header h3{font-size:11px;color:#333}
+  table{width:100%;min-width:0;font-size:8px;margin:2px 0}
+  th,td{padding:2px 3px;border-color:#666}
+  thead tr{background:#334155!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h2>🪡 GMS COMPOSITE — ALL NEEDLE SUMMARY</h2>
+  <h3>All Floors Combined | Code & Type Matched Report with Ageing</h3>
+</div>
+
+<div class="controls">
+  <div>
+    <label>📅 From:</label><br>
+    <input type="date" id="fromDate">
+  </div>
+  <div>
+    <label>📅 To:</label><br>
+    <input type="date" id="toDate">
+  </div>
+  <div>
+    <label>📆 Month:</label><br>
+    <input type="month" id="monthInput">
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:14px">
+    <button class="btn-month" onclick="setMonthRange()">📅 Month Load</button>
+    <button class="btn-show" onclick="loadSummary()">🔍 Show</button>
+    <button class="btn-excel" onclick="exportExcel()">📊 Excel</button>
+    <button class="btn-print" onclick="window.print()">🖨 PDF/Print</button>
+    <button class="btn-entry" onclick="location.href='needle.html'">🪡 Entry</button>
+    <button class="btn-home" onclick="location.href='index.html'">🏠 Home</button>
+  </div>
+</div>
+
+<div class="kpi">
+  <div class="kpiBox info"><span>🏢 Floors Found</span><b id="kpiFloors">0</b></div>
+  <div class="kpiBox"><span>📥 Total Receive</span><b id="kpiReceive">0</b></div>
+  <div class="kpiBox"><span>📤 Total Delivery</span><b id="kpiDelivery">0</b></div>
+  <div class="kpiBox"><span>📦 Present Stock</span><b id="kpiPresent">0</b></div>
+  <div class="kpiBox warn"><span>⏳ Avg Ageing (Days)</span><b id="kpiAgeing">0</b></div>
+</div>
+
+<div class="info-bar" id="infoBar"></div>
+
+<div class="loading" id="loadingDiv">
+  <div class="spinner"></div>
+  <div id="loadingText">Loading data from all floors...</div>
+</div>
+
+<div class="tableWrap">
+<table id="summaryTable">
+<thead>
+<tr>
+  <th style="width:3%">SL</th>
+  <th style="width:8%">CODE</th>
+  <th style="width:18%">NEEDLE TYPE</th>
+  <th style="width:5%">SIZE</th>
+  <th style="width:8%">BRAND</th>
+  <th style="width:8%">Total Receive</th>
+  <th style="width:8%">Total Delivery</th>
+  <th style="width:9%">Present Stock</th>
+  <th style="width:10%">Last Rcvd Date</th>
+  <th style="width:10%">Last Dvld Date</th>
+  <th style="width:7%">Ageing (Days)</th>
+</tr>
+</thead>
+<tbody id="tbody">
+  <tr><td colspan="11" class="no-data">📅 Date select করে Show বাটন চাপুন</td></tr>
+</tbody>
+<tfoot>
+<tr class="grandRow">
+  <td colspan="5" style="text-align:right;padding-right:8px">GRAND TOTAL →</td>
+  <td id="gtReceive">0</td>
+  <td id="gtDelivery">0</td>
+  <td id="gtPresent">0</td>
+  <td>-</td>
+  <td>-</td>
+  <td id="gtAgeing">-</td>
+</tr>
+</tfoot>
+</table>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+// ── Supabase Config ──────────────────────────────────────
+const SUPABASE_URL = 'https://hmatleeearcaltguosiz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_VA7UkQqRwCxdeVwHuxzsjw_dQxOPiIj';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const COMPANY_CODE = 'composite';
+
+// ── CODE → {type, brand} master map (from needle.html floorData) ──────
+// Built from all unique codes across all floors
+const codeMaster = {};
+
+const floorData = {
+  "A-FLOOR(BUILDING NO-02)_NEW": [
+    [1,"SN-003","DB X 1","7","ORGAN",0.03985072,8],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,18],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,86],[4,"SN-056","DB X 1","11","ORGAN",0.06131768,22],
+    [5,"SN-065","DB X 1","12","ORGAN",0.00616,15],[6,"SN-094","DC X 1-KN","8","ORGAN",0.096,77],
+    [7,"SN-107","DC X 1","9","ORGAN",0.10728008,144],[8,"SN-126","DC X 1","11","ORGAN",0.10620288,16],
+    [9,"SN-147","UY X 128","8","ORGAN",0.08,13],[10,"SN-163","UY X 128","9","ORGAN",0.16077616,74],
+    [11,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,34],[12,"SN-183","UY X 128","10","ORGAN",0.13031448,109],
+    [13,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,33],[14,"SN-203","UY X 128","11","ORGAN",0.13286432,45],
+    [15,"SN-237","DP X 5","7","ORGAN",0.056,9],[16,"SN-261","DP X 5","11","ORGAN",0.06874008,50],
+    [17,"SN-263","DP X 5-KN","11","ORGAN",0.06,6],[18,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,55],
+    [19,"SN-308","DP X 17","11","ORGAN",0.15784,33],[20,"SN-320","DV X 57","14","ORGAN",0.14264,20]
+  ],
+  "A-FLOOR(BUILDING NO-02)_RUNNING": [
+    [1,"SN-003","DB X 1","7","ORGAN",0.03985072,31],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,46],
+    [3,"SN-014","DB X 1 SF","8","ORGAN",0.05984984,20],[4,"SN-029","DB X 1","9","ORGAN",0.06552784,174],
+    [5,"SN-032","DB X 1-SF","9","ORGAN",0.072,19],[6,"SN-043","DB X 1","10","ORGAN",0.06118872,32],
+    [7,"SN-056","DB X 1","11","ORGAN",0.06131768,43],[8,"SN-065","DB X 1","12","ORGAN",0.00616,20],
+    [9,"SN-085","DC X 1","7","ORGAN",0.07969632,19],[10,"SN-092","DC X 1","8","ORGAN",0.10636168,50],
+    [11,"SN-094","DC X 1-KN","8","ORGAN",0.096,131],[12,"SN-107","DC X 1","9","ORGAN",0.10728008,197],
+    [13,"SN-126","DC X 1","11","ORGAN",0.10620288,39],[14,"SN-147","UY X 128","8","ORGAN",0.08,37],
+    [15,"SN-156","UY X 128- GAS SF","8 LP","ORGAN",0.0856,20],[16,"SN-163","UY X 128","9","ORGAN",0.16077616,199],
+    [17,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,9],[18,"SN-183","UY X 128","10","ORGAN",0.13031448,100],
+    [19,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,51],[20,"SN-203","UY X 128","11","ORGAN",0.13286432,94],
+    [21,"SN-212","UY X 128-KK-KN","11","ORGAN",0.0835932,47],[22,"SN-220","UY X 128","12","ORGAN",0.7621176,37],
+    [23,"SN-261","DP X 5","11","ORGAN",0.06874008,28],[24,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,57],
+    [25,"SN-308","DP X 17","11","ORGAN",0.15784,21],[26,"SN-320","DV X 57","14","ORGAN",0.14264,30],
+    [27,"SN-480","LWX1669E","14","GROZ",0.4864,30],[28,"SN-481","LWX1669E","12","GROZ",0.4864,50]
+  ],
+  "B-FLOOR(BUILDING NO-02)_NEW": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,21],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,74],
+    [3,"SN-043","DB X 1","10","ORGAN",0.06118872,62],[4,"SN-056","DB X 1","11","ORGAN",0.06131768,85],
+    [5,"SN-065","DB X 1","12","ORGAN",0.00616,8],[6,"SN-092","DC X 1","8","ORGAN",0.10636168,22],
+    [7,"SN-107","DC X 1","9","ORGAN",0.10728008,146],[8,"SN-120","DC X 1 27 SAN 10","10","GROZ(FFG)",0.0904,43],
+    [9,"SN-126","DC X 1","11","ORGAN",0.10620288,33],[10,"SN-163","UY X 128","9","ORGAN",0.16077616,62],
+    [11,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,61],[12,"SN-183","UY X 128","10","ORGAN",0.13031448,43],
+    [13,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,79],[14,"SN-203","UY X 128","11","ORGAN",0.13286432,49],
+    [15,"SN-223","UYX 128-KN","12","ORGAN",0.0688,27],[16,"SN-261","DP X 5","11","ORGAN",0.06874008,39],
+    [17,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,8],[18,"SN-297","UO X 163","12","GROZ(FFG)",0.08448,2],
+    [19,"SN-308","DP X 17","11","ORGAN",0.15784,39],[20,"SN-318","DV X 57","12","ORGAN",0.16,6]
+  ],
+  "B-FLOOR(BUILDING NO-02)_RUNNING": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,13],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,26],
+    [3,"SN-043","DB X 1","10","ORGAN",0.06118872,49],[4,"SN-056","DB X 1","11","ORGAN",0.06131768,37],
+    [5,"SN-065","DB X 1","12","ORGAN",0.00616,15],[6,"SN-085","DC X 1","7","ORGAN",0.07969632,55],
+    [7,"SN-092","DC X 1","8","ORGAN",0.10636168,28],[8,"SN-107","DC X 1","9","ORGAN",0.10728008,86],
+    [9,"SN-119","DC X 1","10","ORGAN",0.0904,61],[10,"SN-126","DC X 1","11","ORGAN",0.10620288,34],
+    [11,"SN-147","UY X 128","8","ORGAN",0.08,24],[12,"SN-163","UY X 128","9","ORGAN",0.16077616,30],
+    [13,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,15],[14,"SN-183","UY X 128","10","ORGAN",0.13031448,49],
+    [15,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,39],[16,"SN-203","UY X 128","11","ORGAN",0.13286432,32],
+    [17,"SN-220","UY X 128","12","ORGAN",0.7621176,39],[18,"SN-261","DP X 5","11","ORGAN",0.06874008,32],
+    [19,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,13],[20,"SN-308","DP X 17","11","ORGAN",0.15784,119],
+    [21,"SN-317","DV X 57","11","ORGAN",0.00872,5],[22,"SN-320","DV X 57","14","ORGAN",0.14264,20]
+  ],
+  "C-FLOOR ( BUILDING NO-04)_NEW": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,85],[2,"SN-043","DB X 1","10","ORGAN",0.06118872,66],
+    [3,"SN-056","DB X 1","11","ORGAN",0.06131768,60],[4,"SN-092","DC X 1","8","ORGAN",0.10636168,8],
+    [5,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,24],[6,"SN-107","DC X 1","9","ORGAN",0.10728008,65],
+    [7,"SN-126","DC X 1","11","ORGAN",0.10620288,20],[8,"SN-163","UY X 128","9","ORGAN",0.16077616,79],
+    [9,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,10],[10,"SN-183","UY X 128","10","ORGAN",0.13031448,70],
+    [11,"SN-203","UY X 128","11","ORGAN",0.13286432,43],[12,"SN-220","UY X 128","12","ORGAN",0.7621176,25],
+    [13,"SN-250","DP X 5","9","ORGAN",0.03824,16],[14,"SN-261","DP X 5","11","ORGAN",0.06874008,53],
+    [15,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,48],[16,"SN-300","DP X 17","9","GROZ(FFG)",0.03544,7],
+    [17,"SN-308","DP X 17","11","ORGAN",0.15784,54]
+  ],
+  "C-FLOOR ( BUILDING NO-04)_RUNNING": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,25],[2,"SN-014","DB X 1 SF","8","ORGAN",0.05984984,118],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,263],[4,"SN-032","DB X 1-SF","9","ORGAN",0.072,4],
+    [5,"SN-043","DB X 1","10","ORGAN",0.06118872,150],[6,"SN-045","DB X K5 KK","10","GROZ(FFG)",0.0344,49],
+    [7,"SN-056","DB X 1","11","ORGAN",0.06131768,102],[8,"SN-058","DB X K5 KK","11","ORGAN",0.0344,37],
+    [9,"SN-065","DB X 1","12","ORGAN",0.00616,22],[10,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,45],
+    [11,"SN-092","DC X 1","8","ORGAN",0.10636168,92],[12,"SN-095","DC X 1-SF","8","ORGAN",0.18658816,5],
+    [13,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,180],[14,"SN-107","DC X 1","9","ORGAN",0.10728008,476],
+    [15,"SN-126","DC X 1","11","ORGAN",0.10620288,21],[16,"SN-133","DC X 1","12","ORGAN",0.08432,22],
+    [17,"SN-140","UY X 128","7","ORGAN",0.0584,30],[18,"SN-147","UY X 128","8","ORGAN",0.08,20],
+    [19,"SN-163","UY X 128","9","ORGAN",0.16077616,149],[20,"SN-169","UY X 128- KK - KN","9","ORGAN",0.08226448,40],
+    [21,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,150],[22,"SN-183","UY X 128","10","ORGAN",0.13031448,115],
+    [23,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,115],[24,"SN-203","UY X 128","11","ORGAN",0.13286432,190],
+    [25,"SN-220","UY X 128","12","ORGAN",0.7621176,22],[26,"SN-222","UY X 128 NY2 SPD","12","ORGAN",0.0688,62],
+    [27,"SN-231","UY X 128","14","ORGAN",0.06392,10],[28,"SN-248","DP X 5","9","GROZ(FFG)",0.03432,54],
+    [29,"SN-261","DP X 5","11","ORGAN",0.06874008,42],[30,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,22],
+    [31,"SN-308","DP X 17","11","ORGAN",0.15784,77]
+  ],
+  "D-FLOOR ( BUILDING NO -04)_NEW": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,35],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,137],
+    [3,"SN-056","DB X 1","11","ORGAN",0.06131768,70],[4,"SN-095","DC X 1-SF","8","ORGAN",0.18658816,10],
+    [5,"SN-107","DC X 1","9","ORGAN",0.10728008,112],[6,"SN-126","DC X 1","11","ORGAN",0.10620288,94],
+    [7,"SN-163","UY X 128","9","ORGAN",0.16077616,42],[8,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,54],
+    [9,"SN-183","UY X 128","10","ORGAN",0.13031448,62],[10,"SN-203","UY X 128","11","ORGAN",0.13286432,58],
+    [11,"SN-220","UY X 128","12","ORGAN",0.7621176,95],[12,"SN-222","UY X 128 NY2 SPD","12","ORGAN",0.0688,64],
+    [13,"SN-261","DP X 5","11","ORGAN",0.06874008,42],[14,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,18],
+    [15,"SN-308","DP X 17","11","ORGAN",0.15784,43]
+  ],
+  "D-FLOOR ( BUILDING NO -04)_RUNNING": [
+    [1,"SN-003","DB X 1","7","ORGAN",0.03985072,24],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,59],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,168],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,38],
+    [5,"SN-056","DB X 1","11","ORGAN",0.06131768,41],[6,"SN-058","DB X K5 KK","11","ORGAN",0.0344,27],
+    [7,"SN-065","DB X 1","12","ORGAN",0.00616,35],[8,"SN-085","DC X 1","7","ORGAN",0.07969632,11],
+    [9,"SN-092","DC X 1","8","ORGAN",0.10636168,62],[10,"SN-107","DC X 1","9","ORGAN",0.10728008,327],
+    [11,"SN-126","DC X 1","11","ORGAN",0.10620288,67],[12,"SN-133","DC X 1","12","ORGAN",0.08432,44],
+    [13,"SN-147","UY X 128","8","ORGAN",0.08,49],[14,"SN-163","UY X 128","9","ORGAN",0.16077616,53],
+    [15,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,86],[16,"SN-183","UY X 128","10","ORGAN",0.13031448,158],
+    [17,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,32],[18,"SN-203","UY X 128","11","ORGAN",0.13286432,37],
+    [19,"SN-220","UY X 128","12","ORGAN",0.7621176,41],[20,"SN-222","UY X 128 NY2 SPD","12","ORGAN",0.0688,77],
+    [21,"SN-231","UY X 128","14","ORGAN",0.06392,45],[22,"SN-261","DP X 5","11","ORGAN",0.06874008,56],
+    [23,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,62],[24,"SN-308","DP X 17","11","ORGAN",0.15784,32]
+  ],
+  "E-FLOOR ( BUILDING NO-03)_NEW": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,118],[2,"SN-107","DC X 1","9","ORGAN",0.10728008,167],
+    [3,"SN-163","UY X 128","9","ORGAN",0.16077616,134],[4,"SN-183","UY X 128","10","ORGAN",0.13031448,46],
+    [5,"SN-203","UY X 128","11","ORGAN",0.13286432,19],[6,"SN-261","DP X 5","11","ORGAN",0.06874008,23],
+    [7,"SN-308","DP X 17","11","ORGAN",0.15784,19]
+  ],
+  "E-FLOOR ( BUILDING NO-03)_RUNNING": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,85],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,74],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,211],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,170],
+    [5,"SN-056","DB X 1","11","ORGAN",0.06131768,21],[6,"SN-085","DC X 1","7","ORGAN",0.07969632,47],
+    [7,"SN-092","DC X 1","8","ORGAN",0.10636168,15],[8,"SN-095","DC X 1-SF","8","ORGAN",0.18658816,182],
+    [9,"SN-107","DC X 1","9","ORGAN",0.10728008,547],[10,"SN-113","DC X 1 KN","9 LP","ORGAN",0.19304736,15],
+    [11,"SN-126","DC X 1","11","ORGAN",0.10620288,7],[12,"SN-140","UY X 128","7","ORGAN",0.0584,33],
+    [13,"SN-147","UY X 128","8","ORGAN",0.08,42],[14,"SN-155","UY X 128- SF","8","ORGAN",0.1388436,10],
+    [15,"SN-156","UY X 128- GAS SF","8 LP","ORGAN",0.0856,10],[16,"SN-163","UY X 128","9","ORGAN",0.16077616,396],
+    [17,"SN-172","UY X 128 GAS SPD","9","ORGAN",0.1307632,14],[18,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,5],
+    [19,"SN-176","UY X 128 SF","9","ORGAN",0.13350376,16],[20,"SN-183","UY X 128","10","ORGAN",0.13031448,162],
+    [21,"SN-194","UY X 128 SF","10","ORGAN",0.24,9],[22,"SN-203","UY X 128","11","ORGAN",0.13286432,102],
+    [23,"SN-261","DP X 5","11","ORGAN",0.06874008,28]
+  ],
+  "EMB-(BUILDING NO-01)_NEW": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,10],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,97],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,78],[4,"SN-056","DB X 1","11","ORGAN",0.06131768,37],
+    [5,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,28],[6,"SN-079","PH - C70 -","14","ORGAN",0.76981432,32],
+    [7,"SN-082","PH - C70 -","16","ORGAN",0.27975952,43]
+  ],
+  "EMB-(BUILDING NO-01)_RUNNING": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,346],[2,"SN-003","DB X 1","7","ORGAN",0.03985072,93],
+    [3,"SN-013","DB X 1","8","ORGAN",0.32559112,417],[4,"SN-014","DB X 1 SF","8","ORGAN",0.05984984,30],
+    [5,"SN-029","DB X 1","9","ORGAN",0.06552784,349],[6,"SN-056","DB X 1","11","ORGAN",0.06131768,64],
+    [7,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,101],[8,"SN-079","PH - C70 -","14","ORGAN",0.76981432,35],
+    [9,"SN-082","PH - C70 -","16","ORGAN",0.27975952,119]
+  ],
+  "F-FLOOR (BUILDING NO-6A)_NEW": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,19],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,93],
+    [3,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,17],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,22],
+    [5,"SN-056","DB X 1","11","ORGAN",0.06131768,40],[6,"SN-065","DB X 1","12","ORGAN",0.00616,6],
+    [7,"SN-092","DC X 1","8","ORGAN",0.10636168,30],[8,"SN-107","DC X 1","9","ORGAN",0.10728008,65],
+    [9,"SN-113","DC X 1 KN","9 LP","ORGAN",0.19304736,24],[10,"SN-126","DC X 1","11","ORGAN",0.10620288,9],
+    [11,"SN-147","UY X 128","8","ORGAN",0.08,24],[12,"SN-163","UY X 128","9","ORGAN",0.16077616,45],
+    [13,"SN-183","UY X 128","10","ORGAN",0.13031448,108],[14,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,20],
+    [15,"SN-203","UY X 128","11","ORGAN",0.13286432,7],[16,"SN-209","UY X 128 KN","11 HP","ORGAN",0.0856,37],
+    [17,"SN-220","UY X 128","12","ORGAN",0.7621176,26],[18,"SN-231","UY X 128","14","ORGAN",0.06392,10],
+    [19,"SN-250","DP X 5","9","ORGAN",0.03824,8],[20,"SN-261","DP X 5","11","ORGAN",0.06874008,51],
+    [21,"SN-278","UO X 113(UO X 1)","9","ORGAN",0.08336,50],[22,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,6],
+    [23,"SN-308","DP X 17","11","ORGAN",0.15784,59],[24,"SN-317","DV X 57","11","ORGAN",0.00872,5]
+  ],
+  "F-FLOOR (BUILDING NO-6A)_RUNNING": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,67],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,66],
+    [3,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,17],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,127],
+    [5,"SN-056","DB X 1","11","ORGAN",0.06131768,20],[6,"SN-058","DB X K5 KK","11","ORGAN",0.0344,36],
+    [7,"SN-065","DB X 1","12","ORGAN",0.00616,29],[8,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,20],
+    [9,"SN-092","DC X 1","8","ORGAN",0.10636168,93],[10,"SN-107","DC X 1","9","ORGAN",0.10728008,534],
+    [11,"SN-113","DC X 1 KN","9 LP","ORGAN",0.19304736,53],[12,"SN-119","DC X 1","10","ORGAN",0.0904,200],
+    [13,"SN-126","DC X 1","11","ORGAN",0.10620288,49],[14,"SN-133","DC X 1","12","ORGAN",0.08432,85],
+    [15,"SN-136","DC X 1","14","ORGAN",0.10672496,22],[16,"SN-163","UY X 128","9","ORGAN",0.16077616,45],
+    [17,"SN-183","UY X 128","10","ORGAN",0.13031448,166],[18,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,87],
+    [19,"SN-203","UY X 128","11","ORGAN",0.13286432,130],[20,"SN-209","UY X 128 KN","11 HP","ORGAN",0.0856,185],
+    [21,"SN-222","UY X 128 NY2 SPD","12","ORGAN",0.0688,61],[22,"SN-224","UY X 128-KN","12 LP","ORGAN",0.07704976,100],
+    [23,"SN-231","UY X 128","14","ORGAN",0.06392,20],[24,"SN-248","DP X 5","9","GROZ(FFG)",0.03432,100],
+    [25,"SN-261","DP X 5","11","ORGAN",0.06874008,38],[26,"SN-287","UO X 113(UO X 1)","11","GROZ(FFG)",0.12056,36],
+    [27,"SN-308","DP X 17","11","ORGAN",0.15784,67],[28,"SN-317","DV X 57","11","ORGAN",0.00872,20]
+  ],
+  "G-FLOOR ( BUILDING NO-6A)_NEW": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,65],[2,"SN-019","DB X 1 KN","8 LP","ORGAN",0.1,30],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,79],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,45],
+    [5,"SN-056","DB X 1","11","ORGAN",0.06131768,44],[6,"SN-065","DB X 1","12","ORGAN",0.00616,10],
+    [7,"SN-071","DB X 1","14","GROZ(GEBEDUR)",0.0344,31],[8,"SN-092","DC X 1","8","ORGAN",0.10636168,32],
+    [9,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,38],[10,"SN-107","DC X 1","9","ORGAN",0.10728008,73],
+    [11,"SN-126","DC X 1","11","ORGAN",0.10620288,61],[12,"SN-147","UY X 128","8","ORGAN",0.08,42],
+    [13,"SN-163","UY X 128","9","ORGAN",0.16077616,34],[14,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,23],
+    [15,"SN-183","UY X 128","10","ORGAN",0.13031448,81],[16,"SN-203","UY X 128","11","ORGAN",0.13286432,66],
+    [17,"SN-220","UY X 128","12","ORGAN",0.7621176,33],[18,"SN-250","DP X 5","9","ORGAN",0.03824,14],
+    [19,"SN-261","DP X 5","11","ORGAN",0.06874008,16],[20,"SN-308","DP X 17","11","ORGAN",0.15784,78],
+    [21,"SN-317","DV X 57","11","ORGAN",0.00872,103],[22,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,25]
+  ],
+  "G-FLOOR ( BUILDING NO-6A)_RUNNING": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,62],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,89],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,110],[4,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,15],
+    [5,"SN-043","DB X 1","10","ORGAN",0.06118872,136],[6,"SN-048","DB X 1-KN","10 LP","ORGAN",0.132536,50],
+    [7,"SN-056","DB X 1","11","ORGAN",0.06131768,48],[8,"SN-065","DB X 1","12","ORGAN",0.00616,39],
+    [9,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,40],[10,"SN-092","DC X 1","8","ORGAN",0.10636168,60],
+    [11,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,65],[12,"SN-107","DC X 1","9","ORGAN",0.10728008,433],
+    [13,"SN-119","DC X 1","10","ORGAN",0.0904,78],[14,"SN-126","DC X 1","11","ORGAN",0.10620288,20],
+    [15,"SN-133","DC X 1","12","ORGAN",0.08432,77],[16,"SN-147","UY X 128","8","ORGAN",0.08,58],
+    [17,"SN-163","UY X 128","9","ORGAN",0.16077616,62],[18,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,32],
+    [19,"SN-183","UY X 128","10","ORGAN",0.13031448,73],[20,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,23],
+    [21,"SN-203","UY X 128","11","ORGAN",0.13286432,65],[22,"SN-220","UY X 128","12","ORGAN",0.7621176,22],
+    [23,"SN-225","UY X 128","12","GROZ(GEBEDUR)",0.07405864,18],[24,"SN-231","UY X 128","14","ORGAN",0.06392,40],
+    [25,"SN-250","DP X 5","9","ORGAN",0.03824,3],[26,"SN-261","DP X 5","11","ORGAN",0.06874008,37],
+    [27,"SN-263","DP X 5-KN","11","ORGAN",0.06,33],[28,"SN-265","DP X 5","14","GROZ(FFG)",0.03272,20],
+    [29,"SN-308","DP X 17","11","ORGAN",0.15784,14],[30,"SN-317","DV X 57","11","ORGAN",0.00872,25],
+    [31,"SN-318","DV X 57","12","ORGAN",0.16,16],[32,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,60]
+  ],
+  "H-FLOOR (BUILDING NO-6B)_NEW": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,45],[2,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,7],
+    [3,"SN-043","DB X 1","10","ORGAN",0.06118872,69],[4,"SN-045","DB X K5 KK","10","GROZ(FFG)",0.0344,9],
+    [5,"SN-056","DB X 1","11","ORGAN",0.06131768,77],[6,"SN-107","DC X 1","9","ORGAN",0.10728008,114],
+    [7,"SN-126","DC X 1","11","ORGAN",0.10620288,71],[8,"SN-163","UY X 128","9","ORGAN",0.16077616,126],
+    [9,"SN-183","UY X 128","10","ORGAN",0.13031448,98],[10,"SN-203","UY X 128","11","ORGAN",0.13286432,94],
+    [11,"SN-206","UY X 128 SPD","11","ORGAN",0.20594336,19],[12,"SN-220","UY X 128","12","ORGAN",0.7621176,56],
+    [13,"SN-261","DP X 5","11","ORGAN",0.06874008,79],[14,"SN-308","DP X 17","11","ORGAN",0.15784,66],
+    [15,"SN-317","DV X 57","11","ORGAN",0.00872,90],[16,"SN-351","LW X 6 T/1669 E","14","GROZ(FFG)",0.2684,5]
+  ],
+  "H-FLOOR (BUILDING NO-6B)_RUNNING": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,76],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,30],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,252],[4,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,30],
+    [5,"SN-043","DB X 1","10","ORGAN",0.06118872,32],[6,"SN-045","DB X K5 KK","10","GROZ(FFG)",0.0344,118],
+    [7,"SN-056","DB X 1","11","ORGAN",0.06131768,25],[8,"SN-058","DB X K5 KK","11","ORGAN",0.0344,17],
+    [9,"SN-065","DB X 1","12","ORGAN",0.00616,35],[10,"SN-085","DC X 1","7","ORGAN",0.07969632,26],
+    [11,"SN-092","DC X 1","8","ORGAN",0.10636168,21],[12,"SN-107","DC X 1","9","ORGAN",0.10728008,342],
+    [13,"SN-126","DC X 1","11","ORGAN",0.10620288,81],[14,"SN-146","UY X 128","8","GROZ(FFG)",0.08,30],
+    [15,"SN-163","UY X 128","9","ORGAN",0.16077616,37],[16,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,16],
+    [17,"SN-177","UY X 128 SAN 10 XS","9","GROZ(FFG)",0.08305976,15],[18,"SN-183","UY X 128","10","ORGAN",0.13031448,128],
+    [19,"SN-203","UY X 128","11","ORGAN",0.13286432,32],[20,"SN-206","UY X 128 SPD","11","ORGAN",0.20594336,16],
+    [21,"SN-225","UY X 128","12","GROZ(GEBEDUR)",0.07405864,30],[22,"SN-230","UY X 128","14","GROZ(GEBEDUR)",0.08835888,40],
+    [23,"SN-231","UY X 128","14","ORGAN",0.06392,70],[24,"SN-250","DP X 5","9","ORGAN",0.03824,14],
+    [25,"SN-261","DP X 5","11","ORGAN",0.06874008,108],[26,"SN-263","DP X 5-KN","11","ORGAN",0.06,68],
+    [27,"SN-308","DP X 17","11","ORGAN",0.15784,84],[28,"SN-317","DV X 57","11","ORGAN",0.00872,155],
+    [29,"SN-318","DV X 57","12","ORGAN",0.16,71],[30,"SN-324","DV X 57","10","ORGAN",0.2048,58],
+    [31,"SN-352","LW X 6 T/1669 E","16","GROZ(FFG)",0.2684,30],[32,"SN-418","DB X 1-GEBEDURE-FFG ,NO-08,GROZ","8","GROZ",0.0496,65],
+    [33,"SN-479","DV X 43","14","ORGAN",0.13288,55]
+  ],
+  "I-FLOOR (BUILDING NO-06 B)_NEW": [
+    [1,"SN-013","DB X 1","8","ORGAN",0.32559112,52],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,60],
+    [3,"SN-043","DB X 1","10","ORGAN",0.06118872,76],[4,"SN-056","DB X 1","11","ORGAN",0.06131768,29],
+    [5,"SN-092","DC X 1","8","ORGAN",0.10636168,62],[6,"SN-107","DC X 1","9","ORGAN",0.10728008,52],
+    [7,"SN-126","DC X 1","11","ORGAN",0.10620288,8],[8,"SN-163","UY X 128","9","ORGAN",0.16077616,71],
+    [9,"SN-183","UY X 128","10","ORGAN",0.13031448,50],[10,"SN-203","UY X 128","11","ORGAN",0.13286432,71],
+    [11,"SN-261","DP X 5","11","ORGAN",0.06874008,60],[12,"SN-308","DP X 17","11","ORGAN",0.15784,37],
+    [13,"SN-317","DV X 57","11","ORGAN",0.00872,36]
+  ],
+  "I-FLOOR (BUILDING NO-06 B)_RUNNING": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,130],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,140],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,85],[4,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,14],
+    [5,"SN-043","DB X 1","10","ORGAN",0.06118872,128],[6,"SN-045","DB X K5 KK","10","GROZ(FFG)",0.0344,123],
+    [7,"SN-056","DB X 1","11","ORGAN",0.06131768,7],[8,"SN-058","DB X K5 KK","11","ORGAN",0.0344,18],
+    [9,"SN-065","DB X 1","12","ORGAN",0.00616,78],[10,"SN-085","DC X 1","7","ORGAN",0.07969632,55],
+    [11,"SN-092","DC X 1","8","ORGAN",0.10636168,141],[12,"SN-107","DC X 1","9","ORGAN",0.10728008,268],
+    [13,"SN-126","DC X 1","11","ORGAN",0.10620288,53],[14,"SN-146","UY X 128","8","GROZ(FFG)",0.08,5],
+    [15,"SN-163","UY X 128","9","ORGAN",0.16077616,60],[16,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,20],
+    [17,"SN-183","UY X 128","10","ORGAN",0.13031448,89],[18,"SN-203","UY X 128","11","ORGAN",0.13286432,33],
+    [19,"SN-220","UY X 128","12","ORGAN",0.7621176,9],[20,"SN-225","UY X 128","12","GROZ(GEBEDUR)",0.07405864,5],
+    [21,"SN-231","UY X 128","14","ORGAN",0.06392,42],[22,"SN-248","DP X 5","9","GROZ(FFG)",0.03432,23],
+    [23,"SN-261","DP X 5","11","ORGAN",0.06874008,59],[24,"SN-263","DP X 5-KN","11","ORGAN",0.06,45],
+    [25,"SN-265","DP X 5","14","GROZ(FFG)",0.03272,23],[26,"SN-308","DP X 17","11","ORGAN",0.15784,77],
+    [27,"SN-317","DV X 57","11","ORGAN",0.00872,41],[28,"SN-318","DV X 57","12","ORGAN",0.16,40],
+    [29,"SN-320","DV X 57","14","ORGAN",0.14264,49],[30,"SN-343","DM X 13","10","GROZ(FFG)",0.06,24],
+    [31,"SN-418","DB X 1-GEBEDURE-FFG ,NO-08,GROZ","8","GROZ",0.0496,84],[32,"SN-479","DV X 43","14","ORGAN",0.13288,13]
+  ],
+  "J-FLOOR(BUILDING NO-09)_NEW": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,72],[2,"SN-107","DC X 1","9","ORGAN",0.10728008,66],
+    [3,"SN-163","UY X 128","9","ORGAN",0.16077616,72],[4,"SN-183","UY X 128","10","ORGAN",0.13031448,41],
+    [5,"SN-197","UY X 128 GAS SF","10 LP","ORGAN",0.1744,30],[6,"SN-203","UY X 128","11","ORGAN",0.13286432,25],
+    [7,"SN-261","DP X 5","11","ORGAN",0.06874008,21],[8,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,33],
+    [9,"SN-308","DP X 17","11","ORGAN",0.15784,17]
+  ],
+  "J-FLOOR(BUILDING NO-09)_RUNNING": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,92],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,86],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,190],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,51],
+    [5,"SN-056","DB X 1","11","ORGAN",0.06131768,66],[6,"SN-085","DC X 1","7","ORGAN",0.07969632,58],
+    [7,"SN-092","DC X 1","8","ORGAN",0.10636168,62],[8,"SN-107","DC X 1","9","ORGAN",0.10728008,215],
+    [9,"SN-119","DC X 1","10","ORGAN",0.0904,42],[10,"SN-126","DC X 1","11","ORGAN",0.10620288,57],
+    [11,"SN-140","UY X 128","7","ORGAN",0.0584,34],[12,"SN-147","UY X 128","8","ORGAN",0.08,29],
+    [13,"SN-163","UY X 128","9","ORGAN",0.16077616,110],[14,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,123],
+    [15,"SN-183","UY X 128","10","ORGAN",0.13031448,79],[16,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,30],
+    [17,"SN-203","UY X 128","11","ORGAN",0.13286432,86],[18,"SN-220","UY X 128","12","ORGAN",0.7621176,25],
+    [19,"SN-261","DP X 5","11","ORGAN",0.06874008,39],[20,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,20],
+    [21,"SN-308","DP X 17","11","ORGAN",0.15784,44],[22,"SN-332","FLX 118-GCS","10","ORGAN",0.27132,50],
+    [23,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,38],[24,"SN-338","FLX 118-GCS NY2","9","ORGAN",0.3005824,17]
+  ],
+  "K-FLOOR(BUILDING NO-09)_NEW": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,86],[2,"SN-071","DB X 1","14","GROZ(GEBEDUR)",0.0344,5],
+    [3,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,28],[4,"SN-107","DC X 1","9","ORGAN",0.10728008,170],
+    [5,"SN-147","UY X 128","8","ORGAN",0.08,5],[6,"SN-156","UY X 128- GAS SF","8 LP","ORGAN",0.0856,16],
+    [7,"SN-163","UY X 128","9","ORGAN",0.16077616,99],[8,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,104],
+    [9,"SN-183","UY X 128","10","ORGAN",0.13031448,92],[10,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,109],
+    [11,"SN-203","UY X 128","11","ORGAN",0.13286432,124],[12,"SN-206","UY X 128 SPD","11","ORGAN",0.20594336,30],
+    [13,"SN-220","UY X 128","12","ORGAN",0.7621176,5],[14,"SN-263","DP X 5-KN","11","ORGAN",0.06,59],
+    [15,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,46],[16,"SN-301","DP X 17","9","ORGAN",0.056,3],
+    [17,"SN-308","DP X 17","11","ORGAN",0.15784,30],[18,"SN-330","FLX 118-GCS","9","ORGAN",0.28,26],
+    [19,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,101]
+  ],
+  "K-FLOOR(BUILDING NO-09)_RUNNING": [
+    [1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,74],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,53],
+    [3,"SN-029","DB X 1","9","ORGAN",0.06552784,112],[4,"SN-032","DB X 1-SF","9","ORGAN",0.072,31],
+    [5,"SN-043","DB X 1","10","ORGAN",0.06118872,81],[6,"SN-056","DB X 1","11","ORGAN",0.06131768,17],
+    [7,"SN-065","DB X 1","12","ORGAN",0.00616,20],[8,"SN-085","DC X 1","7","ORGAN",0.07969632,19],
+    [9,"SN-092","DC X 1","8","ORGAN",0.10636168,36],[10,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,48],
+    [11,"SN-107","DC X 1","9","ORGAN",0.10728008,234],[12,"SN-126","DC X 1","11","ORGAN",0.10620288,24],
+    [13,"SN-163","UY X 128","9","ORGAN",0.16077616,74],[14,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,36],
+    [15,"SN-183","UY X 128","10","ORGAN",0.13031448,51],[16,"SN-191","UY X 128-KK-KN","10","ORGAN",0.13284256,6],
+    [17,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,36],[18,"SN-203","UY X 128","11","ORGAN",0.13286432,76],
+    [19,"SN-206","UY X 128 SPD","11","ORGAN",0.20594336,15],[20,"SN-220","UY X 128","12","ORGAN",0.7621176,46],
+    [21,"SN-231","UY X 128","14","ORGAN",0.06392,7],[22,"SN-250","DP X 5","9","ORGAN",0.03824,5],
+    [23,"SN-261","DP X 5","11","ORGAN",0.06874008,25],[24,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,11],
+    [25,"SN-300","DP X 17","9","GROZ(FFG)",0.03544,30],[26,"SN-308","DP X 17","11","ORGAN",0.15784,41],
+    [27,"SN-330","FLX 118-GCS","9","ORGAN",0.28,50],[28,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,246]
+  ],
+  "SAMPLE-(BUILDING NO-03)_NEW": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,38],[2,"SN-056","DB X 1","11","ORGAN",0.06131768,25],
+    [3,"SN-107","DC X 1","9","ORGAN",0.10728008,44],[4,"SN-126","DC X 1","11","ORGAN",0.10620288,65],
+    [5,"SN-163","UY X 128","9","ORGAN",0.16077616,27],[6,"SN-203","UY X 128","11","ORGAN",0.13286432,56],
+    [7,"SN-261","DP X 5","11","ORGAN",0.06874008,29],[8,"SN-287","UO X 113(UO X 1)","11","GROZ(FFG)",0.12056,29],
+    [9,"SN-308","DP X 17","11","ORGAN",0.15784,33],[10,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,49],
+    [11,"SN-351","LW X 6 T/1669 E","14","GROZ(FFG)",0.2684,5]
+  ],
+  "SAMPLE-(BUILDING NO-03)_RUNNING": [
+    [1,"SN-003","DB X 1","7","ORGAN",0.03985072,73],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,100],
+    [3,"SN-056","DB X 1","11","ORGAN",0.06131768,22],[4,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,30],
+    [5,"SN-085","DC X 1","7","ORGAN",0.07969632,51],[6,"SN-107","DC X 1","9","ORGAN",0.10728008,222],
+    [7,"SN-126","DC X 1","11","ORGAN",0.10620288,50],[8,"SN-140","UY X 128","7","ORGAN",0.0584,46],
+    [9,"SN-147","UY X 128","8","ORGAN",0.08,34],[10,"SN-163","UY X 128","9","ORGAN",0.16077616,94],
+    [11,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,67],[12,"SN-183","UY X 128","10","ORGAN",0.13031448,47],
+    [13,"SN-191","UY X 128-KK-KN","10","ORGAN",0.13284256,38],[14,"SN-203","UY X 128","11","ORGAN",0.13286432,94],
+    [15,"SN-225","UY X 128","12","GROZ(GEBEDUR)",0.07405864,94],[16,"SN-248","DP X 5","9","GROZ(FFG)",0.03432,23],
+    [17,"SN-250","DP X 5","9","ORGAN",0.03824,10],[18,"SN-261","DP X 5","11","ORGAN",0.06874008,115],
+    [19,"SN-265","DP X 5","14","GROZ(FFG)",0.03272,10],[20,"SN-277","UO X 113(UO X 1)","9","GROZ(FFG)",0.086,60],
+    [21,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,31],[22,"SN-299","UO X 113(UO X 1)","14","ORGAN",0.17488,22],
+    [23,"SN-308","DP X 17","11","ORGAN",0.15784,75],[24,"SN-312","DP X 17 kk(DPxN31)","11 J","ORGAN",0.05704,45],
+    [25,"SN-320","DV X 57","14","ORGAN",0.14264,62],[26,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,68],
+    [27,"SN-351","LW X 6 T/1669 E","14","GROZ(FFG)",0.2684,20]
+  ],
+  "TRAINING CENTRE-(BUILDING NO-01)_NEW": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,26],[2,"SN-107","DC X 1","9","ORGAN",0.10728008,20],
+    [3,"SN-120","DC X 1 27 SAN 10","10","GROZ(FFG)",0.0904,9],[4,"SN-163","UY X 128","9","ORGAN",0.16077616,27]
+  ],
+  "TRAINING CENTRE-(BUILDING NO-01)_RUNNING": [
+    [1,"SN-029","DB X 1","9","ORGAN",0.06552784,37],[2,"SN-043","DB X 1","10","ORGAN",0.06118872,13],
+    [3,"SN-107","DC X 1","9","ORGAN",0.10728008,59],[4,"SN-119","DC X 1","10","ORGAN",0.0904,4],
+    [5,"SN-163","UY X 128","9","ORGAN",0.16077616,34],[6,"SN-183","UY X 128","10","ORGAN",0.13031448,12],
+    [7,"SN-261","DP X 5","11","ORGAN",0.06874008,21],[8,"SN-308","DP X 17","11","ORGAN",0.15784,6]
+  ]
+};
+
+// Build codeMaster from floorData: code → {needleType, brand}
+Object.values(floorData).forEach(items => {
+  items.forEach(it => {
+    const code = it[1];
+    if(!codeMaster[code]){
+      codeMaster[code] = { needleType: it[2], brand: it[4] };
+    }
+  });
+});
+
+// ── Helpers ──────────────────────────────────────────────
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function ymStr(){ return new Date().toISOString().slice(0,7); }
+function n(v){ return Number(v)||0; }
+
+function daysBetween(dateStr){
+  if(!dateStr) return 0;
+  const diff = Math.floor((new Date() - new Date(dateStr))/(86400000));
+  return diff >= 0 ? diff : 0;
+}
+function ageClass(days){
+  if(days <= 15) return 'age-green';
+  if(days <= 30) return 'age-yellow';
+  return 'age-red';
+}
+
+// ── Init defaults ─────────────────────────────────────────
+document.getElementById('fromDate').value = todayStr();
+document.getElementById('toDate').value   = todayStr();
+document.getElementById('monthInput').value = ymStr();
+
+// ── Month range helper ────────────────────────────────────
+window.setMonthRange = function(){
+  const m = document.getElementById('monthInput').value;
+  if(!m){ alert('Month select করুন'); return; }
+  const first = m + '-01';
+  const d = new Date(first);
+  const last = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+  document.getElementById('fromDate').value = first;
+  document.getElementById('toDate').value   = last;
+  loadSummary();
+};
+
+// ── Company ID cache ──────────────────────────────────────
+let _companyId = null;
+async function getCompanyId(){
+  if(_companyId) return _companyId;
+  const { data, error } = await supabase.from('companies').select('id').eq('code', COMPANY_CODE).single();
+  if(error || !data){ console.error('Company not found'); return null; }
+  _companyId = data.id;
+  return _companyId;
+}
+
+// ── MAIN LOAD ─────────────────────────────────────────────
+window.loadSummary = async function(){
+  const from = document.getElementById('fromDate').value;
+  const to   = document.getElementById('toDate').value;
+  if(!from || !to){ alert('Date range দিন'); return; }
+
+  document.getElementById('loadingDiv').style.display = 'block';
+  document.getElementById('tbody').innerHTML = '';
+  document.getElementById('infoBar').textContent = '';
+
+  const companyId = await getCompanyId();
+  if(!companyId){
+    document.getElementById('loadingDiv').style.display='none';
+    document.getElementById('tbody').innerHTML='<tr><td colspan="11" class="no-data">❌ Company config error</td></tr>';
+    return;
+  }
+
+  // Fetch all reports in date range PLUS latest per floor up to 'to'
+  // One query: all reports up to 'to' date (we need latest-per-floor for Present Stock)
+  document.getElementById('loadingText').textContent = 'Supabase থেকে data fetch করছি...';
+
+  const { data: reports, error } = await supabase
+    .from('needle_reports')
+    .select('floor, report_date, rows, operator')
+    .eq('company_id', companyId)
+    .lte('report_date', to)
+    .order('report_date', { ascending: true });
+
+  if(error){
+    document.getElementById('loadingDiv').style.display='none';
+    document.getElementById('tbody').innerHTML=`<tr><td colspan="11" class="no-data">❌ DB Error: ${error.message}</td></tr>`;
+    return;
+  }
+
+  document.getElementById('loadingText').textContent = `${reports.length} records processing...`;
+
+  // ── Build aggregation ─────────────────────────────────
+  // map key: itemCode__size  (CODE is the primary match key)
+  const map = {};                    // combined summary per code+size
+  const latestPerFloor = {};         // floor → latest report (for Present Stock)
+  const floorsFound = new Set();
+
+  // Pass 1: find latest report per floor (up to 'to')
+  reports.forEach(rep => {
+    const fl = rep.floor;
+    if(!latestPerFloor[fl] || rep.report_date > latestPerFloor[fl].report_date){
+      latestPerFloor[fl] = rep;
+    }
+  });
+
+  // Pass 2: aggregate Receive & Delivery within date range
+  reports.forEach(rep => {
+    if(rep.report_date < from) return; // skip before 'from' for receive/delivery
+    if(!rep.rows || !Array.isArray(rep.rows)) return;
+    floorsFound.add(rep.floor);
+
+    rep.rows.forEach(row => {
+      const code = (row.itemCode || '').trim().toUpperCase();
+      const size = (row.size || '').trim();
+      if(!code) return;
+
+      // Auto-fill type/brand from codeMaster if available
+      const master = codeMaster[row.itemCode] || {};
+      const needleType = master.needleType || row.needleType || '';
+      const brand      = master.brand      || row.brand      || '';
+
+      const key = code + '__' + size;
+      if(!map[key]){
+        map[key] = {
+          itemCode: row.itemCode || '',
+          needleType,
+          size,
+          brand,
+          receive: 0,
+          delivery: 0,
+          present: 0,
+          lastReceiveDate: '',
+          lastDeliveryDate: ''
+        };
+      }
+
+      const rcv = n(row.receive);
+      const dlv = n(row.delivery);
+      map[key].receive  += rcv;
+      map[key].delivery += dlv;
+
+      if(rcv > 0 && rep.report_date > map[key].lastReceiveDate)
+        map[key].lastReceiveDate = rep.report_date;
+      if(dlv > 0 && rep.report_date > map[key].lastDeliveryDate)
+        map[key].lastDeliveryDate = rep.report_date;
+
+      // Keep latest name reference
+      if(!map[key]._lastDate || rep.report_date >= map[key]._lastDate){
+        map[key]._lastDate   = rep.report_date;
+        map[key].needleType  = needleType || map[key].needleType;
+        map[key].brand       = brand      || map[key].brand;
+      }
+    });
+  });
+
+  // Pass 3: Present Stock = sum of 'present' from latest report of each floor (up to 'to')
+  Object.values(latestPerFloor).forEach(rep => {
+    if(!rep.rows || !Array.isArray(rep.rows)) return;
+    floorsFound.add(rep.floor);
+    rep.rows.forEach(row => {
+      const code = (row.itemCode || '').trim().toUpperCase();
+      const size = (row.size || '').trim();
+      if(!code) return;
+
+      const key = code + '__' + size;
+      if(!map[key]){
+        const master = codeMaster[row.itemCode] || {};
+        map[key] = {
+          itemCode: row.itemCode || '',
+          needleType: master.needleType || row.needleType || '',
+          size,
+          brand: master.brand || row.brand || '',
+          receive: 0,
+          delivery: 0,
+          present: 0,
+          lastReceiveDate: '',
+          lastDeliveryDate: ''
+        };
+      }
+      map[key].present += n(row.present);
+    });
+  });
+
+  // ── Sort: by itemCode number ──────────────────────────
+  const rows = Object.values(map).sort((a, b) => {
+    const na = parseInt((a.itemCode || '').replace(/\D/g,'')) || 0;
+    const nb = parseInt((b.itemCode || '').replace(/\D/g,'')) || 0;
+    if(na !== nb) return na - nb;
+    return (a.size || '').localeCompare(b.size || '');
+  });
+
+  // ── Render ────────────────────────────────────────────
+  let html = '';
+  let gtReceive=0, gtDelivery=0, gtPresent=0;
+  let totalAging=0, agingCount=0;
+
+  rows.forEach((r, i) => {
+    gtReceive  += r.receive;
+    gtDelivery += r.delivery;
+    gtPresent  += r.present;
+
+    const lastMove = r.lastReceiveDate > r.lastDeliveryDate
+      ? r.lastReceiveDate : r.lastDeliveryDate;
+    const aging = lastMove ? daysBetween(lastMove) : null;
+    if(aging !== null){ totalAging += aging; agingCount++; }
+
+    const ac = aging !== null ? ageClass(aging) : '';
+
+    html += `<tr>
+      <td>${i+1}</td>
+      <td><b>${r.itemCode}</b></td>
+      <td style="text-align:left">${r.needleType}</td>
+      <td>${r.size}</td>
+      <td>${r.brand}</td>
+      <td>${r.receive.toLocaleString()}</td>
+      <td>${r.delivery.toLocaleString()}</td>
+      <td><b>${r.present.toLocaleString()}</b></td>
+      <td>${r.lastReceiveDate || '-'}</td>
+      <td>${r.lastDeliveryDate || '-'}</td>
+      <td class="${ac}">${aging !== null ? aging : '-'}</td>
+    </tr>`;
+  });
+
+  if(!html) html = '<tr><td colspan="11" class="no-data">📭 এই Date range এ কোনো data নেই</td></tr>';
+
+  document.getElementById('tbody').innerHTML = html;
+
+  const avgAging = agingCount > 0 ? Math.round(totalAging/agingCount) : 0;
+
+  // Footer totals
+  document.getElementById('gtReceive').textContent  = gtReceive.toLocaleString();
+  document.getElementById('gtDelivery').textContent = gtDelivery.toLocaleString();
+  document.getElementById('gtPresent').textContent  = gtPresent.toLocaleString();
+  document.getElementById('gtAgeing').textContent   = avgAging;
+
+  // KPI
+  document.getElementById('kpiFloors').textContent  = floorsFound.size;
+  document.getElementById('kpiReceive').textContent  = gtReceive.toLocaleString();
+  document.getElementById('kpiDelivery').textContent = gtDelivery.toLocaleString();
+  document.getElementById('kpiPresent').textContent  = gtPresent.toLocaleString();
+  document.getElementById('kpiAgeing').textContent   = avgAging;
+
+  document.getElementById('infoBar').textContent =
+    `📊 ${rows.length} item type | 🏢 ${floorsFound.size} floors | Range: ${from} → ${to} | Present = Latest entry up to ${to}`;
+
+  document.getElementById('loadingDiv').style.display = 'none';
+};
+
+// ── Excel Export ──────────────────────────────────────────
+window.exportExcel = function(){
+  const from = document.getElementById('fromDate').value;
+  const to   = document.getElementById('toDate').value;
+  const table = document.getElementById('summaryTable').outerHTML;
+  const blob = new Blob([`<html><head><meta charset="UTF-8"></head><body>
+    <h2>GMS COMPOSITE — ALL NEEDLE SUMMARY REPORT</h2>
+    <h3>Date Range: ${from} to ${to}</h3>
+    <p>Present Stock = Latest entry per floor up to ${to}</p>
+    ${table}
+  </body></html>`], {type:'application/vnd.ms-excel'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `needle-summary-${from}-to-${to}.xls`;
+  a.click();
+};
+
+// Auto load on open
+loadSummary();
+</script>
+</body>
+</html>

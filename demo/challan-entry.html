@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Delivery Challan Entry</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#07111f;color:#fff;font-family:Arial,Helvetica,sans-serif;font-size:16px}
+.wrap{max-width:1500px;margin:auto;padding:14px}.title{text-align:center;margin:10px 0 16px}.title h1{margin:0;font-size:36px}.title h2{margin:4px 0;font-size:27px}.note{color:#facc15;font-weight:900;font-size:16px}
+.panel{background:#101827;border:1px solid #263855;border-radius:14px;padding:13px;margin:12px 0}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+label{display:block;font-weight:900;color:#b7c5da;margin-bottom:4px;font-size:16px}input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #94a3b8;font-size:16px}textarea{min-height:70px;font-size:16px}
+button{border:0;border-radius:9px;padding:11px 16px;color:#fff;font-weight:900;cursor:pointer;margin:4px;font-size:16px}.green{background:#16a34a}.blue{background:#2563eb}.orange{background:#f59e0b}.purple{background:#7c3aed}.gray{background:#64748b}.red{background:#dc2626}.print{background:#000;border:2px solid #fff}
+.tableWrap{overflow-x:auto;background:#fff}table{width:100%;min-width:1250px;border-collapse:collapse;background:#fff;color:#000;font-size:15px}th,td{border:1px solid #111;padding:6px;text-align:center}th{background:#e5e7eb;font-size:15px}td input{border:0;border-radius:0;text-align:center;padding:8px;font-size:15px}
+.totalLine{background:#e5e7eb;color:#000;font-size:19px;font-weight:900;text-align:center;padding:10px}.btns{text-align:center;margin:12px 0}
+#toast{position:fixed;right:18px;top:18px;background:#16a34a;color:#fff;padding:14px 22px;border-radius:12px;font-weight:900;display:none;z-index:9999;font-size:16px}
+.userInfo{background:#1e293b;padding:8px 12px;border-radius:8px;margin:10px 0;text-align:center;font-size:14px}
+.userInfo b{color:#22c55e}
+@media(max-width:900px){.grid,.grid2{grid-template-columns:1fr}.title h1{font-size:27px}}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+<div class="wrap">
+  <div class="title">
+    <h1 id="topCompanyTitle">GMS TEXTILES LTD.</h1>
+    <h2>Delivery Challan & Gate Pass Entry</h2>
+    <div class="note">Save করলে Delivery Challan + Gate Pass report page-এ তৈরি হবে</div>
+  </div>
+
+  <!-- 🔥 USER INFO DISPLAY -->
+  <div class="userInfo">
+    👤 <b id="currentUserName">User</b> | 🏢 <b id="currentUserCompany">GMS TEXTILES LTD.</b> | 
+    🕐 <b id="currentTime"></b>
+  </div>
+
+  <div class="panel">
+    <div class="grid">
+      <div><label>MCD</label><select id="mcd" style="font-size:16px">
+        <option>ACCESSORIES MCD</option><option>GREY FABRIC MCD</option><option>SHIPMENT MCD</option><option>BILLING SECTION</option><option>NEEDLE MCD</option><option>OUTER WEAR MCD</option><option>YARN MCD</option><option>PRINTING MCD</option><option>JHUT MCD</option><option>GENERAL MCD</option><option>LEFTOVER MCD</option><option>FINISH FABRIC MCD</option><option>YARN DYEING MCD</option><option>CHEMICAL MCD</option><option>GENERAL TECHNICAL MCD</option>
+      </select></div>
+      <div><label>Date</label><input id="date" type="date"></div>
+      <div><label>Challan No</label><input id="challanNo" readonly placeholder="Auto generated"></div>
+      <div><label>Gate Pass No</label><input id="gatePassNo" readonly placeholder="Auto generated"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 style="text-align:center;margin-top:0;font-size:24px">Company Selection</h2>
+    <div class="grid">
+      <div><label>From Company</label><select id="company" onchange="companyChange()" style="font-size:16px">
+        <option>GMS TEXTILES LTD.</option><option>GMS COMPOSITE KNITTING IND LTD.</option><option>OTHER FACTORY</option>
+      </select></div>
+      <div><label>Manual From Company</label><input id="companyManual" disabled placeholder="Other factory/company name"></div>
+      <div><label>To Company</label><select id="toCompany" onchange="toCompanyChange()" style="font-size:16px">
+        <option>GMS TEXTILES LTD.</option><option selected>GMS COMPOSITE KNITTING IND LTD.</option><option>OTHER FACTORY</option>
+      </select></div>
+      <div><label>Manual To Company</label><input id="toCompanyManual" disabled placeholder="Other factory/company name"></div>
+    </div>
+    <div class="grid2" style="margin-top:10px">
+      <div><label>To Address</label><textarea id="toAddress" placeholder="Address editable"></textarea></div>
+      <div><label>Factory / Head Office Address</label><textarea id="companyAddress">HEAD OFFICE : HOUSE # 498, ROAD # 33
+NEW D.O.H.S. MOHAKHALI
+DHAKA-1206, BANGLADESH.
+TEL : +88-02-8837217-18
+FAX : +88-02-8711095
+
+FACTORY : Tansutrapur, Kaliakoir, Gazipur.
+TEL : +88-02-...........................
+FAX : +88-02-...........................</textarea></div>
+    </div>
+  </div>
+
+  <div class="panel"><div class="grid">
+    <div><label>Buyer</label><input id="buyer"></div><div><label>Order No</label><input id="orderNo"></div>
+    <div><label>Transport No</label><input id="transportNo"></div><div><label>Driver's Name</label><input id="driverName"></div>
+    <div><label>Vehicle No</label><input id="vehicleNo"></div><div><label>Gate Pass M/s</label><input id="gateMs"></div>
+    <div><label>Goods By</label><input id="goodsBy"></div><div><label>From Mill Site To</label><input id="fromMillTo"></div>
+  </div></div>
+
+  <div class="panel"><h3 style="font-size:20px">Description / Specification / Identification</h3><div class="grid">
+    <div><label>Yarn Count</label><input id="yarnCount"></div><div><label>Brand</label><input id="brand"></div>
+    <div><label>Card / Combed</label><input id="cardCombed"></div><div><label>Lot No</label><input id="lotNo"></div>
+  </div></div>
+
+  <div class="panel"><h3 style="font-size:20px">Item Details</h3><div class="tableWrap"><table>
+    <thead><tr><th>SL No</th><th>Item Name / Description / Fabric Type</th><th>Colour</th><th>M/c Dia</th><th>Fin Dia</th><th>Unit</th><th>G/Quantity</th><th>No. Of Pkgs / Rolls</th><th>Remarks / F/Quantity</th><th>Bag / Mal</th><th>Purpose</th><th>Action</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table></div>
+  <div class="btns"><button class="orange" onclick="addRow()">➕ Add Row</button><button class="gray" onclick="addBlankRows()">➕ Blank Rows</button></div>
+  <div class="totalLine">Grand Total Qty: <span id="grandTotal">0</span> | Total Pkgs/Rolls: <span id="totalPkg">0</span> | Total Bag/Mal: <span id="totalBag">0</span></div>
+  </div>
+
+  <div class="btns">
+    <button class="green" onclick="saveData()">💾 Save</button>
+    <button class="print" id="printOfflineBtn" onclick="printLastOffline()" style="display:none">🖨 Print Offline Data</button>
+    <button class="purple" onclick="goReport()">📄 Report</button>
+    <button class="blue" onclick="location.href='challan-entry.html'">🆕 New</button>
+    <button class="gray" onclick="location.href='index.html'">🏠 Home</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc, collection } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId:"gms-warehouse-tracker-7f57e",
+  storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId:"992250313291",
+  appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app=initializeApp(firebaseConfig), db=getFirestore(app), $=id=>document.getElementById(id);
+let editMode=false;
+
+// 🔥 GET CURRENT USER INFO
+const user = JSON.parse(localStorage.getItem("gmsUser") || '{"name":"Unknown User","email":"unknown@gms.com","company":"GMS TEXTILES LTD."}');
+
+function getDeviceId(){
+  let did=localStorage.getItem("gms_device_id");
+  if(!did){ did="D"+Math.random().toString(36).substr(2,9).toUpperCase(); localStorage.setItem("gms_device_id",did); }
+  return did;
+}
+
+function toast(m,c="#16a34a"){const t=$("toast");t.innerText=m;t.style.background=c;t.style.display="block";setTimeout(()=>t.style.display="none",2500)}
+function today(){return new Date().toISOString().slice(0,10)} 
+function yy(){return new Date($("date").value||new Date()).getFullYear()} 
+function pad(n){return String(n).padStart(4,"0")}
+function currentTime(){const now=new Date();return now.toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"})}
+
+function generateOfflineId(){
+  const now=new Date();
+  const timeStr = String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') + String(now.getSeconds()).padStart(2,'0');
+  return `CH-${yy()}-OFF-${timeStr}`;
+}
+
+function companyName(){return $("company").value==="OTHER FACTORY"?$("companyManual").value.trim():$("company").value}
+function toCompanyName(){return $("toCompany").value==="OTHER FACTORY"?$("toCompanyManual").value.trim():$("toCompany").value}
+function updateTitle(){$("topCompanyTitle").innerText=companyName()||"GMS TEXTILES LTD."}
+
+window.companyChange=()=>{let o=$("company").value==="OTHER FACTORY";$("companyManual").disabled=!o;if(!o)$("companyManual").value="";updateTitle()}
+
+window.toCompanyChange=()=>{
+  let o=$("toCompany").value==="OTHER FACTORY";
+  $("toCompanyManual").disabled=!o;
+  if(!o)$("toCompanyManual").value="";
+  
+  let toComp = $("toCompany").value;
+  let addressField = $("toAddress");
+  
+  if(toComp === "GMS COMPOSITE KNITTING IND LTD."){
+    addressField.value = "Sardaganj, Kashimpur,\nGazipur-1346, Bangladesh.";
+  } else if(toComp === "GMS TEXTILES LTD."){
+    addressField.value = "Tansutrapur, Kaliakair,\nGazipur.";
+  } else if(toComp === "OTHER FACTORY"){
+    addressField.value = "";
+  }
+  
+  syncTo();
+}
+
+function syncTo(){let n=toCompanyName();$("fromMillTo").value=n;if(!$("gateMs").value||$("gateMs").dataset.auto!=="0"){$("gateMs").value=n;$("gateMs").dataset.auto="1"}}
+$("companyManual").addEventListener("input",updateTitle);$("toCompanyManual").addEventListener("input",syncTo);$("gateMs").addEventListener("input",()=>$("gateMs").dataset.auto="0");
+
+async function getNextSequentialNumber(){
+  try{
+    const y=yy(), ref=doc(db,"serialCounters","challan_"+y);
+    const s=await getDoc(ref);
+    const last = s.exists() ? Number(s.data().last || 0) : 0;
+    return { ch:`CH-${y}-${pad(last+1)}`, gp:`GP-${y}-${pad(last+1)}`, num:last+1 };
+  }catch(e){ return null; }
+}
+
+async function loadNextNumberToBox(){
+  if(editMode) return;
+  let data = await getNextSequentialNumber();
+  if(data){
+    $("challanNo").value = data.ch;
+    $("gatePassNo").value = data.gp;
+    window.currentChallanNum = data.num;
+    window.currentSource = "firebase";
+  }else{
+    let ch = generateOfflineId();
+    $("challanNo").value = ch;
+    $("gatePassNo").value = ch.replace("CH","GP");
+    window.currentSource = "offline";
+  }
+}
+
+function rowHtml(d={}){return `<tr><td class="sl"></td><td><input class="item" value="${d.item||""}"></td><td><input class="color" value="${d.color||""}"></td><td><input class="mcDia" value="${d.mcDia||""}"></td><td><input class="finDia" value="${d.finDia||""}"></td><td><input class="unit" value="${d.unit||""}"></td><td><input class="qty" type="number" value="${d.qty||""}" oninput="calcTotals()"></td><td><input class="pkg" type="number" value="${d.pkg||""}" oninput="calcTotals()"></td><td><input class="remarks" value="${d.remarks||""}"></td><td><input class="bag" type="number" value="${d.bag||""}" oninput="calcTotals()"></td><td><input class="purpose" value="${d.purpose||""}"></td><td><button class="red" onclick="delRow(this)">X</button></td></tr>`}
+window.addRow=(d={})=>{$("rows").insertAdjacentHTML("beforeend",rowHtml(d));resetSl();calcTotals()}; 
+window.addBlankRows=()=>{for(let i=0;i<5;i++)addRow()}; 
+window.delRow=b=>{b.closest("tr").remove();resetSl();calcTotals()}
+function resetSl(){document.querySelectorAll("#rows tr").forEach((tr,i)=>tr.querySelector(".sl").innerText=i+1)}
+function getRows(){let a=[];document.querySelectorAll("#rows tr").forEach(tr=>{let x={item:tr.querySelector(".item").value.trim(),color:tr.querySelector(".color").value.trim(),mcDia:tr.querySelector(".mcDia").value.trim(),finDia:tr.querySelector(".finDia").value.trim(),unit:tr.querySelector(".unit").value.trim(),qty:Number(tr.querySelector(".qty").value)||0,pkg:Number(tr.querySelector(".pkg").value)||0,remarks:tr.querySelector(".remarks").value.trim(),bag:Number(tr.querySelector(".bag").value)||0,purpose:tr.querySelector(".purpose").value.trim()}; if(x.item||x.qty||x.pkg||x.bag)a.push(x)});return a}
+window.calcTotals=()=>{let r=getRows();$("grandTotal").innerText=r.reduce((a,b)=>a+b.qty,0);$("totalPkg").innerText=r.reduce((a,b)=>a+b.pkg,0);$("totalBag").innerText=r.reduce((a,b)=>a+b.bag,0)}
+
+// 🔥 DATA OBJECT WITH CREATED BY
+function dataObj(){
+  let rows=getRows();
+  return {
+    mcd:$("mcd").value,
+    date:$("date").value,
+    challanNo:$("challanNo").value,
+    gatePassNo:$("gatePassNo").value,
+    company:companyName(),
+    companyType:$("company").value,
+    companyManual:$("companyManual").value.trim(),
+    companyAddress:$("companyAddress").value,
+    toCompany:toCompanyName(),
+    toCompanyType:$("toCompany").value,
+    toCompanyManual:$("toCompanyManual").value.trim(),
+    toAddress:$("toAddress").value,
+    buyer:$("buyer").value.trim(),
+    orderNo:$("orderNo").value.trim(),
+    transportNo:$("transportNo").value.trim(),
+    driverName:$("driverName").value.trim(),
+    vehicleNo:$("vehicleNo").value.trim(),
+    gateMs:$("gateMs").value.trim(),
+    goodsBy:$("goodsBy").value.trim(),
+    fromMillTo:$("fromMillTo").value.trim(),
+    yarnCount:$("yarnCount").value.trim(),
+    brand:$("brand").value.trim(),
+    cardCombed:$("cardCombed").value.trim(),
+    lotNo:$("lotNo").value.trim(),
+    rows,
+    grandTotalQty:rows.reduce((a,b)=>a+b.qty,0),
+    totalPkg:rows.reduce((a,b)=>a+b.pkg,0),
+    totalBag:rows.reduce((a,b)=>a+b.bag,0),
+    // 🔥 CREATED BY INFO
+    preparedBy: user.name || user.email || "Unknown",
+    createdBy: user.name || user.email || "Unknown",
+    createdById: user.id || user.email || "",
+    createdByCompany: user.company || $("company").value || "GMS TEXTILES LTD.",
+    deviceId: getDeviceId(),
+    updatedAt: new Date().toISOString(),
+    createdAt: editMode ? undefined : new Date().toISOString()
+  }
+}
+
+window.saveData=async()=>{
+  try{
+    let d=dataObj(); 
+    if(!d.rows.length){toast("Minimum 1 row লাগবে","#dc2626");return}
+    
+    if(!d.challanNo) {
+       let data = await getNextSequentialNumber();
+       if(data) { d.challanNo = data.ch; d.gatePassNo = data.gp; window.currentChallanNum = data.num; }
+       else { d.challanNo = generateOfflineId(); d.gatePassNo = d.challanNo.replace("CH","GP"); }
+    }
+
+    try{
+      await setDoc(doc(db,"challanGatePass",d.challanNo),d,{merge:true});
+      if(window.currentSource === "firebase" && window.currentChallanNum){
+         await setDoc(doc(db,"serialCounters","challan_"+yy()),{last:window.currentChallanNum,year:yy(),updatedAt:new Date().toISOString()},{merge:true});
+      }
+      toast("✅ Saved to Firebase: "+d.challanNo+" | Created By: "+d.createdBy);
+      $("printOfflineBtn").style.display="none";
+    }catch(e){
+      const deviceId=getDeviceId();
+      const queueKey="GMS_CHALLAN_OFFLINE_"+deviceId;
+      let queue=JSON.parse(localStorage.getItem(queueKey)||"[]");
+      
+      if(queue.find(x=>x.id===d.challanNo)) d.challanNo = generateOfflineId(); 
+      d.gatePassNo = d.challanNo.replace("CH","GP");
+      d.status = "pending";
+      
+      queue.push({ id:d.challanNo, data:d, status:"pending", createdAt:new Date().toISOString() });
+      localStorage.setItem(queueKey,JSON.stringify(queue));
+      
+      toast("⏳ Saved Offline: "+d.challanNo);
+      $("printOfflineBtn").style.display="inline-block";
+    }
+    
+    window.lastSavedData = d;
+
+    if(!editMode){
+      ["buyer","orderNo","transportNo","driverName","vehicleNo","yarnCount","brand","cardCombed","lotNo"].forEach(id=>$(id).value="");
+      $("rows").innerHTML="";
+      addBlankRows(); calcTotals(); syncTo();
+      await loadNextNumberToBox();
+    }else{ editMode=false; toast("✅ Updated"); }
+
+  }catch(e){ console.error(e); toast("❌ Error: "+e.message,"#dc2626") }
+};
+
+window.printLastOffline=()=>{
+  if(!window.lastSavedData) return alert("No data to print");
+  printChallan(window.lastSavedData);
+}
+
+function printChallan(x){
+  let rows=x.rows||[];
+  let tq=rows.reduce((a,b)=>a+(Number(b.qty)||0),0);
+  let tp=rows.reduce((a,b)=>a+(Number(b.pkg)||0),0);
+  
+  let rowHtml=rows.map((r,i)=>`<tr><td>${r.item||r.qty||r.pkg?i+1:""}</td><td>${r.item}</td><td>${r.color}</td><td>${r.mcDia}</td><td>${r.finDia}</td><td>${r.unit}</td><td>${r.qty?r.qty:""}</td><td>${r.pkg?r.pkg:""}</td><td>${r.remarks}</td></tr>`).join("");
+  
+  let html = `
+  <html><head><meta charset="UTF-8"><title>Print Challan</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+  <style>
+    body{font-family:Arial;margin:0;padding:20px;font-size:15px}
+    .page{width:210mm;min-height:297mm;padding:20px;margin:0 auto;border:1px solid #ccc}
+    .ctop{text-align:center;position:relative}
+    .challanTitle{display:inline-block;border:3px double #000;padding:5px 24px;font-size:28px;font-weight:900}
+    .companyBig{font-size:36px;font-weight:900;margin:10px 0}
+    .cno{position:absolute;right:30px;top:55px;font-weight:900;text-align:center;font-size:15px}
+    .info{display:grid;grid-template-columns:1fr 1fr;gap:35px;margin-top:18px}
+    .line{display:grid;grid-template-columns:120px 1fr;gap:6px;margin:10px 0;font-size:17px}
+    .line span:last-child{border-bottom:2px solid #000;min-height:24px;font-weight:700}
+    .desc{border:2px solid #000;margin-top:18px}
+    .spec{display:grid;grid-template-columns:110px 1fr 70px 1fr 120px 1fr;gap:6px;padding:6px;font-size:15px}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    th,td{border:2px solid #000;padding:6px;height:32px}
+    th{background:#eee;font-size:14px}
+    .sign{display:grid;grid-template-columns:1fr 1fr 1fr;border:2px solid #000;border-top:0;height:180px;margin-top:20px}
+    .sign div{display:flex;align-items:flex-end;justify-content:center;border-right:2px solid #000;font-weight:900;font-size:16px;padding-bottom:15px}
+    .sign div:last-child{border-right:0}
+    .qr{width:80px;height:80px;margin:10px auto}
+    .createdBy{margin-top:10px;text-align:center;font-size:12px;color:#666}
+    @media print{body{margin:0}.page{border:0}}
+  </style></head><body>
+  <div class="page">
+    <div class="ctop">
+      <div class="challanTitle">DELIVERY CHALLAN</div>
+      <div class="companyBig">${x.company}</div>
+      <div class="cno">Challan No<br><b>${x.challanNo}</b></div>
+      <div class="qr" id="qr"></div>
+    </div>
+    <div class="info">
+      <div>
+        <div class="line"><span>To</span><span>${x.toCompany}</span></div>
+        <div class="line"><span>Address</span><span>${x.toAddress}</span></div>
+        <div class="line"><span>Buyer</span><span>${x.buyer}</span></div>
+      </div>
+      <div>
+        <div class="line"><span>Date</span><span>${x.date}</span></div>
+        <div class="line"><span>Gate Pass</span><span>${x.gatePassNo}</span></div>
+        <div class="line"><span>Vehicle</span><span>${x.vehicleNo}</span></div>
+      </div>
+    </div>
+    <div class="desc">
+      <div class="spec">
+        <div>Yarn Count</div><div>${x.yarnCount}</div>
+        <div>Brand</div><div>${x.brand}</div>
+        <div>Lot No.</div><div>${x.lotNo}</div>
+      </div>
+      <table>
+        <thead><tr><th>SL</th><th>Item</th><th>Color</th><th>Unit</th><th>Qty</th><th>Pkgs</th><th>Remarks</th></tr></thead>
+        <tbody>${rowHtml}</tbody>
+        <tfoot><tr><td colspan="4" style="text-align:right;font-weight:900">Total:</td><td>${tq}</td><td>${tp}</td><td></td></tr></tfoot>
+      </table>
+    </div>
+    <div class="sign">
+      <div>Delivery Approved by</div>
+      <div>Counted & Delivery by</div>
+      <div>Counted & Received by</div>
+    </div>
+    <div class="createdBy">
+      <b>Created By:</b> ${x.createdBy || x.preparedBy || 'Unknown'} | 
+      <b>Company:</b> ${x.createdByCompany || ''} | 
+      <b>Time:</b> ${new Date().toLocaleString()}
+    </div>
+  </div>
+  <script>
+    new QRCode(document.getElementById("qr"), {text:"${location.origin+location.pathname}?challanNo=${x.challanNo}", width:80, height:80});
+    setTimeout(()=>window.print(), 500);
+  <\/script>
+  </body></html>`;
+  
+  let w=window.open("","_blank");
+  w.document.write(html);
+  w.document.close();
+}
+
+window.goReport=()=>{location.href="challan-report.html"}
+async function loadEdit(){
+  let no=new URLSearchParams(location.search).get("challanNo"); 
+  if(!no)return false; 
+  try{
+    let s=await getDoc(doc(db,"challanGatePass",no)); 
+    if(s.exists()){
+      editMode=true;let d=s.data();
+      ["mcd","date","challanNo","gatePassNo","company","companyManual","companyAddress","toCompany","toCompanyManual","toAddress","buyer","orderNo","transportNo","driverName","vehicleNo","gateMs","goodsBy","fromMillTo","yarnCount","brand","cardCombed","lotNo"].forEach(id=>{if($(id)&&d[id]!=null)$(id).value=d[id]}); 
+      if(d.companyType)$("company").value=d.companyType; if(d.toCompanyType)$("toCompany").value=d.toCompanyType;
+      companyChange(); toCompanyChange(); $("rows").innerHTML=""; (d.rows||[]).forEach(addRow); if(!(d.rows||[]).length)addBlankRows(); calcTotals(); return true;
+    }
+  }catch(e){}
+  alert("Not found"); return false;
+}
+
+// 🔥 INITIALIZE WITH USER INFO
+async function init(){
+  // Display user info
+  $("currentUserName").innerText = user.name || user.email || "Unknown User";
+  $("currentUserCompany").innerText = user.company || "GMS TEXTILES LTD.";
+  
+  // Update time every second
+  setInterval(()=>{$("currentTime").innerText=currentTime()},1000);
+  $("currentTime").innerText=currentTime();
+  
+  $("date").value=today();
+  let e=await loadEdit();
+  if(!e){ await loadNextNumberToBox(); addBlankRows(); syncTo(); updateTitle(); }
+}
+init();
+</script>
+</body>
+</html>

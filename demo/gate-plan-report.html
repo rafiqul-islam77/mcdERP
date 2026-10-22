@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Gate Plan Report</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;letter-spacing:0!important;word-spacing:normal!important}
+body{margin:0;background:#07111f;color:#fff;font-family:Arial, Helvetica, sans-serif}
+.header{text-align:center;padding:16px 8px}
+.header h2,.header h3,.header h4{margin:3px}
+.controls{text-align:center;padding:10px}
+input,select{padding:8px;border-radius:7px;border:1px solid #999;font-size:15px}
+button{padding:10px 15px;border:0;border-radius:8px;color:white;font-weight:900;margin:4px;cursor:pointer}
+.search{background:#2563eb}.clear{background:#64748b}.excel{background:#16a34a}.print{background:#7c3aed}
+.new{background:#2563eb}.home{background:#0f766e}.edit{background:#f59e0b}.delete{background:#dc2626}
+#loadStatus{text-align:center;color:#22c55e;font-weight:900;padding:6px}
+#reportArea{width:98%;margin:10px auto 50px}
+.reportCard,.greyCard,.banglaCard{background:#fff;color:#000;border:1px solid #000;margin:14px 0;overflow:hidden}
+.reportPrintHeader{text-align:center;line-height:1.15;padding:7px 0 6px;border-bottom:1px solid #000}
+.reportPrintHeader h2{margin:0;font-size:22px;font-weight:900}
+.reportPrintHeader h4{margin:1px 0;font-size:12px;font-weight:800}
+.reportPrintHeader h3{margin:2px 0 0;font-size:16px;font-weight:900}
+.qrCenter{display:block;text-align:center;width:100%;margin:9px auto 13px;clear:both}
+.qrMini{display:block;width:70px;height:70px;margin:0 auto}
+.companyLine{text-align:center;font-size:16px;font-weight:900;border-top:1px solid #000;border-bottom:1px solid #000;padding:5px 3px}
+.meta{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid #000}
+.meta div{border-right:1px solid #000;padding:6px 3px;text-align:center;font-weight:900}
+.actionBar{text-align:center;padding:10px;border-bottom:1px solid #000}
+.tableWrap{overflow-x:auto}
+table{width:100%;min-width:1450px;border-collapse:collapse;table-layout:fixed;font-size:12px;color:#000}
+th,td{border:1px solid #000;padding:5px;text-align:center;vertical-align:middle;word-break:normal;color:#000}
+.totalRow{background:#f3f4f6;font-weight:900;color:#000}
+.sign{display:grid;grid-template-columns:repeat(7,1fr);gap:0;margin-top:80px}
+.sign div{text-align:center;font-weight:900;border-top:1px solid #000;padding:6px 2px;font-size:12px;color:#000}
+.greyHeader{text-align:center;line-height:1.2}
+.greyHeader h2{margin:0;font-size:24px;font-weight:900}
+.greyHeader h4{margin:1px 0;font-size:12px}
+.greyHeader h1{margin:2px 0;font-size:32px;font-weight:900;color:#555}
+.greyTitle{text-align:center;font-size:18px;font-weight:900;margin:7px 0}
+.greyTable{width:65%;min-width:0;margin:8px auto 0;border-collapse:collapse;table-layout:fixed}
+.greyTable th,.greyTable td{border:1px solid #000;padding:7px;text-align:center}
+.greySign{display:grid;grid-template-columns:repeat(6,1fr);gap:25px;margin-top:105px}
+.greySign div{text-align:center;font-weight:900;border-top:1px solid #000;padding-top:6px;font-size:12px}
+
+/* 🔥 BANGLA FORMAT STYLES */
+.banglaCard{font-family:'SolaimanLipi','Kalpurush','Nirmala UI',Arial,sans-serif;line-height:1.6;padding:15px}
+.banglaHeader{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:15px;font-size:13px}
+.banglaLeft{line-height:2}
+.banglaRight{line-height:2}
+.banglaPorterBox{border:2px solid #000;padding:8px;margin:10px auto;text-align:center;width:300px}
+.banglaPorterBox div{font-weight:bold;font-size:14px;margin-bottom:8px}
+.banglaSubject{margin:15px 0;font-size:13px;line-height:2}
+.banglaTable{width:100%;border-collapse:collapse;font-size:12px;margin:15px 0}
+.banglaTable th,.banglaTable td{border:1px solid #000;padding:6px 4px;text-align:center}
+.banglaTable th{background:#f0f0f0;font-weight:700}
+.banglaFooter{margin:15px 0;line-height:2;font-size:13px}
+.banglaSign{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-top:60px}
+.banglaSign div{text-align:center;font-weight:bold;border-top:1px solid #000;padding-top:5px;font-size:11px}
+
+.noData{text-align:center;color:#fff;font-size:20px;font-weight:900;padding:30px}
+
+#chartSection{background:linear-gradient(135deg,#101827,#1a2332);border:1px solid #263855;border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.chartHeader{text-align:center;margin-bottom:14px}
+.chartHeader h3{margin:0;color:#22c55e;font-size:20px;font-weight:900}
+.chartHeader p{margin:4px 0 0 0;color:#94a3b8;font-size:13px}
+.chartGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start}
+.chartCard{background:linear-gradient(135deg,#0f172a,#1e293b);border:1px solid #334155;border-radius:12px;padding:14px;position:relative;overflow:hidden}
+.chartCard::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#22c55e,#3b82f6)}
+.chartCard h4{margin:0 0 10px 0;color:#e2e8f0;font-size:14px;font-weight:900;text-align:center;border-bottom:1px solid #334155;padding-bottom:8px}
+.chartWrap{position:relative;height:200px}
+.chartWrap canvas{max-height:200px}
+.chartStats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid #334155}
+.statBox{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:8px;text-align:center}
+.statBox .statNum{color:#22c55e;font-size:20px;font-weight:900;display:block}
+.statBox .statLabel{color:#94a3b8;font-size:9px;font-weight:700;text-transform:uppercase}
+.statBox.blue{background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.2)}
+.statBox.blue .statNum{color:#3b82f6}
+.statBox.purple{background:rgba(139,92,246,.08);border-color:rgba(139,92,246,.2)}
+.statBox.purple .statNum{color:#8b5cf6}
+
+.cacheStatusBar{display:flex;align-items:center;justify-content:center;gap:10px;padding:6px 12px;font-size:11px;font-weight:700;background:linear-gradient(90deg,rgba(34,197,94,.1),rgba(59,130,246,.1));border-bottom:1px solid #263855;color:#9fb0c7}
+.cacheStatusBar .cacheDot{width:8px;height:8px;border-radius:50%;background:#22c55e;animation:livePulse 2s infinite;box-shadow:0 0 8px #22c55e}
+@keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.7);transform:scale(1)}70%{box-shadow:0 0 0 8px rgba(34,197,94,0);transform:scale(1.1)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0);transform:scale(1)}}
+.cacheStatusBar .cacheReadCount{color:#2563eb;font-weight:900;padding:3px 10px;background:rgba(37,99,235,.15);border-radius:12px;border:1px solid rgba(37,99,235,.3)}
+.cacheStatusBar .syncStatus{color:#22c55e;font-weight:900;padding:3px 10px;background:rgba(34,197,94,.15);border-radius:12px;border:1px solid rgba(34,197,94,.3)}
+
+.offlineBadge{background:#f59e0b!important;color:#000!important;padding:2px 6px!important;border-radius:4px!important;font-size:10px!important;font-weight:900!important;margin-left:4px!important}
+.syncedBadge{background:#22c55e!important;color:#fff!important;padding:2px 6px!important;border-radius:4px!important;font-size:10px!important;font-weight:900!important;margin-left:4px!important}
+
+.nameFilterContainer{display:inline-block;position:relative;vertical-align:top}
+.nameSearchInput{padding:8px;border-radius:7px;border:1px solid #999;font-size:15px;width:180px;background:#fff;color:#000}
+.nameDropdown{position:absolute;top:100%;left:0;width:100%;max-height:250px;overflow-y:auto;background:#fff;border:1px solid #999;border-radius:7px;margin-top:2px;z-index:1000;display:none;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.nameDropdown.show{display:block}
+.nameDropdownItem{padding:8px 10px;cursor:pointer;color:#000;font-size:14px;border-bottom:1px solid #eee}
+.nameDropdownItem:hover{background:#2563eb;color:#fff}
+.nameDropdownItem:last-child{border-bottom:0}
+.nameDropdownItem.selected{background:#16a34a;color:#fff}
+.nameClearBtn{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:#dc2626;color:#fff;border:0;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;display:none}
+.nameClearBtn.show{display:block}
+
+@media(max-width:900px){.chartGrid{grid-template-columns:1fr}.chartStats{grid-template-columns:1fr}}
+@media(max-width:700px){
+  body.singleMode,.singleMode #reportArea{background:#fff!important;color:#000!important;margin:0!important;width:100%!important}
+  .singleMode .header,.singleMode .controls,.singleMode #loadStatus,.singleMode #chartSection{display:none!important}
+  .singleMode .reportCard,.singleMode .greyCard,.singleMode .banglaCard{margin:0;border:0;width:100%;overflow-x:auto}
+}
+
+/* 🔥 A4 LANDSCAPE PRINT */
+@page{size:A4 landscape;margin:4mm}
+@media print{
+  html,body{background:#fff!important;color:#000!important;margin:0!important;padding:0!important;width:297mm!important;height:210mm!important;overflow:hidden!important}
+  *{color:#000!important;text-shadow:none!important;opacity:1!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .header,.controls,.actionBar,#loadStatus,.noPrint,#chartSection,.cacheStatusBar{display:none!important}
+  #reportArea{width:100%!important;margin:0!important;padding:0!important}
+  
+  .reportCard,.greyCard,.banglaCard{width:297mm!important;height:202mm!important;margin:0!important;padding:2mm!important;border:1px solid #000!important;page-break-after:always!important;page-break-inside:avoid!important;page-break-before:always!important;overflow:hidden!important;display:block!important}
+  .reportCard:last-child,.greyCard:last-child,.banglaCard:last-child{page-break-after:auto!important}
+  
+  /* Report Card */
+  .reportCard .reportPrintHeader{padding:5px 0!important;margin-bottom:5px!important}
+  .reportCard .reportPrintHeader h2{font-size:22px!important;margin:0!important;font-weight:900!important;text-transform:uppercase!important}
+  .reportCard .reportPrintHeader h4{font-size:13px!important;margin:2px 0!important;font-weight:800!important;text-transform:uppercase!important}
+  .reportCard .reportPrintHeader h3{font-size:17px!important;margin:3px 0!important;font-weight:900!important;text-transform:uppercase!important}
+  .reportCard .qrCenter{margin:8px auto 10px!important}
+  .reportCard .qrMini{width:70px!important;height:70px!important}
+  .reportCard .companyLine{font-size:15px!important;padding:6px 2px!important;font-weight:900!important;text-transform:uppercase!important}
+  .reportCard .meta{font-size:12px!important}
+  .reportCard .meta div{padding:6px 3px!important;font-size:12px!important;font-weight:900!important;text-transform:uppercase!important}
+  .reportCard .tableWrap{overflow:visible!important;margin:8px 0!important}
+  .reportCard table{width:100%!important;min-width:0!important;table-layout:auto!important;font-size:11px!important}
+  .reportCard th,.reportCard td{padding:5px 3px!important;font-size:11px!important;line-height:1.2!important;overflow:hidden!important;word-break:break-word!important;white-space:normal!important;font-weight:700!important;text-transform:uppercase!important;vertical-align:middle!important}
+  .reportCard th{font-size:12px!important;font-weight:900!important}
+  .reportCard .totalRow{font-size:13px!important;font-weight:900!important}
+  .reportCard .sign{margin-top:25mm!important;display:grid!important;grid-template-columns:repeat(7,1fr)!important;gap:0!important}
+  .reportCard .sign div{font-size:10px!important;padding:5px 2px!important;line-height:1.2!important;font-weight:900!important;text-transform:uppercase!important}
+  
+  /* Grey Card */
+  .greyCard .greyHeader{line-height:1.3!important}
+  .greyCard .greyHeader h2{font-size:26px!important;margin:0!important;font-weight:900!important;text-transform:uppercase!important}
+  .greyCard .greyHeader h4{font-size:13px!important;margin:2px 0!important;font-weight:800!important;text-transform:uppercase!important}
+  .greyCard .greyHeader h1{font-size:34px!important;margin:4px 0!important;font-weight:900!important;text-transform:uppercase!important}
+  .greyCard .greyTitle{font-size:19px!important;margin:8px 0!important;font-weight:900!important;text-transform:uppercase!important}
+  .greyCard .qrCenter{margin:10px auto 12px!important}
+  .greyCard .qrMini{width:70px!important;height:70px!important}
+  .greyCard .greyTable{width:70%!important;margin:10px auto 0!important;table-layout:auto!important}
+  .greyCard .greyTable th,.greyCard .greyTable td{font-size:13px!important;padding:7px 5px!important;font-weight:700!important;text-transform:uppercase!important;white-space:normal!important;word-break:break-word!important}
+  .greyCard .greyTable th{font-size:14px!important;font-weight:900!important}
+  .greyCard .greySign{margin-top:50px!important;display:grid!important;grid-template-columns:repeat(6,1fr)!important;gap:15px!important}
+  .greyCard .greySign div{font-size:11px!important;padding-top:6px!important;font-weight:900!important;text-transform:uppercase!important}
+  
+  /*  BANGLA CARD PRINT */
+  .banglaCard{font-family:'SolaimanLipi','Kalpurush','Nirmala UI',Arial,sans-serif!important;padding:5mm!important}
+  .banglaCard .banglaHeader{font-size:11px!important;margin-bottom:10px!important;gap:15px!important}
+  .banglaCard .banglaPorterBox{width:250px!important;padding:6px!important;margin:8px auto!important}
+  .banglaCard .banglaPorterBox div{font-size:12px!important;margin-bottom:6px!important}
+  .banglaCard .banglaSubject{font-size:11px!important;margin:10px 0!important;line-height:1.8!important}
+  .banglaCard .banglaTable{font-size:10px!important;margin:12px 0!important}
+  .banglaCard .banglaTable th,.banglaCard .banglaTable td{padding:5px 3px!important;font-size:10px!important}
+  .banglaCard .banglaFooter{font-size:11px!important;line-height:1.8!important;margin:12px 0!important}
+  .banglaCard .banglaSign{margin-top:40mm!important;gap:12px!important}
+  .banglaCard .banglaSign div{font-size:9px!important;padding-top:4px!important}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h2>GMS Textiles Ltd.</h2>
+  <h4>Tansutrapur, Kaliakair, Gazipur.</h4>
+  <h4>Daily Goods Delivery Plan</h4>
+  <h3>Gate Plan Report</h3>
+</div>
+
+<div class="cacheStatusBar">
+  <div class="cacheDot"></div>
+  <span id="cacheStatusText"> Cache Ready</span>
+  <span class="cacheReadCount">🔥 Firebase Reads: <b id="readCounter">0</b></span>
+  <span class="syncStatus">🔄 Sync: <b id="syncStatus">Active</b></span>
+</div>
+
+<div class="controls">
+  From: <input type="date" id="fromDate">
+  To: <input type="date" id="toDate">
+  Gate Plan No: <input id="gateNoSearch" placeholder="GP-2026-0001" style="width:145px">
+  Company:
+  <select id="companyFilter" onchange="updateNameFilter()">
+    <option>All</option>
+    <option>GMS Textiles Ltd.</option>
+    <option>GMS Composite Knitting Ind Ltd.</option>
+  </select>
+  MCD:
+  <select id="mcdFilter" onchange="updateNameFilter()">
+    <option>All</option>
+    <option>ACCESSORIES MCD</option>
+    <option>GREY FABRIC MCD</option>
+    <option>BILLING SECTION</option>
+    <option>NEEDLE MCD</option>
+    <option>SHIPMENT MCD</option>
+    <option>OUTER WEAR MCD</option>
+    <option>YARN MCD</option>
+    <option>PRINTING MCD</option>
+    <option>JHUT MCD</option>
+    <option>GENERAL MCD</option>
+    <option>LEFTOVER MCD</option>
+    <option>FINISH FABRIC MCD</option>
+    <option>YARN DYEING MCD</option>
+    <option>CHEMICAL MCD</option>
+    <option>GENERAL TECHNICAL MCD</option>
+  </select>
+  
+  <div class="nameFilterContainer">
+    Prepared By: 
+    <input type="text" id="nameSearchInput" class="nameSearchInput" placeholder="🔍 Search name..." oninput="filterNameDropdown()" onfocus="showNameDropdown()">
+    <button id="nameClearBtn" class="nameClearBtn" onclick="clearNameFilter()">×</button>
+    <div id="nameDropdown" class="nameDropdown"></div>
+  </div>
+  
+  <br>
+  <button class="search" onclick="showReport()">🔍 Search</button>
+  <button class="clear" onclick="clearFilters()">♻ Clear Filter</button>
+  <button class="edit" onclick="loadOfflineData()">📦 Load Offline Data</button>
+  <button class="excel" onclick="syncAllOffline()">📤 Sync All to Firebase</button>
+  <button class="excel" onclick="exportExcel()">📊 Excel</button>
+  <button class="print" onclick="window.print()">🖨 PDF / Print</button>
+  <button class="new" onclick="location.href='gate-plan.html'">➕ New Gate Plan</button>
+  <button class="home" onclick="location.href='index.html'">🏠 Home</button>
+</div>
+
+<div id="chartSection" style="display:none">
+  <div class="chartHeader">
+    <h3>📊 Gate Plan Analytics</h3>
+    <p>Real-time statistics of all gate plans</p>
+  </div>
+  <div class="chartGrid">
+    <div class="chartCard">
+      <h4>📦 Total Plans by MCD</h4>
+      <div class="chartWrap"><canvas id="mcdBarChart"></canvas></div>
+    </div>
+    <div class="chartCard">
+      <h4>👤 Plans by Prepared By</h4>
+      <div class="chartWrap"><canvas id="namePieChart"></canvas></div>
+      <div class="chartStats">
+        <div class="statBox"><span class="statNum" id="statTotal">0</span><span class="statLabel">Total Plans</span></div>
+        <div class="statBox blue"><span class="statNum" id="statMcds">0</span><span class="statLabel">MCDs</span></div>
+        <div class="statBox purple"><span class="statNum" id="statNames">0</span><span class="statLabel">Users</span></div>
+      </div>
+    </div>
+    <div class="chartCard">
+      <h4>📈 Delivery Volume</h4>
+      <div class="chartWrap"><canvas id="deliveryChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div id="loadStatus">Loading saved Gate Plans...</div>
+<div id="reportArea"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId:"gms-warehouse-tracker-7f57e",
+  storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId:"992250313291",
+  appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+
+let allPlans=[];
+let mcdBarChart=null, namePieChart=null, deliveryChart=null;
+let selectedNameValue = "";
+
+const CHART_COLORS = ['#22c55e','#3b82f6','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899','#14b8a6','#f97316','#6366f1'];
+
+window.GMS_CACHE = {
+  CACHE_KEY: 'GMS_GATEPLAN_SMART_CACHE',
+  READ_COUNT_KEY: 'GMS_GATEPLAN_READ_COUNT_TODAY',
+  READ_DATE_KEY: 'GMS_GATEPLAN_READ_COUNT_DATE',
+  CACHE_EXPIRY_MS: 5 * 60 * 1000,
+  getReadCount: function(){
+    var today = new Date().toDateString();
+    if(localStorage.getItem(this.READ_DATE_KEY) !== today){
+      localStorage.setItem(this.READ_DATE_KEY, today);
+      localStorage.setItem(this.READ_COUNT_KEY, '0');
+    }
+    return parseInt(localStorage.getItem(this.READ_COUNT_KEY) || '0');
+  },
+  incRead: function(n){
+    n = n || 1;
+    var count = this.getReadCount() + n;
+    localStorage.setItem(this.READ_COUNT_KEY, String(count));
+    var el = document.getElementById('readCounter');
+    if(el) el.innerText = count;
+    return count;
+  },
+  _all: function(){
+    try{ return JSON.parse(localStorage.getItem(this.CACHE_KEY) || '{}'); }
+    catch(e){ return {}; }
+  },
+  set: function(key, data){
+    var all = this._all();
+    all[key] = { data: data, savedAt: Date.now() };
+    try{ localStorage.setItem(this.CACHE_KEY, JSON.stringify(all)); }
+    catch(e){ console.warn('Cache set failed:', e); }
+  },
+  get: function(key){
+    var all = this._all();
+    var entry = all[key];
+    if(!entry) return null;
+    var age = Date.now() - entry.savedAt;
+    if(age > this.CACHE_EXPIRY_MS){
+      console.log(' Cache expired for:', key);
+      return null;
+    }
+    return entry.data;
+  },
+  invalidate: function(keys){
+    var all = this._all();
+    if(typeof keys === 'string') keys = [keys];
+    keys.forEach(function(k){ delete all[k]; });
+    localStorage.setItem(this.CACHE_KEY, JSON.stringify(all));
+  },
+  clear: function(){
+    localStorage.removeItem(this.CACHE_KEY);
+  }
+};
+
+const CACHE_KEYS = { gatePlans: 'gate_plans_cache' };
+
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+function num(v){return Number(v)||0}
+function fmt(v){return num(v).toLocaleString("en-US")}
+function planNo(p){return p.gatePlanNo||p.gatePassNo||p.no||""}
+function makeId(no){return String(no).replaceAll("/","-").replaceAll(" ","-")}
+function reportLink(no){return location.origin+location.pathname+"?gatePlanNo="+encodeURIComponent(no||"")}
+
+function renderQRCodes(){
+  document.querySelectorAll("[data-qr-no]").forEach(el=>{
+    const no=el.getAttribute("data-qr-no")||"";
+    el.innerHTML="";
+    try{ new QRCode(el,{text:reportLink(no),width:70,height:70,correctLevel:QRCode.CorrectLevel.M}); }catch(e){}
+  });
+}
+
+function getUniqueNamesForMCD(){
+  const selectedMCD = document.getElementById('mcdFilter').value;
+  const selectedCompany = document.getElementById('companyFilter').value;
+  
+  const names = new Set();
+  allPlans.forEach(p=>{
+    if(selectedMCD !== "All" && p.mcd !== selectedMCD) return;
+    if(selectedCompany !== "All" && p.company !== selectedCompany) return;
+    
+    const name = p.preparedBy || 'Unknown';
+    names.add(name);
+  });
+  return Array.from(names).sort();
+}
+
+window.updateNameFilter=function(){
+  selectedNameValue = "";
+  document.getElementById('nameSearchInput').value = "";
+  document.getElementById('nameClearBtn').classList.remove('show');
+  document.getElementById('nameDropdown').classList.remove('show');
+}
+
+window.filterNameDropdown=function(){
+  const input = document.getElementById('nameSearchInput');
+  const dropdown = document.getElementById('nameDropdown');
+  const clearBtn = document.getElementById('nameClearBtn');
+  const searchText = input.value.trim().toLowerCase();
+  
+  const allNames = getUniqueNamesForMCD();
+  
+  const filteredNames = searchText 
+    ? allNames.filter(name => name.toLowerCase().includes(searchText))
+    : allNames;
+  
+  if(filteredNames.length === 0){
+    dropdown.innerHTML = '<div class="nameDropdownItem" style="color:#999">No match found</div>';
+  }else{
+    dropdown.innerHTML = filteredNames.map(name => 
+      `<div class="nameDropdownItem" onclick="selectName('${esc(name)}')">${esc(name)}</div>`
+    ).join("");
+  }
+  
+  dropdown.classList.add('show');
+  clearBtn.classList.toggle('show', input.value.length > 0);
+}
+
+window.showNameDropdown=function(){
+  const input = document.getElementById('nameSearchInput');
+  if(input.value === ""){
+    filterNameDropdown();
+  }
+}
+
+window.selectName=function(name){
+  const input = document.getElementById('nameSearchInput');
+  const dropdown = document.getElementById('nameDropdown');
+  const clearBtn = document.getElementById('nameClearBtn');
+  
+  input.value = name;
+  selectedNameValue = name;
+  dropdown.classList.remove('show');
+  clearBtn.classList.add('show');
+  
+  showReport();
+}
+
+window.clearNameFilter=function(){
+  const input = document.getElementById('nameSearchInput');
+  const dropdown = document.getElementById('nameDropdown');
+  const clearBtn = document.getElementById('nameClearBtn');
+  
+  input.value = "";
+  selectedNameValue = "";
+  dropdown.classList.remove('show');
+  clearBtn.classList.remove('show');
+  
+  showReport();
+}
+
+document.addEventListener('click', function(e){
+  const container = document.querySelector('.nameFilterContainer');
+  const dropdown = document.getElementById('nameDropdown');
+  if(container && !container.contains(e.target)){
+    dropdown.classList.remove('show');
+  }
+});
+
+function renderCharts(data){
+  const chartSection = document.getElementById('chartSection');
+  
+  if(!data || data.length===0){
+    chartSection.style.display = 'none';
+    return;
+  }
+  
+  chartSection.style.display = 'block';
+  
+  if(typeof window.Chart === 'undefined'){
+    console.error('❌ Chart.js not loaded!');
+    return;
+  }
+  
+  const ChartLib = window.Chart;
+  
+  const mcdCounts = {};
+  data.forEach(p=>{
+    const mcd = p.mcd || 'Unknown';
+    mcdCounts[mcd] = (mcdCounts[mcd] || 0) + 1;
+  });
+  
+  const mcdLabels = Object.keys(mcdCounts);
+  const mcdValues = Object.values(mcdCounts);
+  const mcdColors = mcdLabels.map((_,i)=>CHART_COLORS[i % CHART_COLORS.length]);
+  
+  const nameCounts = {};
+  data.forEach(p=>{
+    const name = p.preparedBy || 'Unknown';
+    nameCounts[name] = (nameCounts[name] || 0) + 1;
+  });
+  
+  const nameLabels = Object.keys(nameCounts);
+  const nameValues = Object.values(nameCounts);
+  
+  const deliveryByDate = {};
+  data.forEach(p=>{
+    const date = p.date || 'Unknown';
+    let totalQty = 0;
+    (p.rows||[]).forEach(r=>{ totalQty += num(r.deliveryQty); });
+    deliveryByDate[date] = (deliveryByDate[date] || 0) + totalQty;
+  });
+  
+  const dateLabels = Object.keys(deliveryByDate).sort();
+  const deliveryValues = dateLabels.map(d=>deliveryByDate[d]);
+  
+  document.getElementById('statTotal').innerText = data.length;
+  document.getElementById('statMcds').innerText = mcdLabels.length;
+  document.getElementById('statNames').innerText = nameLabels.length;
+  
+  if(mcdBarChart) mcdBarChart.destroy();
+  if(namePieChart) namePieChart.destroy();
+  if(deliveryChart) deliveryChart.destroy();
+  
+  try{
+    const mcdCtx = document.getElementById('mcdBarChart').getContext('2d');
+    mcdBarChart = new ChartLib(mcdCtx, {
+      type: 'bar',
+      data: {
+        labels: mcdLabels,
+        datasets: [{
+          label: 'Gate Plans',
+          data: mcdValues,
+          backgroundColor: mcdColors.map(c=>c+'cc'),
+          borderColor: mcdColors,
+          borderWidth: 2,
+          borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, grid: { color: 'rgba(148,163,184,.1)' }, ticks: { color: '#94a3b8' } },
+          x: { grid: { display: false }, ticks: { color: '#e2e8f0', maxRotation: 45 } }
+        }
+      }
+    });
+    
+    const nameCtx = document.getElementById('namePieChart').getContext('2d');
+    namePieChart = new ChartLib(nameCtx, {
+      type: 'doughnut',
+      data: {
+        labels: nameLabels,
+        datasets: [{
+          data: nameValues,
+          backgroundColor: ['#22c55e','#3b82f6','#f59e0b','#8b5cf6','#ef4444','#06b6d4'],
+          borderWidth: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '55%',
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#e2e8f0', font: { size: 10 } } }
+        }
+      }
+    });
+    
+    const deliveryCtx = document.getElementById('deliveryChart').getContext('2d');
+    deliveryChart = new ChartLib(deliveryCtx, {
+      type: 'line',
+      data: {
+        labels: dateLabels,
+        datasets: [{
+          label: 'Total Delivery Qty',
+          data: deliveryValues,
+          borderColor: '#22c55e',
+          backgroundColor: 'rgba(34,197,94,.1)',
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, grid: { color: 'rgba(148,163,184,.1)' }, ticks: { color: '#94a3b8' } },
+          x: { grid: { display: false }, ticks: { color: '#e2e8f0', maxRotation: 45 } }
+        }
+      }
+    });
+  }catch(e){
+    console.error('❌ Chart error:', e);
+  }
+}
+
+async function loadPlans(){
+  const map={};
+  
+  const cached = window.GMS_CACHE.get(CACHE_KEYS.gatePlans);
+  if(cached !== null){
+    allPlans = cached;
+    document.getElementById('loadStatus').innerText="Loaded: "+allPlans.length+" Gate Plan (Cache)";
+    return;
+  }
+  
+  try{
+    const snap=await getDocs(collection(db,"gatePlans"));
+    snap.forEach(d=>{
+      const p={...d.data(),_id:d.id,_source:"firebase"};
+      const no=planNo(p)||d.id;
+      map[no]=p;
+    });
+    window.GMS_CACHE.incRead(snap.size);
+  }catch(e){console.log(e)}
+  
+  try{
+    const local=JSON.parse(localStorage.getItem("gatePlans")||"[]");
+    local.forEach(p=>{const no=planNo(p); if(no&&!map[no])map[no]={...p,_source:"offline"}});
+  }catch(e){}
+  
+  allPlans=Object.values(map).sort((a,b)=>{
+    const d=(b.date||"").localeCompare(a.date||"");
+    if(d!==0)return d;
+    const t=(b.time||"").localeCompare(a.time||"");
+    if(t!==0)return t;
+    return planNo(b).localeCompare(planNo(a));
+  });
+  
+  window.GMS_CACHE.set(CACHE_KEYS.gatePlans, allPlans);
+  
+  document.getElementById("loadStatus").innerText="Loaded: "+allPlans.length+" Gate Plan";
+}
+
+function normalHeader(p){
+  return `
+  <div class="reportPrintHeader">
+    <h2>GMS Textiles Ltd.</h2>
+    <h4>Tansutrapur, Kaliakair, Gazipur.</h4>
+    <h4>Daily Goods Delivery Plan</h4>
+    <h3>${esc(p.mcd||"ACCESSORIES MCD")}</h3>
+  </div>
+  <div class="qrCenter"><div class="qrMini" data-qr-no="${esc(planNo(p))}"></div></div>`;
+}
+
+function renderNormal(p,i){
+  let delivery=0,ctn=0;
+  const rows=p.rows||[];
+  rows.forEach(r=>{delivery+=num(r.deliveryQty);ctn+=num(r.ctnQty)});
+  const badge = p._source === "offline" 
+    ? `<span class="offlineBadge">📦 Offline</span>` 
+    : `<span class="syncedBadge">📡 Synced</span>`;
+  const body=rows.map((r,idx)=>`
+  <tr>
+    <td>${idx+1}</td><td>${esc(r.buyerName)}</td><td>${esc(r.srGtNo)}</td>
+    <td>${esc(r.styleName)}</td><td>${esc(r.orderNo)}</td><td>${esc(r.itemName)}</td>
+    <td>${esc(r.color)}</td><td>${esc(r.unit)}</td><td>${esc(r.deliveryQty)}</td>
+    <td>${esc(r.ctnQty)}</td><td>${esc(r.toParty)}</td><td>${esc(r.vehicleNo)}</td><td>${esc(r.remarks)}</td>
+  </tr>`).join("");
+  return `
+  <div class="reportCard">
+    ${normalHeader(p)}
+    <div class="companyLine">${esc(p.company||"GMS Textiles Ltd.")} To ${esc(p.toCompany||"")}${badge}</div>
+    <div class="meta">
+      <div>Gate Plan No: ${esc(planNo(p))}</div><div>Date: ${esc(p.date)}</div><div>Time: ${esc(p.time)}</div>
+      <div>MCD: ${esc(p.mcd)}</div><div>Prepared By: ${esc(p.preparedBy)}</div>
+    </div>
+    <div class="actionBar noPrint">
+      <button class="print" onclick="printSingle(${i})">🖨 Print This</button>
+      <button class="edit" onclick="editPlan('${esc(planNo(p))}')">✏ Edit</button>
+      <button class="delete" onclick="deletePlan('${esc(planNo(p))}','${p._source||"firebase"}')"> Delete</button>
+    </div>
+    <div class="tableWrap">
+      <table>
+        <thead><tr>
+          <th>SL No</th><th>Buyer Name</th><th>SR/GT No</th><th>Style Name</th><th>Order No/PO No</th>
+          <th>Name of Item</th><th>Color</th><th>Unit</th><th>Delivery Qty</th><th>CTN/PKG Qty</th>
+          <th>To Party Name</th><th>Vehicle No</th><th>Remarks</th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+        <tfoot><tr class="totalRow"><td colspan="8">Grand Total</td><td>${fmt(delivery)}</td><td>${fmt(ctn)}</td><td colspan="3"></td></tr></tfoot>
+      </table>
+    </div>
+    <div class="sign">
+      <div>Prepared By<br>${esc(p.preparedBy)}</div><div>Security Dept.</div><div>Checked By<br>Sr. Officer ( MCD )</div>
+      <div>Asst. Manager<br>(MCD)</div><div>AGM (MCD)</div>
+      <div>Verify By<br>HR & Admin Dept.</div><div>Approved By</div>
+    </div>
+  </div>`;
+}
+
+function renderGrey(p,i){
+  const rows=p.rows||[], r=rows[0]||{};
+  let qty=0; rows.forEach(x=>qty+=num(x.deliveryQty));
+  const badge = p._source === "offline" 
+    ? `<span class="offlineBadge">📦 Offline</span>` 
+    : `<span class="syncedBadge"> Synced</span>`;
+  return `
+  <div class="greyCard">
+    <div class="greyHeader">
+      <h2>GMS TEXTILES LTD.</h2><h4>Tansutrapur, Kaliakoir, Gazipur</h4>
+      <h1>Grey Fabric-MCD</h1><div class="greyTitle">Daily GMS Textiles to GMS Composite Delivery Status</div>
+    </div>
+    <div class="qrCenter"><div class="qrMini" data-qr-no="${esc(planNo(p))}"></div></div>
+    <div class="actionBar noPrint">
+      <button class="print" onclick="printSingle(${i})">🖨 Print This</button>
+      <button class="edit" onclick="editPlan('${esc(planNo(p))}')">✏ Edit</button>
+      <button class="delete" onclick="deletePlan('${esc(planNo(p))}','${p._source||"firebase"}')">🗑 Delete</button>
+    </div>
+    <table class="greyTable">
+      <thead><tr><th>Date</th><th>Company Name</th><th>Delivery Reason</th><th>Total Qty</th><th>Remarks</th></tr></thead>
+      <tbody>
+        <tr><td>${esc(p.date)}</td><td>${esc(r.toParty||p.toCompany||"")}</td><td>${esc(r.itemName||"For Dyeing")}</td><td>${fmt(qty)}</td><td>${esc(r.remarks)}</td></tr>
+        <tr class="totalRow"><td colspan="3">Total-</td><td>${fmt(qty)}</td><td></td></tr>
+      </tbody>
+    </table>
+    <div class="greySign">
+      <div>Prepared By<br>${esc(p.preparedBy)}</div><div>Security Dept.</div><div>Checked By Officer - MCD</div>
+      <div>Deputy Manager<br>(MCD)</div><div>Knitting Manager/DGM</div><div>Dyeing Manager/GM</div>
+    </div>
+  </div>`;
+}
+
+// 🔥 BANGLA FORMAT RENDER FUNCTION
+function renderBangla(p,i){
+  const rows=p.rows||[];
+  let totalQty=0;
+  rows.forEach(r=>{totalQty+=num(r.deliveryQty)});
+  
+  const badge = p._source === "offline" 
+    ? `<span class="offlineBadge">📦 Offline</span>` 
+    : `<span class="syncedBadge">📡 Synced</span>`;
+  
+  // Format date in Bangla
+  const dateObj = new Date(p.date);
+  const banglaMonths = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+  const banglaDate = String(dateObj.getDate())+' '+banglaMonths[dateObj.getMonth()]+' '+dateObj.getFullYear();
+  
+  const body = rows.map((r,idx)=>`
+    <tr>
+      <td>${idx+1}</td>
+      <td>${esc(r.itemName||'')}</td>
+      <td>${esc(r.unit||'')}</td>
+      <td>${esc(r.deliveryQty||'0')}</td>
+      <td>${esc(r.remarks||'')}</td>
+    </tr>
+  `).join("");
+  
+  return `
+  <div class="banglaCard">
+    <div class="banglaHeader">
+      <div class="banglaLeft">
+        <div>তারিখঃ ${banglaDate}</div>
+        <div>বরাবর,</div>
+        <div>মহাব্যবস্থাপক,</div>
+        <div>(এডমিন এন্ড কমপ্লায়েন্স)</div>
+        <div>জি,এম,এস টেক্সটাইলস লিমিটেড।</div>
+        <div>টানসুত্রাপুর,কালিয়াকৈর,গাজীপুর।</div>
+      </div>
+      <div class="banglaRight">
+        <div>গেট পাস নং: ${esc(planNo(p))} ${badge}</div>
+        <div>প্রাপক: ...........................................</div>
+        <div>ঠিকানা: ...............................................</div>
+      </div>
+    </div>
+    
+    <div class="banglaPorterBox">
+      <div>পার্চেজ যোগাযোগ মাধ্যম</div>
+      <div style="line-height:2.5">
+        <div>নামঃ ${esc(p.porterName||'...............................')}</div>
+        <div>মোবাইল নম্বরঃ ${esc(p.porterMobile||'...........................')}</div>
+      </div>
+    </div>
+    
+    <div class="banglaSubject">
+      <div><b>বিষয় ঃ মালমাল বাহিরে নেওয়া অনুমোদন প্রসঙ্গে।</b></div>
+      <div style="margin-top:10px">জনাব,</div>
+      <div>যথাবিহীত সম্মান পূর্বক বিনীত নিবেদন এই যে, নিচের মালমালগুলো ............................................................</div>
+      <div>জন্য ফ্যাক্টরির বাহিরে পাঠানো প্রয়োজন।</div>
+      <div style="margin-top:8px"><u>নিম্নে মালমালের বিবরণ প্রদান করা হলোঃ</u></div>
+    </div>
+
+    <table class="banglaTable">
+      <thead>
+        <tr>
+          <th style="width:50px">ক্রমিক নং</th>
+          <th>মালমালের বিবরণ</th>
+          <th style="width:70px">একক</th>
+          <th style="width:80px">পরিমান</th>
+          <th style="width:130px">বাহিরে থাকার সময়কাল</th>
+        </tr>
+      </thead>
+      <tbody>${body}</tbody>
+      <tfoot>
+        <tr style="font-weight:bold;background:#f0f0f0">
+          <td colspan="3" style="border:1px solid #000;padding:6px 4px;text-align:right">মোট</td>
+          <td style="border:1px solid #000;padding:6px 4px;text-align:center">${fmt(totalQty)}</td>
+          <td style="border:1px solid #000;padding:6px 4px"></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="banglaFooter">
+      <div>অতএব,</div>
+      <div>জনাবের নিকট আকুল আবেদন এই যে, উক্ত মালমাল বাহিরে নেওয়ার জন্য আপনার সম্মতি কামনা করছি।</div>
+    </div>
+
+    <div class="banglaSign">
+      <div>প্রস্তুতকারী<br>${esc(p.preparedBy||'')}</div>
+      <div>বিভাগীয় প্রধান</div>
+      <div>পার্চেজ</div>
+      <div>অনুমোদনক্রমে (মানব সম্পদ বিভাগ)</div>
+    </div>
+    
+    <div class="actionBar noPrint" style="margin-top:20px">
+      <button class="print" onclick="printSingle(${i})">🖨 Print This</button>
+      <button class="edit" onclick="editPlan('${esc(planNo(p))}')"> Edit</button>
+      <button class="delete" onclick="deletePlan('${esc(planNo(p))}','${p._source||"firebase"}')">🗑 Delete</button>
+    </div>
+  </div>`;
+}
+
+function filtered(){
+  const from=document.getElementById("fromDate").value;
+  const to=document.getElementById("toDate").value;
+  const no=document.getElementById("gateNoSearch").value.trim();
+  const company=document.getElementById("companyFilter").value;
+  const mcd=document.getElementById("mcdFilter").value;
+  const name=selectedNameValue;
+  
+  const result = allPlans.filter(p=>{
+    if(from&&(p.date||"")<from)return false;
+    if(to&&(p.date||"")>to)return false;
+    if(no&&planNo(p).toLowerCase()!==no.toLowerCase())return false;
+    if(company!=="All"&&p.company!==company)return false;
+    if(mcd!=="All"&&p.mcd!==mcd)return false;
+    if(name && (p.preparedBy||"")!==name)return false;
+    return true;
+  });
+  
+  return result;
+}
+
+window.loadOfflineData=function(){
+  let offlineCount=0;
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(key && key.startsWith("GMS_GATEPLAN_OFFLINE_")){
+      try{
+        const queue=JSON.parse(localStorage.getItem(key)||"[]");
+        const pending=queue.filter(x=>x.status!=="synced");
+        pending.forEach(item=>{
+          const no=planNo(item.data);
+          if(no && !allPlans.find(a=>planNo(a)===no)){
+            let c=item.data; c._source="offline"; c._status=item.status||"pending";
+            allPlans.push(c); offlineCount++;
+          }
+        });
+      }catch(e){}
+    }
+  }
+  if(offlineCount>0){
+    allPlans.sort((a,b)=>{
+      const d=(b.date||"").localeCompare(a.date||"");
+      if(d!==0)return d;
+      const t=(b.time||"").localeCompare(a.time||"");
+      if(t!==0)return t;
+      return planNo(b).localeCompare(planNo(a));
+    });
+    updateNameFilter();
+    const list=filtered();
+    renderCharts(list);
+    const area=document.getElementById("reportArea");
+    if(list.length===0){area.innerHTML='<div class="noData">No saved Gate Plan found</div>';return}
+    area.innerHTML=list.map((p,i)=>{
+      if(p.mcd==="GREY FABRIC MCD") return renderGrey(p,i);
+      if(p.mcd==="GENERAL MCD" && p.toCompany==="Other's Factory") return renderBangla(p,i);
+      return renderNormal(p,i);
+    }).join("");
+    setTimeout(renderQRCodes,100);
+    alert("✅ Loaded "+offlineCount+" offline gate plan(s)");
+  }else{ alert("📦 No offline data found"); }
+}
+
+window.syncAllOffline=async function(){
+  let synced=0,failed=0;
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(key && key.startsWith("GMS_GATEPLAN_OFFLINE_")){
+      try{
+        const queue=JSON.parse(localStorage.getItem(key)||"[]");
+        const pending=queue.filter(x=>x.status==="pending");
+        for(let item of pending){
+          try{
+            await setDoc(doc(db,"gatePlans",item.id),item.data,{merge:true});
+            item.status="synced"; item.syncedAt=new Date().toISOString(); synced++;
+          }catch(e){ failed++; }
+        }
+        localStorage.setItem(key,JSON.stringify(queue));
+      }catch(e){}
+    }
+  }
+  if(synced>0 || failed>0){
+    alert("✅ Synced: "+synced+" | ❌ Failed: "+failed);
+    window.GMS_CACHE.invalidate([CACHE_KEYS.gatePlans]);
+    await loadPlans();
+    updateNameFilter();
+    const list=filtered();
+    renderCharts(list);
+    const area=document.getElementById("reportArea");
+    if(list.length===0){area.innerHTML='<div class="noData">No saved Gate Plan found</div>';return}
+    area.innerHTML=list.map((p,i)=>{
+      if(p.mcd==="GREY FABRIC MCD") return renderGrey(p,i);
+      if(p.mcd==="GENERAL MCD" && p.toCompany==="Other's Factory") return renderBangla(p,i);
+      return renderNormal(p,i);
+    }).join("");
+    setTimeout(renderQRCodes,100);
+  }else{ alert("✅ No pending offline data"); }
+}
+
+async function autoSyncReport(){
+  let synced=0;
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(key && key.startsWith("GMS_GATEPLAN_OFFLINE_")){
+      try{
+        const queue=JSON.parse(localStorage.getItem(key)||"[]");
+        const pending=queue.filter(x=>x.status==="pending");
+        for(let item of pending){
+          try{
+            await setDoc(doc(db,"gatePlans",item.id),item.data,{merge:true});
+            item.status="synced"; synced++;
+          }catch(e){}
+        }
+        localStorage.setItem(key,JSON.stringify(queue));
+      }catch(e){}
+    }
+  }
+  if(synced>0){ 
+    window.GMS_CACHE.invalidate([CACHE_KEYS.gatePlans]);
+    await loadPlans();
+    updateNameFilter();
+    const list=filtered();
+    renderCharts(list);
+    const area=document.getElementById("reportArea");
+    if(list.length===0){area.innerHTML='<div class="noData">No saved Gate Plan found</div>';return}
+    area.innerHTML=list.map((p,i)=>{
+      if(p.mcd==="GREY FABRIC MCD") return renderGrey(p,i);
+      if(p.mcd==="GENERAL MCD" && p.toCompany==="Other's Factory") return renderBangla(p,i);
+      return renderNormal(p,i);
+    }).join("");
+    setTimeout(renderQRCodes,100);
+  }
+}
+setInterval(autoSyncReport, 60000);
+setTimeout(autoSyncReport, 3000);
+
+window.showReport=async function(){
+  const statusEl = document.getElementById('cacheStatusText');
+  if(statusEl) statusEl.innerText = ' Checking cache...';
+  
+  await loadPlans();
+  const list=filtered();
+  
+  renderCharts(list);
+  
+  const area=document.getElementById("reportArea");
+  if(list.length===0){
+    area.innerHTML='<div class="noData">No saved Gate Plan found</div>';
+    if(statusEl) statusEl.innerText = '⚠️ No data found';
+    return;
+  }
+  
+  // 🔥 CHECK FOR BANGLA FORMAT
+  area.innerHTML=list.map((p,i)=>{
+    if(p.mcd==="GREY FABRIC MCD") return renderGrey(p,i);
+    if(p.mcd==="GENERAL MCD" && p.toCompany==="Other's Factory") return renderBangla(p,i);
+    return renderNormal(p,i);
+  }).join("");
+  setTimeout(renderQRCodes,100);
+  
+  if(statusEl) statusEl.innerText = '✅ Report loaded ('+list.length+' plans)';
+};
+
+window.clearFilters=function(){
+  document.getElementById("fromDate").value="";
+  document.getElementById("toDate").value="";
+  document.getElementById("gateNoSearch").value="";
+  document.getElementById("companyFilter").value="All";
+  document.getElementById("mcdFilter").value="All";
+  selectedNameValue = "";
+  document.getElementById("nameSearchInput").value = "";
+  document.getElementById("nameClearBtn").classList.remove('show');
+  showReport();
+};
+
+window.printSingle=function(i){
+  const card=document.querySelectorAll(".reportCard,.greyCard,.banglaCard")[i];
+  if(!card)return;
+  const win=window.open("","_blank");
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Gate Plan Print</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+  <style>
+    @page{size:A4 landscape;margin:4mm}
+    html,body{background:#fff!important;color:#000!important;margin:0!important;padding:0!important;width:297mm!important;height:210mm!important}
+    *{color:#000!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    .reportCard,.greyCard,.banglaCard{width:297mm!important;height:202mm!important;margin:0!important;padding:2mm!important;border:1px solid #000!important;overflow:hidden!important}
+    .reportPrintHeader{text-align:center;line-height:1.15;padding:5px 0!important;border-bottom:1px solid #000}
+    .reportPrintHeader h2{margin:0!important;font-size:22px!important;font-weight:900!important;text-transform:uppercase!important}
+    .reportPrintHeader h4{margin:2px 0!important;font-size:13px!important;font-weight:800!important;text-transform:uppercase!important}
+    .reportPrintHeader h3{margin:3px 0!important;font-size:17px!important;font-weight:900!important;text-transform:uppercase!important}
+    .qrCenter{display:block;text-align:center;width:100%;margin:8px auto 10px!important}
+    .qrMini{display:block;width:70px!important;height:70px!important;margin:0 auto}
+    .companyLine{text-align:center;font-size:15px!important;font-weight:900!important;border-top:1px solid #000;border-bottom:1px solid #000;padding:6px 2px!important;text-transform:uppercase!important}
+    .meta{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid #000}
+    .meta div{border-right:1px solid #000;padding:6px 3px!important;text-align:center;font-weight:900!important;font-size:12px!important;text-transform:uppercase!important}
+    table{width:100%!important;min-width:0!important;border-collapse:collapse;table-layout:auto!important;font-size:11px!important}
+    th,td{border:1px solid #000;padding:5px 3px!important;text-align:center;vertical-align:middle;font-size:11px!important;line-height:1.2!important;font-weight:700!important;text-transform:uppercase!important;white-space:normal!important;word-break:break-word!important}
+    th{font-size:12px!important;font-weight:900!important}
+    .totalRow{background:#f3f4f6;font-weight:900!important;font-size:13px!important}
+    .sign{display:grid;grid-template-columns:repeat(7,1fr);gap:0;margin-top:25mm!important}
+    .sign div{text-align:center;font-weight:900!important;border-top:1px solid #000;padding:5px 2px!important;font-size:10px!important;line-height:1.2!important;text-transform:uppercase!important}
+    .greyHeader{text-align:center;line-height:1.3!important}
+    .greyHeader h2{margin:0!important;font-size:26px!important;font-weight:900!important;text-transform:uppercase!important}
+    .greyHeader h4{margin:2px 0!important;font-size:13px!important;font-weight:800!important;text-transform:uppercase!important}
+    .greyHeader h1{margin:4px 0!important;font-size:34px!important;font-weight:900!important;text-transform:uppercase!important}
+    .greyTitle{text-align:center;font-size:19px!important;font-weight:900!important;margin:8px 0!important;text-transform:uppercase!important}
+    .greyTable{width:70%!important;min-width:0;margin:10px auto 0!important;border-collapse:collapse;table-layout:auto!important}
+    .greyTable th,.greyTable td{border:1px solid #000;padding:7px 5px!important;text-align:center;font-size:13px!important;font-weight:700!important;text-transform:uppercase!important;white-space:normal!important;word-break:break-word!important}
+    .greyTable th{font-size:14px!important;font-weight:900!important}
+    .greySign{display:grid;grid-template-columns:repeat(6,1fr);gap:15px;margin-top:50px!important}
+    .greySign div{text-align:center;font-weight:900!important;border-top:1px solid #000;padding-top:6px!important;font-size:11px!important;text-transform:uppercase!important}
+    
+    /* 🔥 BANGLA PRINT STYLES */
+    .banglaCard{font-family:'SolaimanLipi','Kalpurush','Nirmala UI',Arial,sans-serif!important;padding:5mm!important}
+    .banglaCard .banglaHeader{font-size:11px!important;margin-bottom:10px!important;gap:15px!important}
+    .banglaCard .banglaPorterBox{width:250px!important;padding:6px!important;margin:8px auto!important}
+    .banglaCard .banglaPorterBox div{font-size:12px!important;margin-bottom:6px!important}
+    .banglaCard .banglaSubject{font-size:11px!important;margin:10px 0!important;line-height:1.8!important}
+    .banglaCard .banglaTable{font-size:10px!important;margin:12px 0!important}
+    .banglaCard .banglaTable th,.banglaCard .banglaTable td{padding:5px 3px!important;font-size:10px!important}
+    .banglaCard .banglaFooter{font-size:11px!important;line-height:1.8!important;margin:12px 0!important}
+    .banglaCard .banglaSign{margin-top:40mm!important;gap:12px!important}
+    .banglaCard .banglaSign div{font-size:9px!important;padding-top:4px!important}
+    
+    .actionBar,.noPrint{display:none!important}
+  </style></head><body>
+  <div id="reportArea">${card.outerHTML}</div>
+  <script>
+    function reportLink(no){return "${location.origin+location.pathname}"+"?gatePlanNo="+encodeURIComponent(no||"")}
+    document.querySelectorAll(".noPrint,.actionBar").forEach(x=>x.remove());
+    document.querySelectorAll("[data-qr-no]").forEach(el=>{
+      const no=el.getAttribute("data-qr-no")||"";
+      el.innerHTML="";
+      try{ new QRCode(el,{text:reportLink(no),width:70,height:70,correctLevel:QRCode.CorrectLevel.M}); }catch(e){}
+    });
+    setTimeout(()=>window.print(),600);
+  <\/script></body></html>`);
+  win.document.close();
+};
+
+window.editPlan=function(no){
+  localStorage.setItem("editGatePlanNo",no);
+  location.href="gate-plan.html?edit="+encodeURIComponent(no);
+};
+
+window.deletePlan=async function(no,source){
+  if(!confirm("Delete this Gate Plan?"))return;
+  if(source==="offline"){
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(key&&key.startsWith("GMS_GATEPLAN_OFFLINE_")){
+        const queue=JSON.parse(localStorage.getItem(key)||"[]");
+        const idx=queue.findIndex(x=>planNo(x.data)===no);
+        if(idx!==-1){queue.splice(idx,1);localStorage.setItem(key,JSON.stringify(queue));break}
+      }
+    }
+  }else{
+    try{await deleteDoc(doc(db,"gatePlans",makeId(no)))}catch(e){console.log(e)}
+  }
+  window.GMS_CACHE.invalidate([CACHE_KEYS.gatePlans]);
+  showReport();
+};
+
+window.exportExcel=function(){
+  const blob=new Blob([document.getElementById("reportArea").innerHTML],{type:"application/vnd.ms-excel"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="gate-plan-report.xls";
+  a.click();
+};
+
+(function(){
+  var c = window.GMS_CACHE.getReadCount();
+  var el = document.getElementById('readCounter');
+  if(el) el.innerText = c;
+})();
+
+const param=new URLSearchParams(location.search).get("gatePlanNo")||"";
+if(param){
+  document.body.classList.add("singleMode");
+  document.getElementById("gateNoSearch").value=param;
+}
+showReport();
+</script>
+
+</body>
+</html>

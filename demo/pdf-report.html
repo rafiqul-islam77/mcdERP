@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>PDF Report</title>
+
+<style>
+body{
+  font-family:Arial,sans-serif;
+  margin:0;
+  background:#f1f5f9;
+  padding:20px;
+}
+.report{
+  background:white;
+  padding:25px;
+  max-width:900px;
+  margin:auto;
+  border:1px solid #ddd;
+}
+h1,h2,h3{
+  text-align:center;
+  margin:4px;
+}
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:20px;
+}
+th,td{
+  border:1px solid #333;
+  padding:8px;
+  text-align:center;
+}
+th{
+  background:#e5e7eb;
+}
+.btn{
+  padding:12px 20px;
+  background:#2563eb;
+  color:white;
+  border:0;
+  border-radius:8px;
+  font-weight:bold;
+  cursor:pointer;
+  margin:10px;
+}
+@page{
+  size:A4;
+  margin:10mm;
+}
+@media print{
+  .noPrint{
+    display:none;
+  }
+  body{
+    background:white;
+    padding:0;
+  }
+  .report{
+    border:0;
+    max-width:100%;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="noPrint" style="text-align:center">
+  <button class="btn" onclick="window.print()">🖨️ Download / Print PDF</button>
+  <button class="btn" onclick="location.href='index.html'">🏠 Dashboard</button>
+</div>
+
+<div class="report">
+
+  <h1>GMS TEXTILES LTD</h1>
+  <h3>Tansutrapur, Kaliakair, Gazipur</h3>
+  <h2>PDF Report</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>SL</th>
+        <th>Report Name</th>
+        <th>Stock</th>
+        <th>Receive</th>
+        <th>Delivery</th>
+        <th>Remarks</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>Accessories With Sample</td>
+        <td>0</td>
+        <td>0</td>
+        <td>0</td>
+        <td>Auto PDF Ready</td>
+      </tr>
+
+      <tr>
+        <td>2</td>
+        <td>Sewing Thread</td>
+        <td>0</td>
+        <td>0</td>
+        <td>0</td>
+        <td>Auto PDF Ready</td>
+      </tr>
+
+      <tr>
+        <td>3</td>
+        <td>Twill Tape</td>
+        <td>0</td>
+        <td>0</td>
+        <td>0</td>
+        <td>Auto PDF Ready</td>
+      </tr>
+    </tbody>
+  </table>
+
+</div>
+
+</body>
+</html>

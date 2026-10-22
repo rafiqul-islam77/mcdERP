@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Challan Gate Pass Report</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#07111f;color:#fff;font-family:Arial,Helvetica,sans-serif}
+.wrap{max-width:1500px;margin:auto;padding:14px}
+.head{text-align:center;padding:12px 0}.head h2,.head h3{margin:4px}
+.controls,.summary{background:#101827;border:1px solid #263855;border-radius:14px;padding:12px;margin:12px 0}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;text-align:left}
+label{display:block;color:#b7c5da;font-weight:900;font-size:12px;margin-bottom:4px}
+input,select{width:100%;padding:9px;border-radius:7px;border:1px solid #94a3b8;color:#000;font-size:14px}
+button{border:0;border-radius:8px;padding:9px 12px;color:white;font-weight:900;cursor:pointer;margin:3px}
+.blue{background:#2563eb}.green{background:#16a34a}.purple{background:#7c3aed}.orange{background:#f59e0b}.red{background:#dc2626}.gray{background:#64748b}
+.btns{text-align:center;margin-top:9px}
+.sumTitle{text-align:center;color:#22c55e;font-size:22px;font-weight:900;margin-bottom:8px}
+table{width:100%;border-collapse:collapse;background:#fff;color:#000}
+th,td{border:1px solid #000;padding:6px;text-align:center;color:#000}
+th{background:#dbeafe;font-weight:900}
+.reportSet{background:#fff;color:#000;margin:15px 0}
+.actionBar{background:#07111f;text-align:center;padding:10px}
+.createdByBadge{display:inline-block;margin-left:10px;padding:8px 14px;border-radius:10px;background:#0f172a;border:1px solid #334155;color:#22c55e!important;font-weight:900}
+.page{background:#fff;color:#000;padding:18px 24px;page-break-inside:avoid}
+.challanPage{min-height:900px}.gatePage{page-break-before:always;min-height:760px}
+.qr{width:60px;height:60px;margin:4px auto}
+.ctop{text-align:center;position:relative}.challanTitle{display:inline-block;border:3px double #000;padding:5px 24px;font-size:26px;font-weight:900}
+.logoLine{display:flex;justify-content:center;align-items:center;gap:12px;margin-top:8px}
+.companyBig{font-size:34px;font-weight:900}.cno{position:absolute;right:30px;top:55px;font-weight:900;text-align:center}.cno b{font-size:20px}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:35px;margin-top:18px}.line{display:grid;grid-template-columns:120px 1fr;gap:6px;margin:10px 0;font-size:16px}.line span:last-child{border-bottom:2px solid #000;min-height:22px;font-weight:700}
+.desc{border:2px solid #000;margin-top:18px}.spec{display:grid;grid-template-columns:110px 1fr 70px 1fr 120px 1fr;gap:6px;padding:6px}.spec div:nth-child(even){border-bottom:2px solid #000;font-weight:700}
+.challanTable{table-layout:fixed;font-size:13px}.challanTable th,.challanTable td{height:38px;border:2px solid #000}
+.good{border:2px solid #000;border-top:0;padding:6px}
+.sign{display:grid;grid-template-columns:1fr 1fr 1fr;border:2px solid #000;border-top:0;height:140px}
+.sign div{display:flex;align-items:flex-end;justify-content:center;border-right:2px solid #000;padding-bottom:15px;font-weight:900;font-size:14px}
+.sign div:last-child{border-right:0}
+.addr{display:grid;grid-template-columns:1fr 1fr;margin-top:12px;font-size:13px}
+.gateHeader{display:grid;grid-template-columns:1fr 1fr;gap:25px}
+.gateCompany{display:flex;gap:10px;align-items:center}
+.gateCompany h2{margin:0;font-size:31px}.addrBlock{font-size:14px;white-space:pre-line}
+.gateRight{display:grid;grid-template-columns:1fr 160px;border:2px solid #000}.gateText{padding:18px;font-size:19px}.blank{display:inline-block;min-width:230px;border-bottom:2px solid #000;font-weight:900}.gateSide{border-left:2px solid #000}
+.gtitle{font-size:34px;font-weight:900;text-align:center;border-bottom:2px solid #000;padding:9px}.only{text-align:center;font-weight:900;border-bottom:2px solid #000;padding:5px}.gno{font-size:17px;padding:8px;border-bottom:2px solid #000}.gnum{font-size:24px;font-weight:900;text-align:center;padding:8px;border-bottom:2px solid #000}.gdate{font-size:17px;padding:8px}
+.vehicle{border:2px solid #000;margin-top:25px;padding:10px;font-size:36px;font-weight:900}.gateTable{table-layout:fixed;margin-top:15px;font-size:17px}.gateTable th,.gateTable td{border:2px solid #000;height:58px}
+.bottom{display:grid;grid-template-columns:1fr 1.3fr;border:2px solid #000;margin-top:40px;min-height:105px}.bleft{display:grid;grid-template-columns:1fr 1fr;align-items:end;text-align:center;font-weight:900;padding-bottom:14px}.bright{border-left:2px solid #000;text-align:center;padding-top:12px;font-size:18px}.bright2{display:grid;grid-template-columns:1fr 1fr;align-items:end;height:65px;font-weight:900}
+body.singleView .head,body.singleView .controls,body.singleView .summary,body.singleView .actionBar,body.singleView #chartSection{display:none!important}
+body.singleView{background:#fff!important;color:#000!important}body.singleView .wrap{padding:0!important}body.singleView .reportSet{margin:0!important}
+#errorBox{display:none;background:#fee2e2;color:#991b1b;padding:12px;border-radius:10px;margin:10px 0;font-weight:900}
+@media(max-width:900px){.grid,.info,.gateHeader,.chartGrid{grid-template-columns:1fr}.page{overflow-x:auto}}
+@page{size:A4 portrait;margin:6mm}
+@media print{
+body{background:#fff!important;margin:0!important;padding:0!important}.head,.controls,.summary,.actionBar,#errorBox,#chartSection{display:none!important}.wrap{padding:0!important;max-width:none!important;width:100%!important}.reportSet{margin:0!important;padding:0!important}.page{width:100%!important;padding:0!important;margin:0!important;overflow:hidden!important}.challanPage{height:285mm!important;min-height:0!important;page-break-after:always!important}.gatePage{height:285mm!important;min-height:0!important;page-break-before:always!important}.qr{width:42px!important;height:42px!important;margin:3px auto!important}.challanTitle{font-size:18px!important;padding:2px 20px!important}.companyBig{font-size:23px!important}.cno{right:20px!important;top:48px!important;font-size:9px!important}.cno b{font-size:15px!important}.info{margin-top:6px!important;gap:18px!important}.line{font-size:10px!important;margin:3px 0!important;grid-template-columns:82px 1fr!important}.line span:last-child{min-height:14px!important;border-bottom:1px solid #000!important}.desc{margin-top:6px!important;border:1px solid #000!important}.spec{font-size:8px!important;grid-template-columns:62px 1fr 38px 1fr 70px 1fr!important;padding:2px!important}.challanTable{font-size:7px!important}.challanTable th,.challanTable td{height:21px!important;padding:1px!important;border:1px solid #000!important}.good{font-size:9px!important;padding:2px!important;border:1px solid #000!important}
+.sign{height:70px!important;border:1px solid #000!important}
+.sign div{font-size:9px!important;border-right:1px solid #000!important;padding-bottom:6px!important}
+.addr{font-size:8px!important;margin-top:4px!important;line-height:1.05!important}.gateHeader{grid-template-columns:1fr 1.05fr!important;gap:12px!important}.gateCompany h2{font-size:22px!important}.addrBlock{font-size:8px!important;line-height:1.05!important;max-height:70px!important;overflow:hidden!important}.gateRight{min-height:125px!important}.gateText{font-size:11px!important;padding:8px!important;line-height:1.2!important}.blank{min-width:120px!important;border-bottom:1px solid #000!important}.gtitle{font-size:22px!important;padding:4px!important}.only{font-size:9px!important;padding:3px!important}.gno{font-size:10px!important;padding:3px!important}.gnum{font-size:14px!important;padding:4px!important}.gdate{font-size:10px!important;padding:4px!important}.vehicle{font-size:22px!important;margin-top:10px!important;padding:6px!important}.gateTable{font-size:10px!important;margin-top:8px!important}.gateTable th,.gateTable td{height:38px!important;border:1px solid #000!important;padding:2px!important}.bottom{margin-top:18px!important;min-height:65px!important;border:1px solid #000!important}.bright{font-size:10px!important;padding-top:5px!important;border-left:1px solid #000!important}.bright2{height:42px!important}.bleft{font-size:10px!important;padding-bottom:8px!important}
+}
+
+.noDataBox{background:#fee2e2!important;color:#991b1b!important;border:2px solid #ef4444!important;border-radius:12px!important;padding:18px!important;margin:15px!important;text-align:center!important;font-size:20px!important;font-weight:900!important}
+body.singleView .noDataBox{display:block!important}
+.filterWarning{background:#fef3c7!important;color:#92400e!important;border:2px solid #f59e0b!important;border-radius:12px!important;padding:12px!important;margin:12px 0!important;text-align:center!important;font-weight:900!important}
+
+.offlineBadge{background:#f59e0b!important;color:#000!important;padding:2px 6px!important;border-radius:4px!important;font-size:10px!important;font-weight:900!important;margin-left:4px!important}
+.syncedBadge{background:#22c55e!important;color:#fff!important;padding:2px 6px!important;border-radius:4px!important;font-size:10px!important;font-weight:900!important;margin-left:4px!important}
+
+.cacheStatusBar{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:6px 12px;font-size:11px;font-weight:700;
+  background:linear-gradient(90deg,rgba(34,197,94,.1),rgba(59,130,246,.1));
+  border-bottom:1px solid #263855;color:#9fb0c7;flex-wrap:wrap;
+}
+.cacheStatusBar .cacheDot{
+  width:8px;height:8px;border-radius:50%;background:#22c55e;
+  animation:livePulse 2s infinite;box-shadow:0 0 8px #22c55e;
+}
+@keyframes livePulse{
+  0%{box-shadow:0 0 0 0 rgba(34,197,94,.7);transform:scale(1)}
+  70%{box-shadow:0 0 0 8px rgba(34,197,94,0);transform:scale(1.1)}
+  100%{box-shadow:0 0 0 0 rgba(34,197,94,0);transform:scale(1)}
+}
+.cacheStatusBar .cacheReadCount{
+  color:#2563eb;font-weight:900;padding:3px 10px;
+  background:rgba(37,99,235,.15);border-radius:12px;border:1px solid rgba(37,99,235,.3);
+}
+.cacheStatusBar .syncStatus{
+  color:#22c55e;font-weight:900;padding:3px 10px;
+  background:rgba(34,197,94,.15);border-radius:12px;border:1px solid rgba(34,197,94,.3);
+}
+
+#chartSection{
+  background:linear-gradient(135deg,#101827,#1a2332);
+  border:1px solid #263855;
+  border-radius:16px;
+  padding:16px;
+  margin:12px 0;
+  box-shadow:0 8px 32px rgba(0,0,0,.3);
+}
+.chartHeader{text-align:center;margin-bottom:14px}
+.chartHeader h3{margin:0;color:#22c55e;font-size:20px;font-weight:900}
+.chartHeader p{margin:4px 0 0 0;color:#94a3b8;font-size:13px}
+.chartGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.chartCard{
+  background:linear-gradient(135deg,#0f172a,#1e293b);
+  border:1px solid #334155;
+  border-radius:12px;
+  padding:14px;
+  position:relative;
+  overflow:hidden;
+}
+.chartCard::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,#22c55e,#3b82f6);
+}
+.chartCard h4{
+  margin:0 0 10px 0;color:#e2e8f0;font-size:14px;font-weight:900;
+  text-align:center;border-bottom:1px solid #334155;padding-bottom:8px;
+}
+.chartWrap{position:relative;height:220px}
+.chartWrap canvas{max-height:220px}
+.chartStats{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  margin-top:12px;padding-top:10px;border-top:1px solid #334155;
+}
+.statBox{
+  background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);
+  border-radius:8px;padding:8px;text-align:center;
+}
+.statBox .statNum{color:#22c55e;font-size:22px;font-weight:900;display:block}
+.statBox .statLabel{color:#94a3b8;font-size:10px;font-weight:700;text-transform:uppercase}
+.statBox.blue{background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.2)}
+.statBox.blue .statNum{color:#3b82f6}
+.statBox.purple{background:rgba(139,92,246,.08);border-color:rgba(139,92,246,.2)}
+.statBox.purple .statNum{color:#8b5cf6}
+
+.userList{max-height:220px;overflow-y:auto;margin-top:10px}
+.userItem{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 10px;margin:4px 0;background:rgba(255,255,255,.03);
+  border-left:3px solid #22c55e;border-radius:6px;transition:all .2s;
+}
+.userItem:hover{background:rgba(255,255,255,.06);transform:translateX(4px)}
+.userItem .userName{color:#e2e8f0;font-size:13px;font-weight:700}
+.userItem .userCount{
+  background:linear-gradient(135deg,#22c55e,#16a34a);color:white;
+  padding:3px 10px;border-radius:12px;font-size:12px;font-weight:900;
+  min-width:35px;text-align:center;
+}
+
+.chartError{
+  text-align:center;padding:40px;color:#f59e0b;font-size:16px;font-weight:900;
+}
+
+@media(max-width:900px){
+  .chartGrid{grid-template-columns:1fr}
+  .chartStats{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head"><h2 id="reportCompanyTitle">GMS TEXTILES LTD.</h2><h3>Delivery Challan & Gate Pass Report</h3></div>
+  
+  <div class="cacheStatusBar">
+    <div class="cacheDot"></div>
+    <span id="cacheStatusText">📦 Cache Ready</span>
+    <span class="cacheReadCount"> Firebase Reads: <b id="readCounter">0</b></span>
+    <span class="syncStatus">🔄 Sync: <b id="syncStatus">Active</b></span>
+  </div>
+  
+  <div class="controls">
+    <div class="grid">
+      <div><label>Company</label><select id="companyFilter" onchange="updateReportHeader();showReport()"><option>All</option><option>GMS TEXTILES LTD.</option><option>GMS COMPOSITE KNITTING IND LTD.</option><option>OTHER FACTORY</option></select></div>
+      <div><label>To Company</label><select id="toCompanyFilter" onchange="showReport()"><option>All</option><option>GMS TEXTILES LTD.</option><option>GMS COMPOSITE KNITTING IND LTD.</option><option>OTHER FACTORY</option></select></div>
+      <div><label>MCD</label><select id="mcdFilter" onchange="showReport()"><option>All</option><option>ACCESSORIES MCD</option><option>GREY FABRIC MCD</option><option>SHIPMENT MCD</option><option>BILLING SECTION</option><option>NEEDLE MCD</option><option>OUTER WEAR MCD</option><option>YARN MCD</option><option>PRINTING MCD</option><option>JHUT MCD</option><option>GENERAL MCD</option><option>LEFTOVER MCD</option><option>FINISH FABRIC MCD</option><option>YARN DYEING MCD</option><option>CHEMICAL MCD</option><option>GENERAL TECHNICAL MCD</option></select></div>
+      <div><label>👤 Created By</label><select id="createdByFilter" onchange="showReport()"><option value="">All Users</option></select></div>
+      <div><label>Month</label><input type="month" id="monthFilter"></div>
+      <div><label>Single Date</label><input type="date" id="singleDate"></div>
+      <div><label>From Date</label><input type="date" id="fromDate"></div>
+      <div><label>To Date</label><input type="date" id="toDate"></div>
+      <div><label>Challan No</label><input id="challanSearch" placeholder="CH-2026-0001"></div>
+      <div><label>Gate Pass No</label><input id="gateSearch" placeholder="GP-2026-0001"></div>
+      <div><label>Buyer / Vehicle</label><input id="textSearch"></div>
+    </div>
+    <div class="btns">
+      <button class="gray" onclick="todayF()">Today</button>
+      <button class="gray" onclick="last7()">1-7 / Last 7 Days</button>
+      <button class="gray" onclick="monthF()">This Month</button>
+      <button class="blue" onclick="showReport()">🔍 Search</button>
+      <button class="gray" onclick="clearF()">Clear</button>
+      <button class="orange" onclick="loadOfflineData()">📦 Load Offline Data</button>
+      <button class="green" onclick="syncAllOffline()">📤 Sync All to Firebase</button>
+      <button class="green" onclick="excel()">Excel</button>
+      <button class="purple" onclick="window.print()">Print/PDF</button>
+      <button class="orange" onclick="location.href='challan-entry.html'">New Entry</button>
+    </div>
+  </div>
+  
+  <div id="chartSection" style="display:none">
+    <div class="chartHeader">
+      <h3>📊 Challan & Gate Pass Analytics</h3>
+      <p>Real-time statistics of all challan entries</p>
+    </div>
+    <div class="chartGrid">
+      <div class="chartCard">
+        <h4>👤 Challan Count by User</h4>
+        <div class="chartWrap"><canvas id="userBarChart"></canvas></div>
+        <div class="userList" id="userListContainer"></div>
+      </div>
+      <div class="chartCard">
+        <h4>🥧 Challan Distribution</h4>
+        <div class="chartWrap"><canvas id="distPieChart"></canvas></div>
+        <div class="chartStats">
+          <div class="statBox"><span class="statNum" id="statTotal">0</span><span class="statLabel">Total Challan</span></div>
+          <div class="statBox blue"><span class="statNum" id="statUsers">0</span><span class="statLabel">Active Users</span></div>
+          <div class="statBox purple"><span class="statNum" id="statAvg">0</span><span class="statLabel">Avg/User</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div id="errorBox"></div><div id="summary"></div><div id="area"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId:"gms-warehouse-tracker-7f57e",
+  storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId:"992250313291",
+  appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+const app=initializeApp(firebaseConfig), db=getFirestore(app);
+const $=id=>document.getElementById(id);
+let all=[],cur=[];
+
+let userBarChart=null, distPieChart=null;
+
+const CHART_COLORS = [
+  '#22c55e','#3b82f6','#8b5cf6','#f59e0b','#ef4444',
+  '#06b6d4','#ec4899','#14b8a6','#f97316','#6366f1',
+  '#84cc16','#eab308','#0ea5e9','#d946ef','#f43f5e'
+];
+
+window.GMS_CACHE = {
+  CACHE_KEY: 'GMS_CHALLAN_SMART_CACHE',
+  READ_COUNT_KEY: 'GMS_CHALLAN_READ_COUNT_TODAY',
+  READ_DATE_KEY: 'GMS_CHALLAN_READ_COUNT_DATE',
+  CACHE_EXPIRY_MS: 5 * 60 * 1000,
+  getReadCount: function(){
+    var today = new Date().toDateString();
+    if(localStorage.getItem(this.READ_DATE_KEY) !== today){
+      localStorage.setItem(this.READ_DATE_KEY, today);
+      localStorage.setItem(this.READ_COUNT_KEY, '0');
+    }
+    return parseInt(localStorage.getItem(this.READ_COUNT_KEY) || '0');
+  },
+  incRead: function(n){
+    n = n || 1;
+    var count = this.getReadCount() + n;
+    localStorage.setItem(this.READ_COUNT_KEY, String(count));
+    var el = document.getElementById('readCounter');
+    if(el) el.innerText = count;
+    return count;
+  },
+  _all: function(){
+    try{ return JSON.parse(localStorage.getItem(this.CACHE_KEY) || '{}'); }
+    catch(e){ return {}; }
+  },
+  set: function(key, data){
+    var all = this._all();
+    all[key] = { data: data, savedAt: Date.now() };
+    try{ localStorage.setItem(this.CACHE_KEY, JSON.stringify(all)); }
+    catch(e){ console.warn('Cache set failed:', e); }
+  },
+  get: function(key){
+    var all = this._all();
+    var entry = all[key];
+    if(!entry) return null;
+    var age = Date.now() - entry.savedAt;
+    if(age > this.CACHE_EXPIRY_MS){
+      console.log('⏰ Cache expired for:', key);
+      return null;
+    }
+    return entry.data;
+  },
+  invalidate: function(keys){
+    var all = this._all();
+    if(typeof keys === 'string') keys = [keys];
+    keys.forEach(function(k){ delete all[k]; });
+    localStorage.setItem(this.CACHE_KEY, JSON.stringify(all));
+  },
+  clear: function(){
+    localStorage.removeItem(this.CACHE_KEY);
+  }
+};
+
+const CACHE_KEYS = { challanGatePass: 'challan_gatepass_cache' };
+
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+function n(v){return Number(v)||0}
+function fmt(v){return n(v).toLocaleString("en-US")}
+
+function same(a,b){
+  if(!a || !b) return false;
+  return String(a).trim().toUpperCase() === String(b).trim().toUpperCase();
+}
+
+function link(no){return location.origin+location.pathname+"?challanNo="+encodeURIComponent(no||"")}
+
+function applyUrlFilters(){
+  const params=new URLSearchParams(location.search);
+  const company=params.get("company"), mcd=params.get("mcd");
+  if(company && $("companyFilter")){
+    const c=company.toUpperCase();
+    [...$("companyFilter").options].forEach(o=>{if(o.value.toUpperCase()===c||o.text.toUpperCase()===c)$("companyFilter").value=o.value});
+  }
+  if(mcd && $("mcdFilter")){
+    [...$("mcdFilter").options].forEach(o=>{if(o.value.toUpperCase()===mcd.toUpperCase()||o.text.toUpperCase()===mcd.toUpperCase())$("mcdFilter").value=o.value});
+  }
+}
+
+window.updateReportHeader=function(){let c=$("companyFilter").value;$("reportCompanyTitle").innerText=(c&&c!=="All")?c:"GMS TEXTILES LTD."}
+
+async function load(){
+  const snap=await getDocs(collection(db,"challanGatePass"));
+  all=[];
+  snap.forEach(d=>all.push({...d.data(),_id:d.id,_source:"firebase"}));
+  all.sort(sorter);
+}
+
+function sorter(a,b){
+  let c=String(b.updatedAt||b.createdAt||"").localeCompare(String(a.updatedAt||a.createdAt||""));
+  if(c)return c;
+  c=String(b.date||"").localeCompare(String(a.date||""));
+  if(c)return c;
+  return String(b.challanNo||"").localeCompare(String(a.challanNo||""));
+}
+
+function getUniqueCreatedBy(){
+  let names = new Set();
+  all.forEach(x=>{
+    let name = x.createdBy || x.preparedBy || 'Unknown';
+    if(name) names.add(name);
+  });
+  return Array.from(names).sort();
+}
+
+function populateCreatedByFilter(){
+  let select = $("createdByFilter");
+  let currentVal = select.value;
+  select.innerHTML = '<option value="">All Users</option>';
+  let names = getUniqueCreatedBy();
+  names.forEach(name=>{
+    let opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    select.appendChild(opt);
+  });
+  if(currentVal && names.includes(currentVal)){
+    select.value = currentVal;
+  }
+}
+
+function filter(){
+  let company=$("companyFilter").value,
+      toCompany=$("toCompanyFilter").value,
+      mcd=$("mcdFilter").value,
+      createdBy=$("createdByFilter").value,
+      month=$("monthFilter").value,
+      single=$("singleDate").value,
+      from=$("fromDate").value,
+      to=$("toDate").value,
+      ch=$("challanSearch").value.toLowerCase().trim(),
+      gp=$("gateSearch").value.toLowerCase().trim(),
+      txt=$("textSearch").value.toLowerCase().trim();
+  
+  return all.filter(x=>{
+    let d=x.date||"";
+    if(single && d!==single) return false;
+    if(month && d.slice(0,7)!==month) return false;
+    if(from && d<from) return false;
+    if(to && d>to) return false;
+    if(ch && !(x.challanNo||"").toLowerCase().includes(ch)) return false;
+    if(gp && !(x.gatePassNo||"").toLowerCase().includes(gp)) return false;
+    if(mcd && mcd!=="All"){
+      if(!same(x.mcd, mcd)) return false;
+    }
+    if(createdBy){
+      let recordCreatedBy = x.createdBy || x.preparedBy || '';
+      if(!same(recordCreatedBy, createdBy)) return false;
+    }
+    if(company && company!=="All"){
+      if(company==="OTHER FACTORY"){
+        if(x.companyType!=="OTHER FACTORY") return false;
+      } else if(!same(x.company, company)){
+        return false;
+      }
+    }
+    if(toCompany && toCompany!=="All"){
+      if(toCompany==="OTHER FACTORY"){
+        if(x.toCompanyType!=="OTHER FACTORY") return false;
+      } else if(!same(x.toCompany, toCompany)){
+        return false;
+      }
+    }
+    if(txt){
+      let hay=[x.buyer,x.vehicleNo,x.toCompany,x.company,x.driverName,x.transportNo,x.mcd,x.challanNo,x.gatePassNo].join(" ").toLowerCase();
+      if(!hay.includes(txt)) return false;
+    }
+    return true;
+  }).sort(sorter);
+}
+
+// 🔥 SMART CHART RENDERING - FIXED
+function renderCharts(data){
+  const chartSection = $('chartSection');
+  
+  if(!data || data.length===0){
+    chartSection.style.display = 'none';
+    return;
+  }
+  
+  chartSection.style.display = 'block';
+  
+  // Check if Chart.js is loaded
+  if(typeof window.Chart === 'undefined'){
+    console.error('❌ Chart.js not loaded!');
+    chartSection.innerHTML = '<div class="chartError">⚠️ Chart.js library not loaded. Please check internet connection.</div>';
+    return;
+  }
+  
+  const ChartLib = window.Chart;
+  
+  const userCounts = {};
+  data.forEach(x=>{
+    let name = x.createdBy || x.preparedBy || 'Unknown';
+    userCounts[name] = (userCounts[name] || 0) + 1;
+  });
+  
+  const sortedUsers = Object.entries(userCounts).sort((a,b)=>b[1]-a[1]);
+  const labels = sortedUsers.map(u=>u[0]);
+  const counts = sortedUsers.map(u=>u[1]);
+  const colors = labels.map((_,i)=>CHART_COLORS[i % CHART_COLORS.length]);
+  
+  const totalChallan = data.length;
+  const activeUsers = labels.length;
+  const avgPerUser = activeUsers > 0 ? (totalChallan / activeUsers).toFixed(1) : 0;
+  
+  $('statTotal').innerText = totalChallan;
+  $('statUsers').innerText = activeUsers;
+  $('statAvg').innerText = avgPerUser;
+  
+  if(userBarChart) userBarChart.destroy();
+  if(distPieChart) distPieChart.destroy();
+  
+  try{
+    const barCtx = $('userBarChart').getContext('2d');
+    userBarChart = new ChartLib(barCtx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Challan Count',
+          data: counts,
+          backgroundColor: colors.map(c=>c+'cc'),
+          borderColor: colors,
+          borderWidth: 2,
+          borderRadius: 8,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            titleColor: '#22c55e',
+            bodyColor: '#e2e8f0',
+            borderColor: '#334155',
+            borderWidth: 1,
+            padding: 12,
+            callbacks: {
+              label: function(ctx){
+                const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+                const pct = ((ctx.raw / total) * 100).toFixed(1);
+                return ctx.label + ': ' + ctx.raw + ' challan (' + pct + '%)';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(148,163,184,.1)' },
+            ticks: { color: '#94a3b8', font: { weight: 'bold' } }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: '#e2e8f0', font: { size: 11, weight: 'bold' }, maxRotation: 45 }
+          }
+        }
+      }
+    });
+  }catch(e){
+    console.error('Bar chart error:', e);
+  }
+  
+  try{
+    const pieCtx = $('distPieChart').getContext('2d');
+    distPieChart = new ChartLib(pieCtx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: counts,
+          backgroundColor: colors.map(c=>c+'dd'),
+          borderColor: '#0f172a',
+          borderWidth: 3,
+          hoverOffset: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '55%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: '#e2e8f0', font: { size: 11, weight: 'bold' }, padding: 10 }
+          },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            titleColor: '#22c55e',
+            bodyColor: '#e2e8f0',
+            borderColor: '#334155',
+            borderWidth: 1,
+            padding: 12,
+            callbacks: {
+              label: function(ctx){
+                const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+                const pct = ((ctx.raw / total) * 100).toFixed(1);
+                return ctx.label + ': ' + ctx.raw + ' (' + pct + '%)';
+              }
+            }
+          }
+        }
+      }
+    });
+  }catch(e){
+    console.error('Pie chart error:', e);
+  }
+  
+  let userListHtml = '';
+  sortedUsers.forEach((u,i)=>{
+    const pct = ((u[1] / totalChallan) * 100).toFixed(0);
+    userListHtml += `
+      <div class="userItem" style="border-left-color:${colors[i]}">
+        <span class="userName">${esc(u[0])}</span>
+        <span class="userCount">${u[1]} (${pct}%)</span>
+      </div>
+    `;
+  });
+  $('userListContainer').innerHTML = userListHtml;
+}
+
+function qr(){
+  document.querySelectorAll("[data-qr]").forEach(e=>{
+    e.innerHTML="";
+    try{ new QRCode(e,{text:link(e.dataset.qr||""),width:60,height:60,correctLevel:QRCode.CorrectLevel.M}); }catch(e){}
+  })
+}
+function blank(a,c){a=[...(a||[])];while(a.length<c)a.push({});return a}
+
+function summary(list){
+  let rows=list.map((x,i)=>{
+    let badge = x._source === "offline" 
+      ? `<span class="offlineBadge">📦 Offline</span>` 
+      : `<span class="syncedBadge">📡 Synced</span>`;
+    return `<tr><td>${i+1}</td><td>${esc(x.date)}</td><td>${esc(x.challanNo)}${badge}</td><td>${esc(x.gatePassNo)}</td><td>${esc(x.company)}</td><td>${esc(x.mcd)}</td><td>${esc(x.toCompany)}</td><td>${fmt(x.grandTotalQty)}</td><td>${fmt(x.totalPkg)}</td><td>${esc(x.createdBy||x.preparedBy||"")}</td><td><button class="purple" onclick="printOne(${i})">Print</button><button class="orange" onclick="editOne('${esc(x.challanNo)}')">Edit</button><button class="red" onclick="delOne('${esc(x.challanNo)}','${x._source||"firebase"}')">Delete</button></td></tr>`;
+  }).join("");
+  $("summary").innerHTML=`<div class="summary"><div class="sumTitle">Total Found: ${list.length} Challan / Gate Pass</div><div style="overflow-x:auto"><table><thead><tr><th>SL</th><th>Date</th><th>Challan No</th><th>Gate Pass No</th><th>Company</th><th>MCD</th><th>To Company</th><th>Total Qty</th><th>Total Pkgs/Rolls</th><th>Created By</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+
+function challan(x){
+  let rows=blank(x.rows,10),tq=(x.rows||[]).reduce((a,b)=>a+n(b.qty),0),tp=(x.rows||[]).reduce((a,b)=>a+n(b.pkg),0);
+  let rowHtml=rows.map((r,i)=>`<tr><td>${r.item||r.qty||r.pkg?i+1:""}</td><td>${esc(r.item)}</td><td>${esc(r.color)}</td><td>${esc(r.mcDia)}</td><td>${esc(r.finDia)}</td><td>${esc(r.unit)}</td><td>${r.qty?fmt(r.qty):""}</td><td>${r.pkg?fmt(r.pkg):""}</td><td>${esc(r.remarks)}</td></tr>`).join("");
+  return `<div class="page challanPage"><div class="ctop"><div class="challanTitle">DELIVERY CHALLAN</div><div class="logoLine"><div class="companyBig">${esc(x.company||"GMS TEXTILES LTD.")}</div></div><div class="cno">Challan No<br><b>${esc(x.challanNo)}</b></div><div class="qr" data-qr="${esc(x.challanNo)}"></div></div>
+  <div class="info"><div><div class="line"><span>To</span><span>${esc(x.toCompany)}</span></div><div class="line"><span>Address:</span><span>${esc(x.toAddress)}</span></div><div class="line"><span></span><span></span></div><div class="line"><span>Buyer:</span><span>${esc(x.buyer)}</span></div><div class="line"><span>Style/Ord No:</span><span>${esc(x.orderNo)}</span></div></div><div><div class="line"><span>Date:</span><span>${esc(x.date)}</span></div><div class="line"><span>Gate Pass No.:</span><span>${esc(x.gatePassNo)}</span></div><div class="line"><span>Transport No.:</span><span>${esc(x.transportNo)}</span></div><div class="line"><span>Driver's Name</span><span>${esc(x.driverName)}</span></div></div></div>
+  <div class="desc"><div style="padding:6px;font-weight:900">Description / Specification / Identification :</div><div class="spec"><div>Yarn Count</div><div>${esc(x.yarnCount)}</div><div>Brand</div><div>${esc(x.brand)}</div><div>Card / Combed</div><div>${esc(x.cardCombed)}</div><div>Lot No.</div><div>${esc(x.lotNo)}</div><div></div><div></div><div></div><div></div></div><table class="challanTable"><thead><tr><th>Sl.<br>No.</th><th>Item Name/Description/Fabric Type</th><th>Colour</th><th>M/c<br>Dia</th><th>Fin<br>Dia</th><th>Unit</th><th>G/Quantity</th><th>No. Of Pkgs./<br>Rolls</th><th>Remarks<br>F/Quantity</th></tr></thead><tbody>${rowHtml}</tbody><tfoot><tr><td></td><td style="text-align:left;font-weight:900">Loose yarn (Return)</td><td colspan="7"></td></tr><tr><td></td><td style="text-align:left;font-weight:900">Total:</td><td colspan="4"></td><td>${fmt(tq)}</td><td>${fmt(tp)}</td><td></td></tr></tfoot></table></div>
+  <div class="good">(Received The Above Quantity Of Goods In Good Condition For Handling & Delivery.)</div><div class="sign"><div>Delivery Approved by</div><div>Counted & Delivery by</div><div>Counted & Received by</div></div><div class="addr"><div><b>HEAD OFFICE :</b><br>${esc(x.companyAddress||"").replace(/\n/g,"<br>")}</div><div style="text-align:right"><b>FACTORY:</b><br>Tansutrapur, Kaliakoir, Gazipur.<br>TEL : +88-02-...........................<br>FAX : +88-02-...........................</div></div></div>`;
+}
+
+function gate(x){
+  let rows=blank(x.rows,5),tq=(x.rows||[]).reduce((a,b)=>a+n(b.qty),0);
+  let rowHtml=rows.map((r,i)=>{let h=!!(r.item||r.unit||r.qty||r.purpose||r.remarks);return `<tr><td>${h?i+1:""}</td><td>${esc(r.item)}</td><td>${esc(r.unit)}</td><td>${r.qty?fmt(r.qty):""}</td><td>${h?esc(x.challanNo):""}</td><td>${esc(r.purpose||r.remarks)}</td></tr>`}).join("");
+  return `<div class="page gatePage"><div class="gateHeader"><div><div class="gateCompany"><div><h2>${esc(x.company||"GMS TEXTILES LTD.")}</h2><div class="addrBlock">${esc(x.companyAddress||"").replace(/\n/g,"<br>")}</div></div></div><div class="qr" data-qr="${esc(x.challanNo)}"></div></div>
+  <div class="gateRight"><div class="gateText">M/s. <span class="blank">${esc(x.gateMs||x.toCompany)}</span><br><br>Is hereby permitted to carry the following<br><br>goods by <span class="blank">${esc(x.goodsBy||x.vehicleNo)}</span><br><br>from the mill site to <span class="blank">${esc(x.fromMillTo||x.toCompany)}</span></div><div class="gateSide"><div class="gtitle">GATE<br>PASS</div><div class="only">(FOR GOODS ONLY)</div><div class="gno">Gate Pass No.</div><div class="gnum">${esc(x.gatePassNo)}</div><div class="gdate"><b>Date :</b><br>${esc(x.date)}</div></div></div></div>
+  <div class="vehicle">Vehicle No : ${esc(x.vehicleNo)}</div><table class="gateTable"><thead><tr><th>SL #</th><th>ITEM</th><th>UNIT</th><th>QUANTITY</th><th>CHALLAN<br>NUMBER</th><th>PURPOSE</th></tr></thead><tbody>${rowHtml}</tbody><tfoot><tr><td colspan="3" style="font-weight:900">Grand Total</td><td style="font-weight:900">${fmt(tq)}</td><td colspan="2"></td></tr></tfoot></table>
+  <div class="bottom"><div class="bleft"><div>ISSUED BY</div><div>AUTHORISED BY</div></div><div class="bright">RECEIVED THE ABOVE QUANTITY OF GOODS IN GOOD CONDITION<div class="bright2"><div>RECEIVED BY</div><div>SECURITY DEPARTMENT</div></div></div></div></div>`;
+}
+
+function setHtml(x,i){return `<div class="reportSet"><div class="actionBar"><button class="purple" onclick="printOne(${i})">Print This</button><button class="orange" onclick="editOne('${esc(x.challanNo)}')">Edit</button><button class="red" onclick="delOne('${esc(x.challanNo)}','${x._source||"firebase"}')">Delete</button><span class="createdByBadge">Created By: ${esc(x.createdBy||x.preparedBy||"")}</span></div>${challan(x)}${gate(x)}</div>`}
+
+window.loadOfflineData=function(){
+  let offlineCount=0;
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(key && key.startsWith("GMS_CHALLAN_OFFLINE_")){
+      try{
+        const queue=JSON.parse(localStorage.getItem(key)||"[]");
+        const pending=queue.filter(x=>x.status!=="synced");
+        pending.forEach(item=>{
+          if(!all.find(a=>a._id===item.id)){
+            let c=item.data; c._id=item.id; c._source="offline"; c._status=item.status||"pending";
+            all.push(c); offlineCount++;
+          }
+        });
+      }catch(e){}
+    }
+  }
+  if(offlineCount>0){
+    all.sort(sorter); 
+    populateCreatedByFilter();
+    cur=filter(); 
+    renderCharts(cur);
+    summary(cur);
+    $("area").innerHTML=cur.length?cur.map(setHtml).join(""):`<div class="noDataBox">No Challan Found</div>`;
+    setTimeout(qr,100);
+    alert("✅ Loaded "+offlineCount+" offline challan(s)");
+  }else{ alert("📦 No offline data found"); }
+}
+
+window.syncAllOffline=async function(){
+  let synced=0,failed=0;
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(key && key.startsWith("GMS_CHALLAN_OFFLINE_")){
+      try{
+        const queue=JSON.parse(localStorage.getItem(key)||"[]");
+        const pending=queue.filter(x=>x.status==="pending");
+        for(let item of pending){
+          try{
+            await setDoc(doc(db,"challanGatePass",item.id),item.data,{merge:true});
+            if(item.data.challanNo && item.data.challanNo.match(/CH-\d{4}-\d{4}/)){
+              const year=item.data.challanNo.split("-")[1];
+              const num=parseInt(item.data.challanNo.split("-")[2]);
+              await setDoc(doc(db,"serialCounters","challan_"+year),{last:num,year:year,updatedAt:new Date().toISOString()},{merge:true});
+            }
+            item.status="synced"; item.syncedAt=new Date().toISOString(); synced++;
+          }catch(e){ failed++; }
+        }
+        localStorage.setItem(key,JSON.stringify(queue));
+      }catch(e){}
+    }
+  }
+  if(synced>0 || failed>0){
+    alert("✅ Synced: "+synced+" | ❌ Failed: "+failed);
+    await load(); 
+    populateCreatedByFilter();
+    cur=filter(); 
+    renderCharts(cur);
+    summary(cur); 
+    $("area").innerHTML=cur.map(setHtml).join(""); 
+    setTimeout(qr,100);
+  }else{ alert("✅ No pending offline data"); }
+}
+
+async function autoSyncReport(){
+  let synced=0;
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(key && key.startsWith("GMS_CHALLAN_OFFLINE_")){
+      try{
+        const queue=JSON.parse(localStorage.getItem(key)||"[]");
+        const pending=queue.filter(x=>x.status==="pending");
+        for(let item of pending){
+          try{
+            await setDoc(doc(db,"challanGatePass",item.id),item.data,{merge:true});
+            item.status="synced"; synced++;
+          }catch(e){}
+        }
+        localStorage.setItem(key,JSON.stringify(queue));
+      }catch(e){}
+    }
+  }
+  if(synced>0){ 
+    console.log("🔄 Auto-synced "+synced+" items"); 
+    await load(); 
+    populateCreatedByFilter();
+    cur=filter(); 
+    renderCharts(cur);
+    summary(cur); 
+    $("area").innerHTML=cur.map(setHtml).join(""); 
+    setTimeout(qr,100); 
+  }
+}
+setInterval(autoSyncReport, 60000);
+setTimeout(autoSyncReport, 3000);
+
+window.showReport=async()=>{
+  try{
+    updateReportHeader();
+    let statusEl = $('cacheStatusText');
+    
+    if(statusEl) statusEl.innerText = ' Checking cache...';
+    
+    let cached = window.GMS_CACHE.get(CACHE_KEYS.challanGatePass);
+    
+    if(cached !== null){
+      console.log('📦 Using cached data');
+      if(statusEl) statusEl.innerText = ' Cache loaded';
+      all = cached;
+    }else{
+      if(statusEl) statusEl.innerText = '🔥 Loading from Firebase...';
+      console.log('🔥 Loading from Firebase');
+      await load();
+      window.GMS_CACHE.set(CACHE_KEYS.challanGatePass, all);
+      window.GMS_CACHE.incRead(all.length);
+    }
+    
+    populateCreatedByFilter();
+    cur=filter();
+    
+    // 🔥 Render charts after data is ready
+    setTimeout(()=>{
+      renderCharts(cur);
+    }, 100);
+    
+    const params=new URLSearchParams(location.search);
+    const hasSpecific=params.get("challanNo");
+    
+    if(cur.length===0 && all.length>0 && !hasSpecific){
+      let selectedMCD = $("mcdFilter").value;
+      let selectedCreatedBy = $("createdByFilter").value;
+      if(selectedMCD && selectedMCD!=="All"){
+        $("summary").innerHTML=`<div class="filterWarning">"${selectedMCD}" - ei MCD te kono data paowa jay ni.</div>`;
+      }else if(selectedCreatedBy){
+        $("summary").innerHTML=`<div class="filterWarning">"${selectedCreatedBy}" - er kono data paowa jay ni.</div>`;
+      }else{
+        $("summary").innerHTML=`<div class="filterWarning">Selected filter-e data paowa jai nai.</div>`;
+      }
+      cur=[...all].sort(sorter);
+      setTimeout(()=>{renderCharts(cur);},100);
+    }else if(cur.length===0 && hasSpecific){
+      $("summary").innerHTML=`<div class="noDataBox">Challan No "${hasSpecific}" er kono data paowa jay ni.</div>`;
+    }else{
+      $("summary").innerHTML="";
+    }
+    
+    summary(cur);
+    $("area").innerHTML=cur.length?cur.map(setHtml).join(""):`<div class="noDataBox">No Challan Found</div>`;
+    setTimeout(qr,100);
+    
+    if(statusEl) statusEl.innerText = '✅ Report loaded ('+cur.length+' records)';
+    
+  }catch(e){ 
+    console.error(e); 
+    $("errorBox").style.display="block"; 
+    $("errorBox").innerText="Report error: "+e.message; 
+  }
+}
+
+window.clearF=()=>{
+  ["companyFilter","toCompanyFilter","mcdFilter"].forEach(id=>$(id).value="All");
+  $("createdByFilter").value="";
+  ["monthFilter","singleDate","fromDate","toDate","challanSearch","gateSearch","textSearch"].forEach(id=>$(id).value="");
+  updateReportHeader();
+  showReport()
+}
+window.todayF=()=>{clearF();$("singleDate").value=new Date().toISOString().slice(0,10);showReport()}
+window.last7=()=>{let e=new Date(),s=new Date();s.setDate(e.getDate()-6);clearF();$("fromDate").value=s.toISOString().slice(0,10);$("toDate").value=e.toISOString().slice(0,10);showReport()}
+window.monthF=()=>{clearF();$("monthFilter").value=new Date().toISOString().slice(0,7);showReport()}
+window.editOne=no=>location.href="challan-entry.html?challanNo="+encodeURIComponent(no)
+window.delOne=async(no,source)=>{if(confirm("Delete?")){if(source==="offline"){for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key&&key.startsWith("GMS_CHALLAN_OFFLINE_")){const queue=JSON.parse(localStorage.getItem(key)||"[]");const idx=queue.findIndex(x=>x.id===no);if(idx!==-1){queue.splice(idx,1);localStorage.setItem(key,JSON.stringify(queue));break}}}}else{await deleteDoc(doc(db,"challanGatePass",no));}showReport();}}
+window.printOne=i=>{let card=document.querySelectorAll(".reportSet")[i];if(!card)return;let w=window.open("","_blank");w.document.write(`<html><head><meta charset="UTF-8"><title>Print</title><script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script><style>${document.querySelector("style").innerHTML}</style></head><body><div class="wrap">${card.outerHTML}</div><script>function link(no){return "${location.origin+location.pathname}"+"?challanNo="+encodeURIComponent(no||"")}document.querySelectorAll(".actionBar").forEach(e=>e.remove());document.querySelectorAll("[data-qr]").forEach(e=>{e.innerHTML="";try{new QRCode(e,{text:link(e.dataset.qr),width:60,height:60,correctLevel:QRCode.CorrectLevel.M})}catch(e){}});setTimeout(()=>print(),700)<\/script></body></html>`);w.document.close()}
+window.excel=()=>{let b=new Blob([$("summary").innerHTML],{type:"application/vnd.ms-excel"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="challan-gate-pass.xls";a.click()}
+
+function setupRealtimeSync(){
+  console.log('🔔 Setting up realtime sync...');
+  var challanCol = collection(db, 'challanGatePass');
+  onSnapshot(challanCol, function(snapshot){
+    console.log('🔔 Realtime: challanGatePass changed, docs:', snapshot.size);
+    window.GMS_CACHE.invalidate([CACHE_KEYS.challanGatePass]);
+    var syncStatus = document.getElementById('syncStatus');
+    if(syncStatus){
+      syncStatus.innerText = 'Updated ✅';
+      setTimeout(function(){ if(syncStatus) syncStatus.innerText = 'Active'; }, 2000);
+    }
+    if(!document.hidden){
+      showReport();
+    }
+  });
+}
+
+applyUrlFilters();
+let p=new URLSearchParams(location.search).get("challanNo");
+if(p){document.body.classList.add("singleView");$("challanSearch").value=p}
+
+(function(){
+  var c = window.GMS_CACHE.getReadCount();
+  var el = document.getElementById('readCounter');
+  if(el) el.innerText = c;
+})();
+
+// Check Chart.js loaded
+if(typeof window.Chart === 'undefined'){
+  console.error(' Chart.js not loaded! Retrying...');
+  // Retry loading Chart.js
+  let script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+  script.onload = function(){
+    console.log('✅ Chart.js loaded successfully');
+    showReport();
+  };
+  script.onerror = function(){
+    console.error('❌ Chart.js failed to load');
+  };
+  document.head.appendChild(script);
+}else{
+  console.log('✅ Chart.js already loaded:', window.Chart.version);
+}
+
+setupRealtimeSync();
+showReport();
+
+setInterval(function(){
+  if(!document.hidden){
+    console.log('⏰ Auto-refresh triggered');
+    showReport();
+  }
+}, 30000);
+
+console.log('%c═══════════════════════════════════════════', 'color: #22c55e; font-weight: bold;');
+console.log('%c  📊 SMART CHART - CHALLAN REPORT', 'color: #22c55e; font-weight: bold; font-size:14px;');
+console.log('%c═══════════════════════════════════════════', 'color: #22c55e; font-weight: bold;');
+console.log('%c  Chart.js Status:', typeof window.Chart !== 'undefined' ? '✅ Loaded' : ' Not Loaded');
+console.log('%c═══════════════════════════════════════════', 'color: #22c55e; font-weight: bold;');
+</script>
+</body>
+</html>

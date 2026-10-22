@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Accessories Inventory Posting</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+<style>
+body{margin:0;background:#07111f;color:white;font-family:Arial,sans-serif}
+.header{text-align:center;padding:12px}
+.header h2,.header h3,.header h4{margin:3px}
+.controls{text-align:center;margin:10px}
+button{padding:10px 14px;border:0;border-radius:8px;color:white;font-weight:bold;margin:4px;cursor:pointer}
+.add{background:#f59e0b}.save{background:#16a34a}.home{background:#0f766e}.report{background:#2563eb}.del{background:#dc2626}
+input,select{font-size:16px;padding:7px;border-radius:6px;border:1px solid #999}
+.tableWrap{overflow-x:auto;width:100%}
+table{min-width:1250px;width:98%;margin:10px auto;border-collapse:collapse;background:white;color:black;font-size:12px}
+th,td{border:1px solid #000;padding:5px;text-align:center}
+th{background:#2f6b55;color:white}
+td input,td select{width:100%;box-sizing:border-box;border:0;outline:none;text-align:center;font-size:16px}
+.autoCell{font-weight:bold;color:#dc2626}
+.excessCell{font-weight:bold;color:#2563eb}
+.toast{position:fixed;right:15px;bottom:15px;background:#22c55e;padding:12px 18px;border-radius:10px;font-weight:bold;display:none}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h2>GMS Textiles Ltd</h2>
+  <h4>Tansutrapur, Kaliakair, Gazipur</h4>
+  <h4>Accessories MCD</h4>
+  <h3>Accessories Inventory Posting</h3>
+</div>
+
+<div class="controls">
+  Posting Date:
+  <input type="date" id="postingDate">
+  <button class="add" onclick="addRow()">➕ Add Row</button>
+  <button class="save" onclick="savePosting()">💾 Save Posting</button>
+  <button class="report" onclick="location.href='accessories-inventory-report.html'">📊 Report</button>
+  <button class="home" onclick="location.href='index.html'">🏠 Home</button>
+</div>
+
+<datalist id="buyerList"></datalist>
+<datalist id="styleList"></datalist>
+<datalist id="orderList"></datalist>
+<datalist id="itemList"></datalist>
+<datalist id="challanList"></datalist>
+
+<div class="tableWrap">
+<table>
+<thead>
+<tr>
+  <th>Received Date</th>
+  <th>Challan No</th>
+  <th>Buyer Name</th>
+  <th>Style</th>
+  <th>Order</th>
+  <th>Name of Item</th>
+  <th>Unit</th>
+  <th>Challan Qty</th>
+  <th>Receive Qty</th>
+  <th>Due Qty</th>
+  <th>Short</th>
+  <th>Excess</th>
+  <th>Reported By</th>
+  <th>Action</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+
+<div id="toast" class="toast">Saved ✅</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId:"gms-warehouse-tracker-7f57e",
+  storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId:"992250313291",
+  appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+
+const user=JSON.parse(localStorage.getItem("gmsUser")||"null");
+if(!user){window.location.href="login.html"}
+
+function today(){
+  return new Date().toISOString().slice(0,10);
+}
+
+document.getElementById("postingDate").value=today();
+
+function toast(msg){
+  let t=document.getElementById("toast");
+  t.innerText=msg;
+  t.style.display="block";
+  setTimeout(()=>t.style.display="none",1600);
+}
+
+function addOption(listId,value){
+  if(!value) return;
+  let list=document.getElementById(listId);
+  let exists=[...list.children].some(o=>o.value===value);
+  if(!exists){
+    let opt=document.createElement("option");
+    opt.value=value;
+    list.appendChild(opt);
+  }
+}
+
+async function loadSuggestions(){
+  try{
+    let snap=await getDocs(collection(db,"accessoriesInventory"));
+
+    snap.forEach(d=>{
+      let x=d.data();
+
+      (x.rows||[]).forEach(r=>{
+        addOption("buyerList",r.buyerName);
+        addOption("styleList",r.style);
+        addOption("orderList",r.orderNo);
+        addOption("itemList",r.itemName);
+        addOption("challanList",r.challanNo);
+      });
+    });
+  }catch(e){
+    console.log(e);
+  }
+}
+
+function calcRow(tr){
+  let challan=Number(tr.querySelector(".challanQty").value)||0;
+  let receive=Number(tr.querySelector(".receiveQty").value)||0;
+
+  let due="";
+  let short="";
+  let excess="";
+
+  if(challan>receive){
+    due=challan-receive;
+    short=challan-receive;
+  }else if(receive>challan){
+    excess=receive-challan;
+  }
+
+  tr.querySelector(".dueQty").innerText=due;
+  tr.querySelector(".shortQty").innerText=short;
+  tr.querySelector(".excessQty").innerText=excess;
+}
+
+window.addRow=function(){
+  let tbody=document.getElementById("tbody");
+
+  let tr=document.createElement("tr");
+
+  tr.innerHTML=`
+    <td><input type="date" class="receivedDate" value="${document.getElementById("postingDate").value}"></td>
+    <td><input class="challanNo" list="challanList"></td>
+    <td><input class="buyerName" list="buyerList"></td>
+    <td><input class="styleNo" list="styleList"></td>
+    <td><input class="orderNo" list="orderList"></td>
+    <td><input class="itemName" list="itemList"></td>
+    <td>
+      <select class="unit">
+        <option value="">Select</option>
+        <option>Pcs</option>
+        <option>Cone</option>
+        <option>Yds</option>
+        <option>Box</option>
+        <option>Roll</option>
+        <option>Mtr</option>
+        
+      </select>
+    </td>
+    <td><input type="number" class="challanQty" oninput="calcThisRow(this)"></td>
+    <td><input type="number" class="receiveQty" oninput="calcThisRow(this)"></td>
+    <td class="dueQty autoCell"></td>
+    <td class="shortQty autoCell"></td>
+    <td class="excessQty excessCell"></td>
+    <td>${user.name||user.email||"User"}</td>
+    <td><button class="del" onclick="deleteThisRow(this)">🗑 Delete</button></td>
+  `;
+
+  tbody.appendChild(tr);
+};
+
+window.calcThisRow=function(el){
+  let tr=el.closest("tr");
+  calcRow(tr);
+};
+
+window.deleteThisRow=function(btn){
+  btn.closest("tr").remove();
+
+  if(document.querySelectorAll("#tbody tr").length===0){
+    addRow();
+  }
+};
+
+function readTableRows(){
+  let all=[];
+
+  document.querySelectorAll("#tbody tr").forEach(tr=>{
+    calcRow(tr);
+
+    let row={
+      receivedDate:tr.querySelector(".receivedDate").value || "",
+      challanNo:tr.querySelector(".challanNo").value.trim(),
+      buyerName:tr.querySelector(".buyerName").value.trim(),
+      style:tr.querySelector(".styleNo").value.trim(),
+      orderNo:tr.querySelector(".orderNo").value.trim(),
+      itemName:tr.querySelector(".itemName").value.trim(),
+      unit:tr.querySelector(".unit").value,
+      challanQty:tr.querySelector(".challanQty").value.trim(),
+      receiveQty:tr.querySelector(".receiveQty").value.trim(),
+      dueQty:tr.querySelector(".dueQty").innerText.trim(),
+      short:tr.querySelector(".shortQty").innerText.trim(),
+      excess:tr.querySelector(".excessQty").innerText.trim(),
+      reportedBy:user.name||user.email||"User"
+    };
+
+    let hasData =
+      row.challanNo ||
+      row.buyerName ||
+      row.style ||
+      row.orderNo ||
+      row.itemName ||
+      row.unit ||
+      row.challanQty ||
+      row.receiveQty;
+
+    if(hasData){
+      all.push(row);
+    }
+  });
+
+  return all;
+}
+
+window.savePosting=async function(){
+  let valid=readTableRows();
+
+  if(valid.length===0){
+    alert("Data nai");
+    return;
+  }
+
+  try{
+    await addDoc(collection(db,"accessoriesInventory"),{
+      postingDate:document.getElementById("postingDate").value,
+      rows:valid,
+      userId:user.id||"",
+      userName:user.name||"",
+      userEmail:user.email||"",
+      createdAt:new Date().toISOString()
+    });
+
+    valid.forEach(r=>{
+      addOption("buyerList",r.buyerName);
+      addOption("styleList",r.style);
+      addOption("orderList",r.orderNo);
+      addOption("itemList",r.itemName);
+      addOption("challanList",r.challanNo);
+    });
+
+    document.getElementById("tbody").innerHTML="";
+    addRow();
+
+    toast("Posting Saved ✅");
+  }catch(e){
+    console.log(e);
+    alert("Firebase save problem ❌");
+  }
+};
+
+document.addEventListener("keydown",function(e){
+  if(e.key==="Enter" && (e.target.tagName==="INPUT" || e.target.tagName==="SELECT")){
+    e.preventDefault();
+
+    let inputs=[...document.querySelectorAll("td input,td select")];
+    let index=inputs.indexOf(e.target);
+
+    if(inputs[index+1]){
+      inputs[index+1].focus();
+    }
+  }
+});
+
+loadSuggestions();
+addRow();
+</script>
+
+</body>
+</html>

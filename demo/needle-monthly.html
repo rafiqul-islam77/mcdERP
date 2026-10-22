@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Needle Monthly Report</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+<style>
+body{margin:0;background:#07111f;color:white;font-family:Arial,sans-serif}
+.header{text-align:center;padding:12px}
+.header h2,.header h3{margin:4px}
+.controls{text-align:center;margin:10px}
+button{padding:10px 14px;border:0;border-radius:8px;color:white;font-weight:bold;margin:4px;cursor:pointer}
+.show{background:#2563eb}.excel{background:#16a34a}.print{background:#7c3aed}.home{background:#0f766e}
+input,select{font-size:16px;padding:8px;border-radius:6px;border:1px solid #999}
+.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px}
+.kpiBox{background:#101b2d;border:1px solid #263855;border-radius:14px;padding:12px;text-align:center}
+.kpiBox span{font-size:12px;color:#9fb0c7;font-weight:bold}
+.kpiBox b{display:block;color:#22c55e;font-size:24px;margin-top:5px}
+.tableWrap{overflow-x:auto;width:100%}
+table{min-width:1050px;width:98%;margin:10px auto;border-collapse:collapse;background:white;color:black;font-size:12px}
+th,td{border:1px solid #000;padding:5px;text-align:center}
+th{background:#9fc5e8;font-weight:bold}
+.floorTitle{background:#1e293b!important;color:white!important;font-size:15px}
+.totalRow{background:#d9ead3;font-weight:bold}
+.grandRow{background:#ffe599;font-weight:bold;font-size:14px}
+
+/* Signature Section */
+.signatureSection{
+  margin-top:30px;
+  margin-bottom:20px;
+  display:none;
+  page-break-inside:avoid;
+}
+.signatureTable{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+.signatureTable td{
+  width:33.33%;
+  text-align:center;
+  vertical-align:top;
+  padding:5px;
+  border:none;
+}
+.signatureLine{
+  border-top:2px solid #000;
+  width:70%;
+  margin:0 auto 4px auto;
+  height:0;
+}
+.signatureLabel{
+  font-weight:bold;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:1px;
+}
+
+@page{
+  size:A4 portrait;
+  margin:10mm;
+}
+
+@media print{
+  body{background:white;color:black}
+  .controls,.kpi,.noPrint{display:none!important}
+  .signatureSection{display:block!important}
+  table{width:100%;min-width:0;font-size:8px;margin:2px 0}
+  th,td{padding:2px}
+  .tableWrap{margin-bottom:20px;page-break-after:auto}
+  .floorTitle{font-size:12px!important}
+}
+
+@media(max-width:700px){.kpi{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h2>GMS Textiles Ltd</h2>
+  <h3>Needle Monthly Report</h3>
+</div>
+
+<div class="controls noPrint">
+  Month:
+  <input type="month" id="monthInput" onchange="loadReport()">
+
+  Floor:
+  <select id="floorFilter" onchange="loadReport()">
+    <option value="">All Floor</option>
+    <option>Kadom R</option>
+    <option>Kadom N</option>
+    <option>Poddo R</option>
+    <option>Poddo N</option>
+    <option>Shapla R</option>
+    <option>Shapla N</option>
+    <option>Sample R</option>
+    <option>Sample N</option>
+    <option>EMBROIDERY R</option>
+    <option>EMBROIDERY N</option>
+    <option>Belly R</option>
+    <option>Belly N</option>
+  </select>
+
+  <button class="show" onclick="loadReport()"> Show</button>
+  <button class="excel" onclick="exportExcel()">📊 Excel</button>
+  <button class="print" onclick="window.print()">🖨 PDF / Print</button>
+  <button class="home" onclick="location.href='needle.html'">🪡 Entry</button>
+  <button class="home" onclick="location.href='index.html'">🏠 Home</button>
+</div>
+
+<div class="kpi">
+  <div class="kpiBox"><span> Total Receive</span><b id="kpiReceive">0</b></div>
+  <div class="kpiBox"><span>📤 Total Delivery</span><b id="kpiDelivery">0</b></div>
+  <div class="kpiBox"><span>📦 Present Stock</span><b id="kpiPresent">0</b></div>
+  <div class="kpiBox"><span>📌 Total BNR/BNF</span><b id="kpiBN">0</b></div>
+</div>
+
+<div id="reportArea"></div>
+
+<!-- Signature Section (Only visible in print) -->
+<div class="signatureSection noPrint">
+  <table class="signatureTable">
+    <tr>
+      <td>
+        <div class="signatureLine"></div>
+        <div class="signatureLabel">Prepared By</div>
+      </td>
+      <td>
+        <div class="signatureLine"></div>
+        <div class="signatureLabel">Checked By</div>
+      </td>
+      <td>
+        <div class="signatureLine"></div>
+        <div class="signatureLabel">Authorised By</div>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId:"gms-warehouse-tracker-7f57e",
+  storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId:"992250313291",
+  appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+
+const FLOORS=[
+  "Kadom R","Kadom N",
+  "Poddo R","Poddo N",
+  "Shapla R","Shapla N",
+  "Sample R","Sample N",
+  "EMBROIDERY R","EMBROIDERY N",
+  "Belly R","Belly N"
+];
+
+/* 🔧 LIVE REPORT-এর মতো উন্নত NORMALIZATION লজিক */
+function normalizeNeedleName(name){
+  if(!name) return "";
+  return name.trim().toUpperCase().replace(/\s*-\s*/g, '-').replace(/\s+/g, ' ');
+}
+
+function normalizeFloorName(floor){
+  if(!floor) return "";
+  let cleanFloor = floor.trim().toUpperCase().replace(/\s+/g, ' ');
+  
+  // ১. সাধারণ ম্যাচিং
+  let matched = FLOORS.find(f => f.toUpperCase() === cleanFloor);
+  if(matched) return matched;
+  
+  // ২. নো-স্পেস ম্যাচিং (যাতে "BellyN" বা "Belly  N" সহজে ধরা পড়ে)
+  let flatSaved = cleanFloor.replace(/[^A-Z0-9]/g, "");
+  let flatMatched = FLOORS.find(f => f.toUpperCase().replace(/[^A-Z0-9]/g, "") === flatSaved);
+  if(flatMatched) return flatMatched;
+  
+  // ৩. ব্যাকআপ: যদি লিস্টে না থাকে, ডাটাবেজের মূল নামটিই রিটার্ন করবে যাতে ডাটা হারিয়ে না যায়
+  return floor.trim();
+}
+
+const monthNames = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
+function ym(){return new Date().toISOString().slice(0,7)}
+document.getElementById("monthInput").value=ym();
+
+function n(v){return Number(v)||0}
+
+function isR(floor){
+  return String(floor||"").trim().toUpperCase().endsWith(" R");
+}
+
+function bnName(floor){
+  return isR(floor) ? "BNR" : "BNF";
+}
+
+function formatMonth(monthStr){
+  if(!monthStr) return "";
+  const [year, month] = monthStr.split("-");
+  const monthIndex = parseInt(month) - 1;
+  return monthNames[monthIndex] + " " + year;
+}
+
+let unsubscribe = null;
+
+async function loadReport(){
+  let month=document.getElementById("monthInput").value;
+  let floorFilter=document.getElementById("floorFilter").value;
+
+  if(!month){
+    alert("Month select koro");
+    return;
+  }
+
+  let formattedMonth = formatMonth(month);
+
+  // পূর্বের লাইভ কানেকশন রিলিজ করা
+  if(unsubscribe) unsubscribe();
+
+  // Ageing live report-এর মত অন-স্পট লাইভ লিসেনার অন করা
+  unsubscribe = onSnapshot(collection(db,"dailyPosting"), (snap) => {
+    let sortedDocs = [];
+    
+    // ডাটাবেজের সকল ডকুমেন্ট সংগ্রহ ও তারিখের ক্রমানুসারে সাজানো
+    snap.forEach(d => {
+      let x = d.data();
+      if(x.date && x.rows) {
+        // মাস ফিল্টারিং
+        let docMonth = x.month;
+        if(!docMonth && x.date) docMonth = String(x.date).slice(0, 7);
+        
+        if(docMonth === month) {
+          x.floor = normalizeFloorName(x.floor);
+          sortedDocs.push(x);
+        }
+      }
+    });
+
+    sortedDocs.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+
+    let html="";
+    let grandReceive=0,grandDelivery=0,grandPresent=0,grandBN=0;
+    
+    // ডিসপ্লে করার জন্য ফ্লোর সিলেকশন
+    let floors = floorFilter ? [floorFilter] : FLOORS;
+
+    floors.forEach(floor=>{
+      let floorDocs=sortedDocs.filter(d=>d.floor===floor);
+      if(floorDocs.length===0) return;
+
+      let itemMap={};
+
+      floorDocs.forEach(day=>{
+        day.rows.forEach(row=>{
+          if(!row.needleType || !row.size) return;
+
+          let nType = normalizeNeedleName(row.needleType);
+          let nSize = normalizeNeedleName(row.size);
+          
+          // SL অথবা নরমালাইজড টেক্সট কী (Key) হিসেবে ব্যবহার করা হচ্ছে যেন ডুপ্লিকেট না হয়
+          let key = row.sl ? String(row.sl) : `${nType}_${nSize}`;
+
+          if(!itemMap[key]){
+            itemMap[key]={
+              sl:row.sl||"",
+              needleType:row.needleType,
+              size:row.size,
+              opening:n(row.opening),
+              previous:n(row.previous),
+              receive:0,
+              delivery:0,
+              present:0,
+              bn:0,
+              firstDate:day.date,
+              lastDate:""
+            };
+          }
+
+          itemMap[key].receive += n(row.receive);
+          itemMap[key].delivery += n(row.delivery);
+          itemMap[key].bn += n(row.bn);
+
+          // পূর্বের স্টক ঠিক রাখা
+          if(day.date < itemMap[key].firstDate){
+            itemMap[key].previous = n(row.previous);
+            itemMap[key].opening = n(row.opening);
+            itemMap[key].firstDate = day.date;
+          }
+
+          // সর্বশেষ ডাটা ও প্রেজেন্ট স্টক সংরক্ষণ
+          if(!itemMap[key].lastDate || day.date >= itemMap[key].lastDate){
+            itemMap[key].present = n(row.present);
+            itemMap[key].needleType = row.needleType;
+            itemMap[key].size = row.size;
+            itemMap[key].lastDate = day.date;
+          }
+        });
+      });
+
+      let items=Object.values(itemMap).sort((a,b)=>{
+        if(a.sl && b.sl) return Number(a.sl)-Number(b.sl);
+        return a.needleType.localeCompare(b.needleType);
+      });
+
+      let floorReceive=0,floorDelivery=0,floorPresent=0,floorBN=0;
+      let titleBN=bnName(floor);
+
+      html+=`
+      <div class="tableWrap">
+      <table>
+        <thead>
+          <tr><th colspan="8" class="floorTitle">${floor} Monthly Report - ${formattedMonth}</th></tr>
+          <tr>
+            <th>SL</th>
+            <th>Needle Type</th>
+            <th>Size</th>
+            <th>Previous</th>
+            <th>Total Receive</th>
+            <th>Total Delivery</th>
+            <th>Present Stock</th>
+            <th>${titleBN}</th>
+          </tr>
+        </thead>
+        <tbody>
+      `;
+
+      items.forEach((r,i)=>{
+        floorReceive+=n(r.receive);
+        floorDelivery+=n(r.delivery);
+        floorPresent+=n(r.present);
+        floorBN+=n(r.bn);
+
+        html+=`
+        <tr>
+          <td>${r.sl || i+1}</td>
+          <td>${r.needleType}</td>
+          <td>${r.size}</td>
+          <td>${r.previous}</td>
+          <td>${r.receive}</td>
+          <td>${r.delivery}</td>
+          <td>${r.present}</td>
+          <td>${r.bn}</td>
+        </tr>`;
+      });
+
+      html+=`
+        </tbody>
+        <tfoot>
+          <tr class="totalRow">
+            <td colspan="4">${floor} TOTAL</td>
+            <td>${floorReceive}</td>
+            <td>${floorDelivery}</td>
+            <td>${floorPresent}</td>
+            <td>${floorBN}</td>
+          </tr>
+        </tfoot>
+      </table>
+      </div>`;
+
+      grandReceive+=floorReceive;
+      grandDelivery+=floorDelivery;
+      grandPresent+=floorPresent;
+      grandBN+=floorBN;
+    });
+
+    if (html !== "") {
+      html+=`
+      <div class="tableWrap">
+      <table>
+        <tr class="grandRow">
+          <td colspan="3">MONTHLY GRAND TOTAL - ${formattedMonth}</td>
+          <td>Total Receive: ${grandReceive}</td>
+          <td>Total Delivery: ${grandDelivery}</td>
+          <td>Present Stock: ${grandPresent}</td>
+          <td colspan="2">Total BNR/BNF: ${grandBN}</td>
+        </tr>
+      </table>
+      </div>`;
+    }
+
+    document.getElementById("reportArea").innerHTML =
+      html || `<div style="text-align:center;color:#9fb0c7;padding:25px;font-weight:bold">No Data Found</div>`;
+
+    document.getElementById("kpiReceive").innerText=grandReceive;
+    document.getElementById("kpiDelivery").innerText=grandDelivery;
+    document.getElementById("kpiPresent").innerText=grandPresent;
+    document.getElementById("kpiBN").innerText=grandBN;
+  });
+}
+
+window.loadReport=loadReport;
+
+window.exportExcel=function(){
+  let html=document.getElementById("reportArea").innerHTML;
+  let monthVal=document.getElementById("monthInput").value;
+  let formattedMonth = formatMonth(monthVal);
+  let file=new Blob([`
+    <html><head><meta charset="UTF-8"></head>
+    <body>
+      <h2>GMS Textiles Ltd</h2>
+      <h3>Needle Monthly Report - ${formattedMonth}</h3>
+      ${html}
+    </body></html>
+  `],{type:"application/vnd.ms-excel"});
+
+  let a=document.createElement("a");
+  a.href=URL.createObjectURL(file);
+  a.download=`needle-monthly-report-${monthVal}.xls`;
+  a.click();
+};
+
+// Initial Load
+loadReport();
+</script>
+
+</body>
+</html>

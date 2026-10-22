@@ -1,0 +1,2870 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>GMS MCD ERP SYSTEM</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+:root{
+--bg:#0a1628;--card:#1e293b;--card2:#334155;--text:#f1f5f9;--muted:#cbd5e1;
+--border:#475569;--blue:#3b82f6;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;
+--purple:#8b5cf6;--shadow:0 10px 40px rgba(0,0,0,.4);
+}
+body.light{
+--bg:#f8fafc;--card:#ffffff;--card2:#f1f5f9;--text:#1e293b;
+--muted:#64748b;--border:#cbd5e1;--shadow:0 10px 40px rgba(0,0,0,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Poppins',sans-serif;
+padding-bottom:100px;font-weight:400;line-height:1.6;transition:background 0.3s ease,color 0.3s ease;}
+.session-timer-display{display:flex;align-items:center;gap:6px;padding:4px 10px;
+background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:8px;
+font-size:11px;font-weight:700;color:var(--green);font-family:'Courier New',monospace;transition:all 0.3s;}
+.session-timer-display.warning{background:rgba(245,158,11,0.15);border-color:rgba(245,158,11,0.3);color:var(--yellow);}
+.session-timer-display.danger{background:rgba(239,68,68,0.15);border-color:rgba(239,68,68,0.3);color:var(--red);animation:livePulse 1s infinite;}
+.session-warning-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+background:rgba(0,0,0,0.85);z-index:99998;justify-content:center;align-items:center;
+backdrop-filter:blur(8px);animation:fadeIn 0.3s ease;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.session-warning-content{background:var(--card);border:2px solid var(--yellow);border-radius:20px;
+padding:40px;max-width:420px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(245,158,11,0.3);
+animation:slideUp 0.4s cubic-bezier(0.4,0,0.2,1);}
+@keyframes slideUp{from{transform:translateY(50px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.session-warning-icon{font-size:64px;margin-bottom:16px;animation:bounce 1s infinite;}
+@keyframes bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+.session-warning-content h3{font-size:22px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.session-warning-content p{color:var(--muted);font-size:14px;margin-bottom:16px;}
+.session-countdown{font-size:48px;font-weight:900;color:var(--yellow);font-family:'Courier New',monospace;
+margin:20px 0;letter-spacing:2px;text-shadow:0 0 20px rgba(245,158,11,0.5);}
+.session-warning-buttons{display:flex;gap:12px;margin-top:20px;}
+.session-extend-btn{flex:1;padding:12px 20px;background:linear-gradient(135deg,var(--green),#059669);
+color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.3s;}
+.session-extend-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(16,185,129,0.4);}
+.session-logout-btn{flex:1;padding:12px 20px;background:linear-gradient(135deg,var(--red),#dc2626);
+color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.3s;}
+.session-logout-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(239,68,68,0.4);}
+.session-expired-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+background:rgba(10,22,40,0.98);z-index:99999;justify-content:center;align-items:center;animation:fadeIn 0.5s ease;}
+.session-expired-content{text-align:center;max-width:400px;padding:40px;}
+.session-expired-icon{font-size:80px;margin-bottom:20px;animation:shake 0.5s ease;}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-10px);}75%{transform:translateX(10px);}}
+.session-expired-content h2{font-size:28px;font-weight:800;color:var(--red);margin-bottom:12px;}
+.session-expired-content p{color:var(--muted);font-size:16px;}
+.session-progress-bar{width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-top:20px;overflow:hidden;}
+.session-progress-fill{height:100%;background:linear-gradient(90deg,var(--yellow),var(--red));border-radius:2px;transition:width 1s linear;}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;
+background:linear-gradient(180deg,#1e293b 0%,#0f172a 100%);
+border-right:1px solid rgba(59,130,246,0.2);display:flex;flex-direction:column;
+z-index:1000;transition:transform .3s cubic-bezier(0.4,0,0.2,1);overflow-y:auto;box-shadow:4px 0 30px rgba(0,0,0,.5);}
+body.light .sidebar{background:linear-gradient(180deg,#ffffff 0%,#f1f5f9 100%);border-right-color:#cbd5e1;}
+@media(max-width:900px){.sidebar{transform:translateX(-100%);}.sidebar.show{transform:translateX(0);}}
+.sidebarHeader{padding:20px 16px;border-bottom:1px solid rgba(59,130,246,0.2);display:flex;flex-direction:column;gap:8px;}
+.sidebarHeader .logo{font-size:18px;font-weight:800;color:#f1f5f9;letter-spacing:-0.5px;}
+body.light .sidebarHeader .logo{color:#1e293b;}
+.sidebarHeader .sub{font-size:10px;color:#cbd5e1;font-weight:500;}
+body.light .sidebarHeader .sub{color:#64748b;}
+.companySwitch{display:flex;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);border-radius:8px;padding:4px;gap:4px;}
+.companySwitch button{flex:1;padding:6px 8px;border:none;border-radius:6px;background:transparent;
+color:#cbd5e1;font-size:10px;font-weight:600;cursor:pointer;transition:all .2s;}
+body.light .companySwitch button{color:#475569;}
+.companySwitch button.active{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff!important;font-weight:700;}
+.companySwitch button:hover:not(.active){background:rgba(59,130,246,0.2);color:#f1f5f9;}
+body.light .companySwitch button:hover:not(.active){color:#1e293b;}
+.companySwitch button.disabled{opacity:0.3;cursor:not-allowed;pointer-events:none;}
+.sidebarNav{flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:4px;}
+.sidebarNav button{background:transparent;color:#cbd5e1;border:1px solid transparent;
+padding:10px 12px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;text-align:left;
+transition:all .3s cubic-bezier(0.4,0,0.2,1);display:flex;align-items:center;gap:10px;position:relative;}
+body.light .sidebarNav button{color:#475569;}
+.sidebarNav button:hover{background:rgba(59,130,246,.15);border-color:rgba(59,130,246,.4);transform:translateX(4px);color:#f1f5f9;}
+body.light .sidebarNav button:hover{color:#1e293b;}
+.sidebarNav button.active{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff!important;
+box-shadow:0 4px 20px rgba(59,130,246,.4);font-weight:600;}
+
+/* 🔥 NEW: Grey Order Close Button Special Style */
+.sidebarNav button.grey-order-btn{
+background:linear-gradient(135deg,#10b981,#059669)!important;
+color:#fff!important;
+border:none;
+font-weight:700;
+position:relative;
+overflow:hidden;
+}
+.sidebarNav button.grey-order-btn::before{
+content:'';
+position:absolute;
+top:0;left:-100%;
+width:100%;height:100%;
+background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent);
+animation:shimmer 3s infinite;
+}
+.sidebarNav button.grey-order-btn:hover{
+transform:translateY(-2px);
+box-shadow:0 6px 20px rgba(16,185,129,0.5);
+}
+.sidebarNav button.grey-order-btn .live-dot{
+width:8px;height:8px;
+background:#fff;
+border-radius:50%;
+animation:livePulse 1.5s infinite;
+margin-left:auto;
+}
+
+/* 🔥 NEW: GMS MCD ERP External Link Button Style */
+.sidebarNav button.gms-erp-btn{
+background:linear-gradient(135deg,#3b82f6,#8b5cf6)!important;
+color:#fff!important;
+border:none;
+font-weight:700;
+position:relative;
+overflow:hidden;
+}
+.sidebarNav button.gms-erp-btn::before{
+content:'';
+position:absolute;
+top:0;left:-100%;
+width:100%;height:100%;
+background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent);
+animation:shimmer 3s infinite;
+}
+.sidebarNav button.gms-erp-btn:hover{
+transform:translateY(-2px);
+box-shadow:0 6px 20px rgba(59,130,246,0.5);
+}
+.sidebarNav button.gms-erp-btn .live-dot{
+width:8px;height:8px;
+background:#fff;
+border-radius:50%;
+animation:livePulse 1.5s infinite;
+margin-left:auto;
+}
+
+@keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,0.7);}70%{box-shadow:0 0 0 10px rgba(255,255,255,0);}100%{box-shadow:0 0 0 0 rgba(255,255,255,0);}}
+
+.notice-badge{position:absolute;right:10px;top:50%;transform:translateY(-50%);
+background:var(--red);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;
+border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 5px;animation:pulseBadge 2s infinite;}
+@keyframes pulseBadge{0%,100%{transform:translateY(-50%) scale(1);}50%{transform:translateY(-50%) scale(1.2);}}
+.sidebarFooter{padding:16px;border-top:1px solid rgba(59,130,246,0.2);display:flex;flex-direction:column;gap:8px;}
+.sidebarFooter .themeBtn,.sidebarFooter .logoutBtn{width:100%;padding:10px 12px;border-radius:8px;font-weight:600;
+cursor:pointer;border:none;font-size:12px;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;transition:all .3s;}
+.sidebarFooter .logoutBtn{background:linear-gradient(135deg,var(--red),#f97316);}
+.mainContent{margin-left:220px;min-height:100vh;background:var(--bg);transition:margin-left .3s cubic-bezier(0.4,0,0.2,1);}
+@media(max-width:900px){.mainContent{margin-left:0;}}
+.topBar{background:rgba(30,41,59,.95);border-bottom:1px solid rgba(59,130,246,0.2);padding:0;
+display:flex;flex-direction:column;position:sticky;top:0;z-index:100;backdrop-filter:blur(10px);}
+body.light .topBar{background:rgba(255,255,255,.95);border-bottom-color:#cbd5e1;}
+.systemNameBar{background:linear-gradient(90deg,#0a1628 0%,#1e293b 50%,#0a1628 100%);
+padding:16px 20px;text-align:center;position:relative;overflow:hidden;}
+body.light .systemNameBar{background:linear-gradient(90deg,#f8fafc 0%,#e2e8f0 50%,#f8fafc 100%);}
+.systemNameBar::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+background:linear-gradient(90deg,transparent,rgba(59,130,246,0.3),transparent);animation:shimmer 3s infinite;}
+@keyframes shimmer{0%{left:-100%;}100%{left:100%;}}
+.systemName{font-size:32px;font-weight:900;
+background:linear-gradient(90deg,#3b82f6,#8b5cf6,#10b981,#f59e0b,#3b82f6);background-size:300% 300%;
+-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+animation:gradientFlow 4s ease infinite,glowPulse 2s ease-in-out infinite;
+letter-spacing:2px;text-transform:uppercase;position:relative;z-index:1;}
+@keyframes gradientFlow{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
+@keyframes glowPulse{0%,100%{filter:brightness(1) drop-shadow(0 0 20px rgba(59,130,246,0.6));}50%{filter:brightness(1.3) drop-shadow(0 0 40px rgba(139,92,246,0.8));}}
+.systemSub{font-size:11px;color:var(--muted);margin-top:4px;font-weight:500;letter-spacing:3px;}
+@media(max-width:768px){.systemNameBar{padding:8px 12px;}.systemName{font-size:16px;letter-spacing:1px;}.systemSub{font-size:9px;margin-top:2px;letter-spacing:2px;}}
+.topBarUpper{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;}
+.menuToggle{background:var(--blue);color:#fff;border:none;padding:8px 16px;border-radius:8px;
+font-size:14px;cursor:pointer;font-weight:600;display:none;}
+@media(max-width:900px){.menuToggle{display:block;}}
+.topBarRight{display:flex;align-items:center;gap:12px;}
+.topBarRight .autoSave{display:flex;align-items:center;gap:6px;color:var(--green);font-weight:600;font-size:12px;}
+.topBarRight .themeBtn{background:rgba(59,130,246,.2);color:var(--blue);border:1px solid rgba(59,130,246,.3);
+padding:6px 12px;border-radius:8px;font-weight:600;cursor:pointer;font-size:12px;}
+.profileBtnTop{background:rgba(139,92,246,.2);color:var(--purple);border:1px solid rgba(139,92,246,.3);
+padding:6px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px;}
+.cacheStatusBar{display:flex;align-items:center;justify-content:center;gap:8px;padding:4px 12px;
+font-size:11px;font-weight:600;background:rgba(16,185,129,0.08);border-bottom:1px solid rgba(16,185,129,0.15);color:var(--muted);}
+.cacheStatusBar .cacheDot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:livePulse 2s infinite;}
+.cacheStatusBar .cacheReadCount{margin-left:8px;color:var(--blue);font-weight:700;}
+.noticeBar{background:linear-gradient(90deg,#f59e0b 0%,#ef4444 50%,#3b82f6 100%);background-size:300% 100%;
+animation:gradientShift 5s ease infinite;color:#fff;padding:10px 0;font-weight:600;font-size:14px;
+overflow:hidden;white-space:nowrap;width:100%;display:block;position:relative;}
+.noticeMove{display:inline-block;padding-left:100%;animation:marquee 30s linear infinite;white-space:nowrap;will-change:transform;}
+@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
+@keyframes gradientShift{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
+@media(max-width:768px){.noticeBar{font-size:12px;padding:8px 0;}.noticeMove{animation-duration:20s;}}
+.page{display:none;padding:20px;}.page.activePage{display:block;}
+.dashTitle{font-size:22px;font-weight:700;margin-bottom:4px;color:var(--text);}
+.dashSub{color:var(--muted);margin-bottom:20px;font-weight:500;font-size:13px;}
+.companyBadge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;
+background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);border-radius:20px;
+font-size:11px;font-weight:600;color:var(--blue);margin-left:10px;}
+.companyBadge.composite{background:rgba(139,92,246,0.15);border-color:rgba(139,92,246,0.3);color:var(--purple);}
+.entrySection,.reportSection{background:var(--card);border-radius:16px;padding:24px;
+margin-bottom:24px;box-shadow:0 4px 20px rgba(0,0,0,0.1);}
+body.light .entrySection,body.light .reportSection{background:#ffffff;box-shadow:0 4px 20px rgba(0,0,0,0.08);}
+.entrySection h2,.reportSection h2{font-size:22px;font-weight:700;margin-bottom:20px;
+display:flex;align-items:center;gap:10px;color:var(--text);}
+.formGroup{margin-bottom:16px;}
+.formGroup label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px;}
+.formGroup select{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;
+background:var(--bg);color:var(--text);font-size:13px;font-weight:500;cursor:pointer;
+transition:all 0.3s;font-family:'Poppins',sans-serif;}
+body.light .formGroup select{background:#f8fafc;border-color:#cbd5e1;}
+.formGroup select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,0.1);}
+.openEntryBtn{background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff!important;border:none;
+padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;
+display:inline-flex;align-items:center;gap:10px;transition:all 0.3s;
+box-shadow:0 4px 15px rgba(59,130,246,0.3);margin-bottom:24px;}
+.openEntryBtn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(59,130,246,0.4);}
+.entryCardsGrid,.reportCardsGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+@media(max-width:900px){.entryCardsGrid,.reportCardsGrid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:600px){.entryCardsGrid,.reportCardsGrid{grid-template-columns:1fr;}}
+.entryCard,.reportCard{background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);
+border:1px solid rgba(59,130,246,0.1);border-radius:12px;padding:18px;cursor:pointer;
+transition:all 0.3s cubic-bezier(0.4,0,0.2,1);display:flex;align-items:center;justify-content:center;
+gap:10px;font-size:13px;font-weight:600;color:#1e293b!important;
+box-shadow:0 2px 10px rgba(0,0,0,0.05);min-height:65px;}
+body.light .entryCard,body.light .reportCard{background:linear-gradient(135deg,#ffffff 0%,#f8fafc 100%);border-color:#e2e8f0;}
+.entryCard:hover,.reportCard:hover{transform:translateY(-3px);box-shadow:0 8px 25px rgba(59,130,246,0.15);border-color:rgba(59,130,246,0.3);}
+.entryCard i,.reportCard i{font-size:16px;color:var(--blue);}
+
+/* 🔥 NEW: Grey Order Close Card Special Style */
+.entryCard.grey-order-card{
+background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(5,150,105,0.15))!important;
+border:2px solid var(--green)!important;
+color:var(--green)!important;
+font-weight:700!important;
+position:relative;
+overflow:hidden;
+}
+.entryCard.grey-order-card::before{
+content:'';
+position:absolute;
+top:0;left:-100%;
+width:100%;height:100%;
+background:linear-gradient(90deg,transparent,rgba(16,185,129,0.2),transparent);
+animation:shimmer 3s infinite;
+}
+.entryCard.grey-order-card:hover{
+transform:translateY(-4px);
+box-shadow:0 10px 30px rgba(16,185,129,0.3);
+border-color:var(--green)!important;
+}
+.entryCard.grey-order-card i{color:var(--green)!important;font-size:18px;}
+
+.generalMcdBox{background:linear-gradient(135deg,var(--card) 0%,var(--card2) 100%);border:2px solid var(--purple);
+border-radius:16px;padding:20px;margin-bottom:20px;cursor:pointer;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(139,92,246,0.2);}
+.generalMcdBox:hover{transform:translateY(-4px);box-shadow:0 12px 30px rgba(139,92,246,0.35);border-color:var(--blue);}
+.generalMcdBox::before{content:'';position:absolute;top:-50%;right:-50%;width:100%;height:100%;
+background:radial-gradient(circle,rgba(139,92,246,0.1),transparent);pointer-events:none;}
+.generalMcdHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:relative;z-index:1;}
+.generalMcdHeader h3{font-size:16px;font-weight:800;background:linear-gradient(135deg,var(--blue),var(--purple));
+-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:0;
+display:flex;align-items:center;gap:10px;}
+.generalMcdBadge{background:linear-gradient(135deg,var(--green),#059669);color:#fff;padding:5px 12px;
+border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.5px;}
+.generalMcdClickHint{text-align:center;margin-top:12px;font-size:11px;color:var(--muted);font-weight:600;position:relative;z-index:1;}
+.generalMcdClickHint i{color:var(--blue);margin-right:4px;}
+.attendanceSixCardGrid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-top:16px;position:relative;z-index:1;}
+@media(max-width:1100px){.attendanceSixCardGrid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:600px){.attendanceSixCardGrid{grid-template-columns:repeat(2,1fr);}}
+.attCard{background:linear-gradient(135deg,var(--card) 0%,var(--card2) 100%);border-radius:14px;
+padding:18px 12px;text-align:center;position:relative;overflow:hidden;
+transition:all 0.3s cubic-bezier(0.4,0,0.2,1);border:1px solid rgba(255,255,255,0.05);box-shadow:0 4px 15px rgba(0,0,0,0.2);}
+.attCard::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;border-radius:4px 4px 0 0;}
+.attCard:hover{transform:translateY(-4px);box-shadow:0 8px 25px rgba(0,0,0,0.3);}
+.attCard.total::before{background:linear-gradient(90deg,#3b82f6,#2563eb);}
+.attCard.present::before{background:linear-gradient(90deg,#10b981,#059669);}
+.attCard.leave::before{background:linear-gradient(90deg,#f59e0b,#d97706);}
+.attCard.absent::before{background:linear-gradient(90deg,#ef4444,#dc2626);}
+.attCard.medical::before{background:linear-gradient(90deg,#8b5cf6,#7c3aed);}
+.attCard.offday::before{background:linear-gradient(90deg,#06b6d4,#0891b2);}
+.attCard .attIcon{font-size:28px;margin-bottom:8px;display:block;}
+.attCard .attValue{font-size:26px;font-weight:800;display:block;margin-bottom:4px;letter-spacing:-0.5px;}
+.attCard .attLabel{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);display:block;}
+.attCard.total .attValue{color:#3b82f6;}.attCard.present .attValue{color:#10b981;}
+.attCard.leave .attValue{color:#f59e0b;}.attCard.absent .attValue{color:#ef4444;}
+.attCard.medical .attValue{color:#8b5cf6;}.attCard.offday .attValue{color:#06b6d4;}
+.liveSignalCard{background:var(--card);border:1px solid rgba(16,185,129,0.2);border-radius:16px;
+padding:20px;text-align:center;margin-bottom:20px;position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.2);}
+.liveSignalWrap{display:flex;align-items:center;justify-content:center;gap:12px;}
+.liveDot{width:12px;height:12px;background:var(--green);border-radius:50%;
+animation:livePulse 1.5s infinite;box-shadow:0 0 0 0 rgba(16,185,129,.7);}
+.liveText{color:var(--green);font-size:28px;font-weight:800;letter-spacing:1px;}
+.liveLabel{color:var(--muted);font-size:10px;font-weight:600;text-transform:uppercase;
+letter-spacing:1px;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px;}
+@keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(16,185,129,.7);transform:scale(1)}
+70%{box-shadow:0 0 0 10px rgba(16,185,129,0);transform:scale(1.1)}
+100%{box-shadow:0 0 0 0 rgba(16,185,129,0);transform:scale(1)}}
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.stat-card-new{padding:18px;border-radius:16px;display:flex;align-items:center;
+justify-content:space-between;color:white;transition:transform 0.3s;box-shadow:0 4px 15px rgba(0,0,0,0.2);}
+.stat-card-new:hover{transform:translateY(-4px);}
+.bg-blue{background:linear-gradient(135deg,#3b82f6,#2563eb);}
+.bg-green{background:linear-gradient(135deg,#10b981,#059669);}
+.bg-orange{background:linear-gradient(135deg,#f59e0b,#d97706);}
+.bg-purple{background:linear-gradient(135deg,#8b5cf6,#7c3aed);}
+.stat-info h3{font-size:22px;font-weight:800;margin-bottom:4px;}
+.stat-info p{font-size:11px;opacity:0.9;font-weight:500;}
+.stat-icon{font-size:28px;opacity:0.7;}
+@media(max-width:900px){.stat-row{grid-template-columns:1fr 1fr;}}
+@media(max-width:500px){.stat-row{grid-template-columns:1fr;}}
+.chartGrid{display:grid;gap:16px;margin-bottom:20px;grid-template-columns:1fr 1fr;}
+@media(max-width:900px){.chartGrid{grid-template-columns:1fr;}}
+.chartBox{background:var(--card);border:1px solid rgba(59,130,246,0.1);border-radius:16px;padding:16px;transition:transform 0.2s;}
+body.light .chartBox{border-color:#cbd5e1;}
+.chartBox h3{margin:0 0 14px;font-size:15px;font-weight:600;color:var(--text);}
+.chartBox canvas{max-height:260px!important;}
+.mcdDashboard{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;}
+@media(max-width:900px){.mcdDashboard{grid-template-columns:1fr;}}
+.mcdBox{background:var(--card);border:1px solid rgba(59,130,246,0.1);border-radius:16px;padding:16px;}
+body.light .mcdBox{border-color:#cbd5e1;}
+.mcdBox h3{margin:0 0 12px;font-size:15px;font-weight:600;color:var(--text);}
+.miniRow{display:flex;justify-content:space-between;gap:10px;padding:6px 0;
+border-bottom:1px solid rgba(255,255,255,.1);font-size:12px;font-weight:500;}
+body.light .miniRow{border-bottom-color:#cbd5e1;}
+.miniValue{color:var(--green);font-weight:600;}
+.needleGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
+.needleCard{background:var(--card);border:1px solid rgba(59,130,246,0.15);border-radius:12px;
+padding:14px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .3s;color:var(--text);}
+.needleCard:hover{background:rgba(59,130,246,0.1);border-color:var(--blue);transform:scale(1.02);}
+.needleCard i{font-size:18px;color:var(--blue);width:28px;text-align:center;}
+.needleCard span{font-size:13px;font-weight:600;}
+.backupPage h2{font-size:20px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:10px;color:var(--text);}
+.backupContainer{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+@media(max-width:900px){.backupContainer{grid-template-columns:1fr;}}
+.statusBox{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;}
+.statusTitle{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;color:var(--blue);}
+.statusLine{display:flex;justify-content:space-between;align-items:center;padding:8px 0;
+border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px;}
+body.light .statusLine{border-bottom-color:#e2e8f0;}
+.statusLine:last-child{border-bottom:none;}
+.statusLine span{color:var(--muted);font-weight:500;display:flex;align-items:center;gap:8px;}
+.statusLine b{color:var(--text);font-weight:600;}
+.statusSignal{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;font-weight:600;font-size:14px;margin-top:10px;}
+.statusSignal.safe{background:rgba(16,185,129,0.15);color:var(--green);}
+.statusSignal.warn{background:rgba(245,158,11,0.15);color:var(--yellow);}
+.statusSignal.stop{background:rgba(239,68,68,0.15);color:var(--red);}
+.backupActions{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.backupActions .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;
+cursor:pointer;transition:all 0.3s;display:flex;align-items:center;justify-content:center;
+gap:8px;font-weight:600;font-size:13px;text-align:center;color:var(--text);}
+.backupActions .card:hover{background:rgba(59,130,246,0.1);border-color:var(--blue);transform:translateY(-2px);}
+.backupRules{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:20px;}
+.ruleLine{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px;}
+body.light .ruleLine{border-bottom-color:#e2e8f0;}
+.ruleLine:last-child{border-bottom:none;}
+.ruleLine span{color:var(--muted);}.ruleLine b{color:var(--text);font-weight:600;}
+.activityLog{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:20px;}
+.logItem{padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:8px;font-size:12px;color:var(--text);}
+body.light .logItem{background:#f8fafc;}
+.logItem b{color:var(--blue);display:block;margin-bottom:4px;}
+.logItem span{color:var(--muted);font-size:11px;}
+#adminQuotaAlerts{background:var(--card);border:1px solid var(--red);border-radius:12px;padding:15px;margin:15px 0;box-shadow:0 0 15px rgba(239,68,68,0.2);}
+#adminQuotaAlerts h3{color:var(--red);margin:0 0 10px 0;font-size:16px;}
+#quotaAlertList{display:flex;flex-direction:column;gap:8px;}
+.quota-alert-item{background:rgba(239,68,68,0.1);border:1px solid var(--red);padding:10px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;}
+.quota-alert-item .msg{color:var(--red);font-weight:700;font-size:13px;}
+.quota-alert-item .time{color:var(--muted);font-size:10px;}
+.pending-badge{background:#f59e0b;color:#000;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;}
+.synced-badge{background:#10b981;color:#fff;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;}
+.profileModal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:2000;justify-content:center;align-items:center;}
+.profileModalContent{background:var(--card);padding:30px;border-radius:16px;text-align:center;max-width:400px;width:90%;border:1px solid var(--border);}
+.profileModalContent img{width:120px;height:120px;border-radius:50%;object-fit:cover;border:3px solid var(--blue);margin-bottom:15px;}
+.profileUploadBtn{background:var(--blue);color:#fff;padding:10px 20px;border-radius:8px;cursor:pointer;display:inline-block;margin-top:10px;font-weight:600;}
+.closeModal{margin-top:15px;background:var(--red);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;}
+.noAccessMessage{text-align:center;padding:60px 20px;background:var(--card);border-radius:16px;border:2px solid var(--red);margin:20px 0;}
+.noAccessMessage i{font-size:64px;color:var(--red);margin-bottom:20px;}
+.noAccessMessage h3{color:var(--red);font-size:24px;margin-bottom:10px;}
+.noAccessMessage p{color:var(--muted);font-size:14px;max-width:500px;margin:0 auto;}
+.compositeEmpty{text-align:center;padding:40px 20px;color:var(--muted);}
+.compositeEmpty i{font-size:48px;color:var(--purple);margin-bottom:16px;opacity:0.7;}
+.compositeEmpty h3{color:var(--text);font-size:18px;margin-bottom:8px;}
+.compositeEmpty p{font-size:13px;max-width:400px;margin:0 auto;}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#10b981;color:#fff;
+padding:10px 20px;border-radius:8px;font-weight:600;font-size:13px;z-index:9999;
+box-shadow:0 4px 12px rgba(0,0,0,0.3);animation:toastFade 0.3s ease;}
+@keyframes toastFade{from{opacity:0;transform:translate(-50%,20px);}to{opacity:1;transform:translate(-50%,0);}}
+.creditFooter{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);
+display:flex;align-items:center;gap:16px;background:var(--card);border:1px solid rgba(59,130,246,0.3);
+padding:10px 16px;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.5);z-index:999;backdrop-filter:blur(10px);}
+body.light .creditFooter{background:var(--card);border-color:#cbd5e1;}
+.creditItem{display:flex;align-items:center;gap:10px;color:var(--text);}
+.creditItem img{width:40px;height:40px;border-radius:50%;border:2px solid var(--green);object-fit:cover;cursor:pointer;}
+.creditText b{font-size:11px;font-weight:600;display:block;color:var(--text);}
+.creditText span{color:var(--muted);font-size:9px;}
+.creditDivider{width:1px;height:30px;background:rgba(59,130,246,0.5);}
+@media(max-width:900px){.pc-only{display:none!important;}.creditFooter{width:95%;max-width:95%;padding:8px 12px;flex-wrap:wrap;justify-content:center;}}
+.pwa-offline-bar{position:fixed;top:0;left:0;right:0;background:linear-gradient(90deg,#f59e0b,#ef4444);
+color:#fff;padding:8px 16px;display:flex;align-items:center;justify-content:center;gap:12px;
+font-size:13px;font-weight:600;z-index:99999;transform:translateY(-100%);transition:transform 0.3s ease;box-shadow:0 4px 12px rgba(0,0,0,0.3);}
+.pwa-offline-bar.show{transform:translateY(0);}
+.pwa-offline-bar.pwa-online-bar{background:linear-gradient(90deg,#10b981,#059669)!important;}
+.pwa-sync-btn{background:#fff;color:#ef4444;border:none;padding:4px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;}
+.pwa-install-bar{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+background:var(--card,#1e293b);border:1px solid var(--blue,#3b82f6);border-radius:16px;
+padding:16px 20px;display:flex;align-items:center;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.4);z-index:99998;max-width:90%;width:400px;}
+.pwa-install-btn{background:linear-gradient(135deg,var(--blue,#3b82f6),var(--purple,#8b5cf6));color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;}
+.gmcFourChartGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px;position:relative;z-index:1;}
+@media(max-width:1100px){.gmcFourChartGrid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:600px){.gmcFourChartGrid{grid-template-columns:1fr;}}
+.gmcSubChart{background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:12px;padding:14px;transition:all 0.3s;}
+.gmcSubChart:hover{border-color:rgba(59,130,246,0.5);box-shadow:0 4px 15px rgba(59,130,246,0.2);}
+.gmcSubChart h4{font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.gmcSubChart canvas{max-height:220px!important;}
+.gmcGrandTotal{text-align:center;padding:8px 16px;background:rgba(16,185,129,0.15);border-radius:8px;margin-top:10px;font-size:12px;font-weight:700;color:var(--green);}
+.gmcTopStats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px;position:relative;z-index:1;}
+@media(max-width:1100px){.gmcTopStats{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:600px){.gmcTopStats{grid-template-columns:repeat(2,1fr);}}
+.gmcTopStat{background:rgba(15,23,42,0.6);border-radius:12px;padding:14px;border-left:4px solid var(--blue);}
+.gmcTopStat:nth-child(2){border-left-color:var(--green);}
+.gmcTopStat:nth-child(3){border-left-color:var(--yellow);}
+.gmcTopStat:nth-child(4){border-left-color:var(--purple);}
+.gmcTopStat:nth-child(5){border-left-color:var(--red);}
+.gmcTopStat .gmcStatLabel{font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:600;letter-spacing:0.5px;margin-bottom:4px;}
+.gmcTopStat .gmcStatValue{font-size:20px;font-weight:800;color:var(--text);}
+</style>
+<meta name="theme-color" content="#3b82f6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GMS ERP">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+<link rel="stylesheet" href="/notification-styles.css">
+<base target="_blank">
+</head>
+<body>
+<!-- COLOR THEME PANEL -->
+<div id="colorPanel" style="display:none; position:fixed; top:120px; right:20px; background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px; z-index:10000; box-shadow:0 10px 40px rgba(0,0,0,0.5); width:280px; backdrop-filter:blur(10px);">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+<h4 style="margin:0; font-size:14px; font-weight:700; color:var(--text);">🎨 Custom Theme</h4>
+<button onclick="toggleColorPanel()" style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:18px;">&times;</button>
+</div>
+<div style="margin-bottom:20px;">
+<label style="font-size:12px; font-weight:600; color:var(--muted); display:block; margin-bottom:8px;">Background Color</label>
+<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+<div onclick="setBgColor('#0a1628')" style="width:32px; height:32px; background:#0a1628; border-radius:50%; cursor:pointer; border:2px solid #3b82f6; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"></div>
+<div onclick="setBgColor('#f8fafc')" style="width:32px; height:32px; background:#f8fafc; border-radius:50%; cursor:pointer; border:2px solid #cbd5e1; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"></div>
+<div onclick="setBgColor('#1e1b4b')" style="width:32px; height:32px; background:#1e1b4b; border-radius:50%; cursor:pointer; border:2px solid #8b5cf6; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"></div>
+<div onclick="setBgColor('#064e3b')" style="width:32px; height:32px; background:#064e3b; border-radius:50%; cursor:pointer; border:2px solid #10b981; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"></div>
+<div onclick="setBgColor('#450a0a')" style="width:32px; height:32px; background:#450a0a; border-radius:50%; cursor:pointer; border:2px solid #ef4444; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"></div>
+<input type="color" id="customBgColor" onchange="setBgColor(this.value)" style="width:32px; height:32px; border:2px solid var(--border); border-radius:50%; cursor:pointer; padding:2px; background:var(--bg);" title="Custom Color">
+</div>
+</div>
+<div>
+<label style="font-size:12px; font-weight:600; color:var(--muted); display:block; margin-bottom:8px;">Text Color</label>
+<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+<div onclick="setTextColor('#f1f5f9')" style="width:32px; height:32px; background:#f1f5f9; border-radius:50%; cursor:pointer; border:2px solid #475569; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"></div>
+<div onclick="setTextColor('#1e293b')" style="width:32px; height:32px; background:#1e293b; border-radius:50%; cursor:pointer; border:2px solid #cbd5e1; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"></div>
+<div onclick="setTextColor('#fbbf24')" style="width:32px; height:32px; background:#fbbf24; border-radius:50%; cursor:pointer; border:2px solid #f59e0b; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"></div>
+<div onclick="setTextColor('#38bdf8')" style="width:32px; height:32px; background:#38bdf8; border-radius:50%; cursor:pointer; border:2px solid #0ea5e9; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"></div>
+<div onclick="setTextColor('#34d399')" style="width:32px; height:32px; background:#34d399; border-radius:50%; cursor:pointer; border:2px solid #10b981; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"></div>
+<input type="color" id="customTextColor" onchange="setTextColor(this.value)" style="width:32px; height:32px; border:2px solid var(--border); border-radius:50%; cursor:pointer; padding:2px; background:var(--bg);" title="Custom Color">
+</div>
+</div>
+<div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+<button onclick="resetTheme()" style="width:100%; padding:10px; background:var(--red); color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:13px;"> Reset to Default</button>
+</div>
+</div>
+<!-- PWA Offline Indicator -->
+<div id="pwa-offline-indicator" style="display:none;">
+<div class="pwa-offline-bar" id="pwaOfflineBar">
+<span class="pwa-offline-icon">📴</span>
+<span class="pwa-offline-text">Offline Mode - Data saved locally</span>
+<button class="pwa-sync-btn" id="pwaSyncBtn" onclick="gmsPWA.manualSync()">🔄 Sync Now</button>
+</div>
+</div>
+<!-- SESSION WARNING MODAL -->
+<div id="sessionWarningModal" class="session-warning-modal">
+<div class="session-warning-content">
+<div class="session-warning-icon"></div>
+<h3>Session Expiring Soon!</h3>
+<p>Your session will expire due to inactivity in:</p>
+<div class="session-countdown" id="sessionCountdown">02:00</div>
+<p style="font-size:12px;color:var(--muted);">Move your mouse or click anywhere to stay logged in</p>
+<div class="session-progress-bar">
+<div class="session-progress-fill" id="sessionProgressFill" style="width:100%;"></div>
+</div>
+<div class="session-warning-buttons">
+<button class="session-extend-btn" onclick="extendSession()">✅ Stay Logged In</button>
+<button class="session-logout-btn" onclick="manualLogoutNow()"> Logout Now</button>
+</div>
+</div>
+</div>
+<!-- SESSION EXPIRED OVERLAY -->
+<div id="sessionExpiredOverlay" class="session-expired-overlay">
+<div class="session-expired-content">
+<div class="session-expired-icon">🔒</div>
+<h2>Session Expired</h2>
+<p>You have been logged out due to inactivity.</p>
+<p style="font-size:12px;color:var(--muted);margin-top:10px;">Redirecting to login page...</p>
+</div>
+</div>
+<!-- SIDEBAR -->
+<div class="sidebar" id="sidebar">
+<div class="sidebarHeader">
+<div style="display:flex;align-items:center;gap:10px;">
+<div style="width:36px;height:36px;background:var(--blue);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff;">G</div>
+<div>
+<div class="logo">GMS MCD</div>
+<div class="sub" id="loginInfo">Loading...</div>
+</div>
+</div>
+<div class="companySwitch">
+<button id="btnTextile" class="active" onclick="switchCompany('GMS TEXTILES LTD')">🏭 Textiles</button>
+<button id="btnComposite" onclick="switchCompany('GMS COMPOSITE KNITTING')"> Composite</button>
+</div>
+</div>
+<div class="sidebarNav">
+<button class="active" onclick="openPage('home',this)">🏠 Dashboard</button>
+<button onclick="openPage('entry',this)">➕ New Entry</button>
+<button onclick="openPage('reports',this)">📑 Reports</button>
+<button onclick="window.open('https://johurulgmsbdcom-svg.github.io/gms-accessories-stock/','_blank')" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;">📦 Accessories Stock</button>
+
+<!-- 🔥 NEW: GREY ORDER CLOSE BUTTON - Admin Auto Access -->
+<button id="greyOrderCloseNav" class="grey-order-btn" onclick="window.location.href='grey-fabric-order-close.html'">
+📋 Grey Order Close
+<span class="live-dot"></span>
+</button>
+
+<!-- 🔥 NEW: GMS MCD ERP SYSTEM (External Site) Button -->
+<button id="gmsMcdErpNav" class="gms-erp-btn" onclick="window.open('https://johurulm875-afk.github.io/Gms-MCD-ERP/','_blank')">
+🌐 GMS MCD ERP System
+<span class="live-dot"></span>
+</button>
+
+<button id="needleNav" onclick="openPage('needle',this)"> Needle</button>
+<div id="needleCompositeSection" style="margin-left:10px; border-left:2px solid var(--purple); padding-left:10px; margin-bottom:8px; display:none;">
+<div style="font-size:10px; color:var(--purple); font-weight:700; margin-bottom:4px;">🪡 NEEDLE COMPOSITE</div>
+<button onclick="location.href='needle-composite.html'" style="font-size:12px; padding:8px 12px;">📝 Daily Needle Entry</button>
+<button onclick="location.href='needle-dashboard-com.html'" style="font-size:12px; padding:8px 12px;">📊 Dashboard</button>
+<button onclick="location.href='ageing-com.html'" style="font-size:12px; padding:8px 12px;">📅 Ageing Report</button>
+<button onclick="location.href='needle-monthly-com.html'" style="font-size:12px; padding:8px 12px;"> Monthly Report</button>
+<button onclick="location.href='all-needle-summary-com.html'" style="font-size:12px; padding:8px 12px;">📋 All Needle Summary</button>
+<button onclick="location.href='month_wise_needle_stock_summary-com.html'" style="font-size:12px; padding:8px 12px;"> Month Wise Stock</button>
+</div>
+<button id="adminNav" onclick="location.href='admin.html'">👑 Admin</button>
+<button id="manpowerNav" onclick="location.href='manpower.html'">👨‍💼 Manpower</button>
+<button id="roiNav" onclick="location.href='ROI-Report.html'" style="display:none">📊 ROI Report</button>
+<button id="noticeBtn" onclick="location.href='notice.html'">
+📢 Notice
+<span class="notice-badge" id="sidebarNoticeBadge" style="display:none;">0</span>
+</button>
+<button onclick="location.href='online-users.html'">🟢 Online</button>
+<button onclick="location.href='audit-history.html'">📜 Audit</button>
+<button id="backupNav" onclick="openPage('backup',this)">☁️ Backup</button>
+<button onclick="location.href='change-password.html'">🔐 Password</button>
+</div>
+<div class="sidebarFooter">
+<button class="themeBtn" onclick="toggleTheme()">🌙 / ☀️ Theme</button>
+<button class="logoutBtn" onclick="logout()">🚪 Logout</button>
+</div>
+</div>
+<div class="sidebarOverlay" id="sidebarOverlay" onclick="toggleSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;backdrop-filter:blur(4px);"></div>
+<!-- PROFILE MODAL -->
+<div id="profileModal" class="profileModal">
+<div class="profileModalContent">
+<h3 style="margin-bottom:15px;"> Update Profile Photo</h3>
+<img id="modalProfileImg" src="https://i.ibb.co/5hzT1VGk/IMG.jpg" alt="Profile">
+<br>
+<input type="file" id="profilePicInput" accept="image/*" style="display:none" onchange="handleProfileUpload(this)">
+<label for="profilePicInput" class="profileUploadBtn">📷 Choose Photo</label>
+<br>
+<button class="closeModal" onclick="closeProfileModal()">Close</button>
+</div>
+</div>
+<!-- MAIN CONTENT -->
+<div class="mainContent" id="mainContent">
+<div class="topBar">
+<div class="systemNameBar">
+<div class="systemName">GMS MCD ERP SYSTEM</div>
+<div class="systemSub">ENTERPRISE RESOURCE PLANNING</div>
+</div>
+<div class="topBarUpper">
+<button class="menuToggle" onclick="toggleSidebar()">☰ Menu</button>
+<div class="topBarRight">
+<button class="themeBtn" onclick="toggleColorPanel()" style="margin-right:8px; background:rgba(139,92,246,.2); color:var(--purple); border:1px solid rgba(139,92,246,.3);"> Theme</button>
+<span class="autoSave">
+<div style="width:8px;height:8px;background:var(--green);border-radius:50%;animation:livePulse 2s infinite;"></div>
+Live
+</span>
+<div class="session-timer-display" id="sessionTimerDisplay" title="Session time remaining">
+<i class="fas fa-clock" style="font-size:10px;"></i>
+<span id="sessionTimerText">30:00</span>
+</div>
+<span id="companyBadge" class="companyBadge">🏭 GMS TEXTILES</span>
+<button class="profileBtnTop" onclick="openProfileModal()">👤 Profile</button>
+</div>
+</div>
+<div class="cacheStatusBar">
+<div class="cacheDot"></div>
+<span id="cacheStatusText">Cache Ready</span>
+<span class="cacheReadCount">Today Reads: <b id="readCounter">0</b></span>
+</div>
+</div>
+<div class="noticeBar"><div class="noticeMove" id="noticeMove"> Loading...</div></div>
+<!-- HOME PAGE -->
+<div id="home" class="page activePage">
+<div class="dashTitle"> Dashboard Overview <span id="dashCompanyBadge" class="companyBadge">🏭 TEXTILES</span></div>
+<div class="dashSub">Role Based Dashboard • Smart Selective Cache Active • Firebase Reads Minimized</div>
+<div id="adminQuotaAlerts" style="display:none;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+<h3>⚠️ Firebase Limit Alerts</h3>
+<button onclick="resetQuotaAlerts()" style="background:var(--card2);color:var(--text);border:1px solid var(--border);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;">🔄 Clear</button>
+</div>
+<div id="quotaAlertList"></div>
+<p style="color:var(--muted);font-size:11px;margin:10px 0 0 0;">✅ Reports & Entries working normally.</p>
+</div>
+<div class="liveSignalCard">
+<div class="liveLabel">
+<div style="width:8px;height:8px;background:var(--green);border-radius:50%;"></div>
+LIVE UPDATE SIGNAL
+</div>
+<div class="liveSignalWrap">
+<div class="liveDot"></div>
+<span class="liveText">LIVE</span>
+</div>
+</div>
+<div id="noAccessMessage" class="noAccessMessage" style="display:none;">
+<i class="fas fa-lock"></i>
+<h3>🔒 Access Denied</h3>
+<p>আপনার এই কোম্পানির ডাটা দেখার পারমিশন নেই।<br>অ্যাডমিনের সাথে যোগাযোগ করুন।</p>
+</div>
+<!-- Textile Dashboard -->
+<div id="textileDashboard">
+<div class="stat-row" id="accessoriesSummary">
+<div class="stat-card-new bg-blue" style="cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-6px)'" onmouseout="this.style.transform='translateY(0)'" onclick="location.href='accessories-inventory.html'" title="Go to Accessories Inventory">
+<div class="stat-info"><p>📦 Accessories Stock</p><h3 id="sumAccessories">0</h3></div>
+<div class="stat-icon"><i class="fas fa-box"></i></div>
+</div>
+<div class="stat-card-new bg-green" style="cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-6px)'" onmouseout="this.style.transform='translateY(0)'" onclick="location.href='sewing-thread.html'" title="Go to Sewing Thread">
+<div class="stat-info"><p> Sewing Thread</p><h3 id="sumSewing">0</h3></div>
+<div class="stat-icon"><i class="fas fa-tape"></i></div>
+</div>
+<div class="stat-card-new bg-orange" style="cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-6px)'" onmouseout="this.style.transform='translateY(0)'" onclick="location.href='twill-tape.html'" title="Go to Twill Tape">
+<div class="stat-info"><p>📏 Twill Tape</p><h3 id="sumTwill">0</h3></div>
+<div class="stat-icon"><i class="fas fa-ruler-horizontal"></i></div>
+</div>
+<div class="stat-card-new bg-purple" id="needleSummary" style="cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-6px)'" onmouseout="this.style.transform='translateY(0)'" onclick="location.href='needle.html'" title="Go to Needle Section">
+<div class="stat-info"><p>🪡 Needle Today Stock</p><h3 id="needleToday">0</h3></div>
+<div class="stat-icon"><i class="fas fa-syringe"></i></div>
+</div>
+</div>
+<div class="chartGrid" style="margin-bottom:20px;">
+<div class="chartBox" id="accessoriesChartBox" style="cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'" onclick="location.href='accessories-inventory-report.html'" title="Go to Accessories Report">
+<h3>📈 Accessories Stock Chart <i class="fas fa-external-link-alt" style="font-size:12px; margin-left:8px; opacity:0.6;"></i></h3>
+<canvas id="accessoriesChart"></canvas>
+</div>
+<div class="chartBox" id="needleChartBox" style="cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'" onclick="location.href='needle-dashboard.html'" title="Go to Needle Dashboard">
+<h3>🪡 Needle Floor Wise Stock <i class="fas fa-external-link-alt" style="font-size:12px; margin-left:8px; opacity:0.6;"></i></h3>
+<canvas id="needleChart"></canvas>
+</div>
+<div class="chartBox" id="greyChartBox" style="cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'" onclick="location.href='grey-fabric.html'" title="Go to Grey Fabric">
+<h3>🧵 Grey Fabric Present Stock <i class="fas fa-external-link-alt" style="font-size:12px; margin-left:8px; opacity:0.6;"></i></h3>
+<canvas id="greyChart"></canvas>
+</div>
+<div class="chartBox" id="needleIssueChartBox" style="cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'" onclick="location.href='all-needle-summary.html'" title="Go to Needle Summary">
+<h3>🪡 Needle Broken / Missing / Change <i class="fas fa-external-link-alt" style="font-size:12px; margin-left:8px; opacity:0.6;"></i></h3>
+<canvas id="needleIssueChart"></canvas>
+</div>
+</div>
+<div class="generalMcdBox" id="billingChartBox" style="border-color: var(--blue);" onclick="location.href='billing-manpower-report.html'" title="Go to Billing Manpower Report">
+<div class="generalMcdHeader">
+<h3><i class="fas fa-users"></i> 📊 Daily Manpower Attendance</h3>
+<span class="generalMcdBadge">LIVE STATUS</span>
+</div>
+<div class="attendanceSixCardGrid">
+<div class="attCard total"><span class="attIcon">👥</span><span class="attValue" id="attTotal">0</span><span class="attLabel">Total</span></div>
+<div class="attCard present"><span class="attIcon">✅</span><span class="attValue" id="attPresent">0</span><span class="attLabel">Present</span></div>
+<div class="attCard leave"><span class="attIcon">🏖️</span><span class="attValue" id="attLeave">0</span><span class="attLabel">Leave</span></div>
+<div class="attCard absent"><span class="attIcon">❌</span><span class="attValue" id="attAbsent">0</span><span class="attLabel">Absent</span></div>
+<div class="attCard medical"><span class="attIcon">🏥</span><span class="attValue" id="attMedical">0</span><span class="attLabel">Medical</span></div>
+<div class="attCard offday"><span class="attIcon">🛌</span><span class="attValue" id="attOffDay">0</span><span class="attLabel">Off Day</span></div>
+</div>
+<div class="generalMcdClickHint"><i class="fas fa-hand-pointer"></i> Click to open full Manpower Report</div>
+</div>
+<div class="generalMcdBox" id="generalMcdChartBox" onclick="location.href='general-mcd-daily.html'" title="Go to General MCD Daily Issue Smart Chart">
+<div class="generalMcdHeader">
+<h3><i class="fas fa-chart-line"></i> General MCD Daily Issue Smart Chart</h3>
+<span class="generalMcdBadge">SMART CHART</span>
+</div>
+<div class="gmcTopStats">
+<div class="gmcTopStat"><div class="gmcStatLabel">Total Amount</div><div class="gmcStatValue" id="gmcTotalAmount">৳0</div></div>
+<div class="gmcTopStat"><div class="gmcStatLabel">Total Items</div><div class="gmcStatValue" id="gmcTotalItems">0</div></div>
+<div class="gmcTopStat"><div class="gmcStatLabel">Departments</div><div class="gmcStatValue" id="gmcDepartments">0</div></div>
+<div class="gmcTopStat"><div class="gmcStatLabel">Categories</div><div class="gmcStatValue" id="gmcCategories">0</div></div>
+<div class="gmcTopStat"><div class="gmcStatLabel">Avg. Per Item</div><div class="gmcStatValue" id="gmcAvgPerItem">0</div></div>
+</div>
+<div class="gmcFourChartGrid">
+<div class="gmcSubChart">
+<h4><i class="fas fa-chart-bar" style="color:#38bdf8"></i> Daily Uses Value Report (Department Wise)</h4>
+<canvas id="gmcDailyUsesChart"></canvas>
+<div class="gmcGrandTotal" id="gmcDailyUsesTotal">Grand Total: ৳0</div>
+</div>
+<div class="gmcSubChart">
+<h4><i class="fas fa-file-alt" style="color:#22c55e"></i> Photocopy Paper Issue Report</h4>
+<canvas id="gmcPhotocopyChart"></canvas>
+<div class="gmcGrandTotal" id="gmcPhotocopyTotal">Grand Total: 0 Ream, ৳0</div>
+</div>
+<div class="gmcSubChart">
+<h4><i class="fas fa-shopping-bag" style="color:#f59e0b"></i> Dyeing Poly Bag Issue Report</h4>
+<canvas id="gmcPolyBagChart"></canvas>
+<div class="gmcGrandTotal" id="gmcPolyBagTotal">Grand Total: 0 Bags, ৳0</div>
+</div>
+<div class="gmcSubChart">
+<h4><i class="fas fa-flask" style="color:#a855f7"></i> Aceton Issue Report</h4>
+<canvas id="gmcAcetonChart"></canvas>
+<div class="gmcGrandTotal" id="gmcAcetonTotal">Grand Total: 0 KG, ৳0</div>
+</div>
+</div>
+<div class="generalMcdClickHint"><i class="fas fa-hand-pointer"></i> Click to open full Smart Dashboard</div>
+</div>
+<div id="mcdDashboard" class="mcdDashboard">Loading...</div>
+</div>
+<!-- Composite Dashboard -->
+<div id="compositeDashboard" style="display:none;">
+<div class="compositeEmpty">
+<i class="fas fa-building"></i>
+<h3>🏢 GMS COMPOSITE KNITTING</h3>
+<p>Composite module is under development. Currently only <b>Gate Plan</b> and <b>Challan/Gate Pass</b> features are available.</p>
+<p style="margin-top:12px;color:var(--blue);font-weight:600;">Go to New Entry → Select MCD → Use Gate Plan / Challan</p>
+</div>
+</div>
+<!-- Admin Sync Panel -->
+<div id="adminSyncPanel" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;margin-top:30px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+<h3 style="color:var(--yellow);margin:0;font-size:18px;">📦 Pending Data Sync: <span id="pendingCount">0</span></h3>
+<button onclick="forceSyncNow()" style="background:var(--blue);color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;">🔄 Force Sync</button>
+</div>
+<div style="overflow-x:auto;">
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+<thead>
+<tr style="background:rgba(255,255,255,0.05);border-bottom:2px solid var(--border);">
+<th style="padding:12px;text-align:left;color:var(--muted);">User</th>
+<th style="padding:12px;text-align:left;color:var(--muted);">Type</th>
+<th style="padding:12px;text-align:left;color:var(--muted);">Serial/Data</th>
+<th style="padding:12px;text-align:left;color:var(--muted);">Time</th>
+<th style="padding:12px;text-align:center;color:var(--muted);">Status</th>
+</tr>
+</thead>
+<tbody id="pendingTableBody">
+<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--green);font-weight:600;">✅ All data synced. Queue empty.</td></tr>
+</tbody>
+</table>
+</div>
+<div style="margin-top:15px;padding:12px;background:rgba(16,185,129,0.1);border-radius:8px;font-size:12px;color:var(--muted);">
+<i class="fas fa-info-circle"></i> Auto-sync runs every 5 minutes.
+</div>
+</div>
+</div>
+<!-- NEW ENTRY PAGE -->
+<div id="entry" class="page">
+<div class="entrySection">
+<h2><i class="fas fa-plus"></i> New Entry <span id="entryCompanyBadge" class="companyBadge">🏭 TEXTILES</span></h2>
+<div class="formGroup">
+<label><i class="fas fa-building" style="color:var(--blue)"></i> Company</label>
+<select id="entryCompany">
+<option value="GMS TEXTILES LTD">GMS TEXTILES LTD</option>
+<option value="GMS COMPOSITE KNITTING">GMS COMPOSITE KNITTING</option>
+</select>
+</div>
+<div class="formGroup">
+<label><i class="fas fa-folder" style="color:var(--yellow)"></i> Department / MCD</label>
+<select id="entryMcd">
+<option value="ACCESSORIES MCD">ACCESSORIES MCD</option>
+<option value="GREY FABRIC MCD">GREY FABRIC MCD</option>
+<option value="BILLING SECTION">BILLING SECTION</option>
+<option value="SHIPMENT MCD">SHIPMENT MCD</option>
+<option value="OUTER WEAR MCD">OUTER WEAR MCD</option>
+<option value="YARN MCD">YARN MCD</option>
+<option value="PRINTING MCD">PRINTING MCD</option>
+<option value="JHUT MCD">JHUT MCD</option>
+<option value="GENERAL MCD">GENERAL MCD</option>
+<option value="LEFTOVER MCD">LEFTOVER MCD</option>
+<option value="FINISH FABRIC MCD">FINISH FABRIC MCD</option>
+<option value="YARN DYEING MCD">YARN DYEING MCD</option>
+<option value="CHEMICAL MCD">CHEMICAL MCD</option>
+<option value="GENERAL TECHNICAL MCD">GENERAL TECHNICAL MCD</option>
+</select>
+</div>
+<button class="openEntryBtn" onclick="loadEntry()"><i class="fas fa-rocket"></i> Open Entry</button>
+<div id="entryBox" class="entryCardsGrid"></div>
+</div>
+</div>
+<!-- REPORTS PAGE -->
+<div id="reports" class="page">
+<div class="reportSection">
+<h2><i class="fas fa-file-alt"></i> Reports <span id="reportCompanyBadge" class="companyBadge">🏭 TEXTILES</span></h2>
+<div class="formGroup">
+<label><i class="fas fa-building" style="color:var(--blue)"></i> Company</label>
+<select id="reportCompany">
+<option value="GMS TEXTILES LTD">GMS TEXTILES LTD</option>
+<option value="GMS COMPOSITE KNITTING">GMS COMPOSITE KNITTING</option>
+</select>
+</div>
+<div class="formGroup">
+<label><i class="fas fa-folder" style="color:var(--yellow)"></i> Department / MCD</label>
+<select id="reportMcd">
+<option value="ACCESSORIES MCD">ACCESSORIES MCD</option>
+<option value="GREY FABRIC MCD">GREY FABRIC MCD</option>
+<option value="BILLING SECTION">BILLING SECTION</option>
+<option value="SHIPMENT MCD">SHIPMENT MCD</option>
+<option value="OUTER WEAR MCD">OUTER WEAR MCD</option>
+<option value="YARN MCD">YARN MCD</option>
+<option value="PRINTING MCD">PRINTING MCD</option>
+<option value="JHUT MCD">JHUT MCD</option>
+<option value="GENERAL MCD">GENERAL MCD</option>
+<option value="LEFTOVER MCD">LEFTOVER MCD</option>
+<option value="FINISH FABRIC MCD">FINISH FABRIC MCD</option>
+<option value="YARN DYEING MCD">YARN DYEING MCD</option>
+<option value="CHEMICAL MCD">CHEMICAL MCD</option>
+<option value="GENERAL TECHNICAL MCD">GENERAL TECHNICAL MCD</option>
+</select>
+</div>
+<button class="openEntryBtn" onclick="loadReport()"><i class="fas fa-chart-bar"></i> Show Report</button>
+<div id="reportBox" class="reportCardsGrid"></div>
+</div>
+</div>
+<!-- NEEDLE PAGE -->
+<div id="needle" class="page">
+<h2>🪡 Needle Section <span id="needleCompanyBadge" class="companyBadge">🏭 TEXTILES</span></h2>
+<div class="needleGrid">
+<div class="needleCard" onclick="location.href='needle.html'"><i class="fas fa-syringe"></i><span>Needle Daily Entry</span></div>
+<div class="needleCard" onclick="location.href='needle-dashboard.html'"><i class="fas fa-industry"></i><span>Floor Wise Dashboard</span></div>
+<div class="needleCard" onclick="location.href='ageing.html'"><i class="fas fa-hourglass-half"></i><span>Ageing Report</span></div>
+<div class="needleCard" onclick="location.href='needle-monthly.html'"><i class="fas fa-calendar-alt"></i><span>Needle Monthly Report</span></div>
+<div class="needleCard" onclick="location.href='all-needle-reports.html'"><i class="fas fa-file-archive"></i><span>All Needle BNR/BNF</span></div>
+<div class="needleCard" onclick="location.href='all-needle-summary.html'"><i class="fas fa-chart-pie"></i><span>All Needle Summary</span></div>
+<div class="needleCard" onclick="location.href='needle-report.html'"><i class="fas fa-file-signature"></i><span>Needle Issue Entry</span></div>
+<div class="needleCard" onclick="location.href='needle-report-view.html'"><i class="fas fa-file-invoice"></i><span>Needle Issue Report</span></div>
+<div class="needleCard" style="border-color:var(--blue);background:rgba(59,130,246,0.1);" onclick="location.href='month_wise_needle_stock_summary.html'">
+<i class="fas fa-calendar-check" style="color:var(--blue)"></i><span>Month Wise Needle Stock Summary</span>
+</div>
+<div class="needleCard" style="border-color:var(--purple);background:rgba(139,92,246,0.1);" onclick="location.href='month_wise_needle_stock_report_carry_fixed.html'">
+<i class="fas fa-building" style="color:var(--purple)"></i><span>Month Wise Floor Stock Report</span>
+</div>
+</div>
+</div>
+<!-- BACKUP PAGE -->
+<div id="backup" class="page backupPage">
+<h2><i class="fas fa-cloud"></i> Backup & Restore Control <span id="backupCompanyBadge" class="companyBadge">🏭 TEXTILES</span></h2>
+<div class="dashSub">Only Admin can use this page</div>
+<div class="backupContainer">
+<div>
+<div class="statusBox">
+<div class="statusTitle"><i class="fas fa-rocket"></i> Firebase Live Usage</div>
+<div class="statusLine"><span><i class="fas fa-book-reader"></i> Reads Today</span><b id="readsToday">0 / 50,000</b></div>
+<div class="statusLine"><span><i class="fas fa-pen"></i> Writes Today</span><b id="writesToday">0 / 20,000</b></div>
+<div class="statusLine"><span><i class="fas fa-trash"></i> Deletes Today</span><b id="deletesToday">0 / 20,000</b></div>
+<div class="statusLine"><span><i class="fas fa-database"></i> Storage Limit</span><b>1 GiB</b></div>
+<div class="statusLine"><span><i class="fas fa-hdd"></i> Storage Used</span><b id="storageUsed">0 MB</b></div>
+<div class="statusLine"><span><i class="fas fa-chart-pie"></i> Usage Percent</span><b id="storagePercent">0%</b></div>
+<div class="statusLine"><span><i class="fas fa-fire"></i> Today Entry</span><b id="todayEntry">0</b></div>
+<div class="statusLine"><span><i class="fas fa-archive"></i> Total Entry</span><b id="totalEntry">0</b></div>
+<div class="statusLine"><span><i class="fas fa-truck"></i> Gate Plan Firebase</span><b id="gatePlanCount">0 / 0</b></div>
+<div class="statusLine"><span><i class="fas fa-file-invoice"></i> Challan/Gate Pass Firebase</span><b id="challanCount">0 / 0</b></div>
+<div class="statusLine"><span><i class="fas fa-folder"></i> Backup Months</span><b id="backupMonths">0</b></div>
+<div class="statusLine"><span><i class="fas fa-calendar"></i> Active Months</span><b id="activeMonths">0</b></div>
+<div class="statusLine"><span><i class="fas fa-cloud"></i> Backup Status</span><b id="backupStatus">READY</b></div>
+<div id="limitSignal" class="statusSignal safe"><i class="fas fa-circle" style="font-size:10px"></i> SAFE</div>
+</div>
+<div class="backupActions" style="margin-top:16px;">
+<div class="card" onclick="backupAllData()"><i class="fas fa-cloud-upload-alt"></i><span>Backup Now</span></div>
+<div class="card" onclick="document.getElementById('restoreFile').click()"><i class="fas fa-cloud-download-alt"></i><span>Restore Backup</span></div>
+<div class="card" onclick="clearOldData()"><i class="fas fa-broom"></i><span>Clear Old Data</span></div>
+<div class="card" onclick="removeRestoredMonth()"><i class="fas fa-trash"></i><span>Remove Restored Month</span></div>
+</div>
+<div class="backupRules">
+<div class="statusTitle"><i class="fas fa-rocket"></i> Backup Rules</div>
+<div class="ruleLine"><span>Current Month</span><b>KEEP</b></div>
+<div class="ruleLine"><span>Previous Month</span><b>KEEP</b></div>
+<div class="ruleLine"><span>Older Month</span><b>Backup then Manual Clear</b></div>
+<div class="ruleLine"><span>800 MB</span><b>Backup Warning</b></div>
+<div class="ruleLine"><span>900 MB</span><b>Backup Now</b></div>
+</div>
+<div class="activityLog">
+<div class="statusTitle"><i class="fas fa-history"></i> Backup Activity Log</div>
+<div id="backupActivityLog">No activity yet</div>
+</div>
+</div>
+<div id="restorePanel" style="display:none;">
+<div class="statusBox">
+<div class="statusTitle"><i class="fas fa-cloud-download-alt"></i> Restore Month Wise Data</div>
+<div class="statusLine"><span>Select Month From Backup</span></div>
+<select id="restoreMonthSelect" style="width:100%;padding:10px;margin:10px 0;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);"></select>
+<button class="openEntryBtn" onclick="restoreSelectedMonth()" style="width:100%;margin-top:10px;"><i class="fas fa-download"></i> Restore Selected Month</button>
+<div style="margin-top:16px;padding:12px;background:rgba(59,130,246,0.1);border-radius:8px;">
+<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Backup File</div>
+<div style="font-weight:600;" id="restoreFileName">-</div>
+<div style="font-size:12px;color:var(--muted);margin:8px 0 4px;">Month Found</div>
+<div style="font-weight:600;" id="restoreMonthCount">0</div>
+<div style="font-size:12px;color:var(--muted);margin:8px 0 4px;">Restore Status</div>
+<div style="font-weight:600;color:var(--green);" id="restoreStatus">READY</div>
+</div>
+</div>
+</div>
+</div>
+<input type="file" id="restoreFile" accept=".json" style="display:none" onchange="loadRestoreFile(event)">
+</div>
+<!-- FOOTER -->
+<div class="creditFooter">
+<div class="creditItem">
+<img id="footerProfileImg" src="https://i.ibb.co/5hzT1VGk/IMG.jpg" alt="Profile" onclick="openProfileModal()">
+<div class="creditText"><b>Md. Johurul</b><span>System Developer</span></div>
+</div>
+<div class="creditDivider"></div>
+<div class="creditItem pc-only">
+<img src="https://i.ibb.co/DDqvG3pD/nazir.jpg" alt="Nazir">
+<div class="creditText"><b>Md. Nazir Hossain</b><span>System Planning</span></div>
+</div>
+<div class="creditDivider pc-only"></div>
+<div class="creditItem pc-only">
+<img src="https://i.ibb.co/k6WC4fBm/asad.jpg" alt="Asad">
+<div class="creditText"><b>Md. Asaduzzaman</b><span>Operational Support</span></div>
+</div>
+</div>
+</div>
+
+<!-- ================================================================
+GLOBAL NAVIGATION & HELPER FUNCTIONS
+================================================================ -->
+<script>
+window.toggleColorPanel = function() {
+var panel = document.getElementById('colorPanel');
+panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+};
+window.setBgColor = function(color) {
+document.documentElement.style.setProperty('--bg', color);
+localStorage.setItem('customBgColor', color);
+};
+window.setTextColor = function(color) {
+document.documentElement.style.setProperty('--text', color);
+localStorage.setItem('customTextColor', color);
+};
+window.resetTheme = function() {
+document.documentElement.style.removeProperty('--bg');
+document.documentElement.style.removeProperty('--text');
+localStorage.removeItem('customBgColor');
+localStorage.removeItem('customTextColor');
+if(localStorage.getItem('theme') === 'light') {
+document.documentElement.style.setProperty('--bg', '#f8fafc');
+document.documentElement.style.setProperty('--text', '#1e293b');
+} else {
+document.documentElement.style.setProperty('--bg', '#0a1628');
+document.documentElement.style.setProperty('--text', '#f1f5f9');
+}
+toggleColorPanel();
+showToast('🔄 Theme reset to default');
+};
+(function applyCustomTheme() {
+var savedBg = localStorage.getItem('customBgColor');
+if(savedBg) document.documentElement.style.setProperty('--bg', savedBg);
+var savedText = localStorage.getItem('customTextColor');
+if(savedText) document.documentElement.style.setProperty('--text', savedText);
+})();
+const SESSION_CONFIG = {
+TIMEOUT_MINUTES: 480, WARNING_MINUTES: 2, CHECK_INTERVAL: 10000, DISPLAY_INTERVAL: 1000,
+STORAGE_KEY: 'GMS_LAST_ACTIVITY', SESSION_START_KEY: 'GMS_SESSION_START',
+ACTIVITY_THROTTLE: 5000, EXTEND_MINUTES: 15,
+IDLE_EVENTS: ['mousemove','mousedown','keydown','touchstart','scroll','click','touchmove','touchend']
+};
+let sessionMonitorTimer = null, sessionDisplayTimer = null, warningCountdownTimer = null;
+let warningRemainingSeconds = 0, lastActivityUpdateTime = 0, isSessionExpired = false;
+function initAutoLogoutSystem() {
+console.log('🔐 Auto-Logout System Initializing...');
+resetActivityTimestamp();
+if (!localStorage.getItem(SESSION_CONFIG.SESSION_START_KEY)) {
+localStorage.setItem(SESSION_CONFIG.SESSION_START_KEY, Date.now().toString());
+}
+SESSION_CONFIG.IDLE_EVENTS.forEach(function(eventName) {
+document.addEventListener(eventName, throttledActivityUpdate, { passive: true });
+});
+startSessionMonitor();
+startSessionDisplayTimer();
+window.addEventListener('storage', handleCrossTabActivity);
+document.addEventListener('visibilitychange', function() {
+if (document.visibilityState === 'visible') { resetActivityTimestamp(); checkSessionStatus(); }
+});
+}
+function throttledActivityUpdate() {
+var now = Date.now();
+if (now - lastActivityUpdateTime > SESSION_CONFIG.ACTIVITY_THROTTLE) {
+resetActivityTimestamp(); lastActivityUpdateTime = now;
+}
+}
+function resetActivityTimestamp() {
+if (isSessionExpired) return;
+localStorage.setItem(SESSION_CONFIG.STORAGE_KEY, Date.now().toString());
+hideWarningModal(); updateSessionTimerDisplay();
+}
+function handleCrossTabActivity(event) {
+if (event.key === SESSION_CONFIG.STORAGE_KEY) { hideWarningModal(); updateSessionTimerDisplay(); }
+if (event.key === SESSION_CONFIG.SESSION_START_KEY) { updateSessionTimerDisplay(); }
+}
+function startSessionMonitor() {
+if (sessionMonitorTimer) clearInterval(sessionMonitorTimer);
+sessionMonitorTimer = setInterval(checkSessionStatus, SESSION_CONFIG.CHECK_INTERVAL);
+checkSessionStatus();
+}
+function startSessionDisplayTimer() {
+if (sessionDisplayTimer) clearInterval(sessionDisplayTimer);
+sessionDisplayTimer = setInterval(updateSessionTimerDisplay, SESSION_CONFIG.DISPLAY_INTERVAL);
+updateSessionTimerDisplay();
+}
+function checkSessionStatus() {
+if (isSessionExpired) return;
+var lastActivity = parseInt(localStorage.getItem(SESSION_CONFIG.STORAGE_KEY) || '0');
+var now = Date.now();
+var inactiveMs = now - lastActivity;
+var timeoutMs = SESSION_CONFIG.TIMEOUT_MINUTES * 60 * 1000;
+var warningThresholdMs = (SESSION_CONFIG.TIMEOUT_MINUTES - SESSION_CONFIG.WARNING_MINUTES) * 60 * 1000;
+if (inactiveMs >= timeoutMs) { performAutoLogout(); }
+else if (inactiveMs >= warningThresholdMs) {
+warningRemainingSeconds = Math.ceil((timeoutMs - inactiveMs) / 1000);
+showWarningModal(warningRemainingSeconds); startWarningCountdown();
+}
+}
+function startWarningCountdown() {
+if (warningCountdownTimer) clearInterval(warningCountdownTimer);
+warningCountdownTimer = setInterval(function() {
+warningRemainingSeconds--;
+updateWarningCountdownDisplay(warningRemainingSeconds);
+updateWarningProgressBar(warningRemainingSeconds);
+if (warningRemainingSeconds <= 0) {
+clearInterval(warningCountdownTimer); warningCountdownTimer = null;
+performAutoLogout();
+}
+}, 1000);
+}
+function updateWarningCountdownDisplay(seconds) {
+var countdownEl = document.getElementById('sessionCountdown');
+if (countdownEl) {
+var mins = Math.max(0, Math.floor(seconds / 60));
+var secs = Math.max(0, seconds % 60);
+countdownEl.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+if (seconds <= 30) { countdownEl.style.color = 'var(--red)'; countdownEl.style.textShadow = '0 0 20px rgba(239,68,68,0.5)'; }
+else if (seconds <= 60) { countdownEl.style.color = 'var(--yellow)'; countdownEl.style.textShadow = '0 0 20px rgba(245,158,11,0.5)'; }
+else { countdownEl.style.color = 'var(--green)'; countdownEl.style.textShadow = '0 0 20px rgba(16,185,129,0.5)'; }
+}
+}
+function updateWarningProgressBar(seconds) {
+var progressFill = document.getElementById('sessionProgressFill');
+if (progressFill) {
+var totalWarningSeconds = SESSION_CONFIG.WARNING_MINUTES * 60;
+var percentage = Math.max(0, Math.min(100, (seconds / totalWarningSeconds) * 100));
+progressFill.style.width = percentage + '%';
+}
+}
+function showWarningModal(seconds) {
+var modal = document.getElementById('sessionWarningModal');
+if (!modal) return;
+modal.style.display = 'flex';
+updateWarningCountdownDisplay(seconds);
+updateWarningProgressBar(seconds);
+try { playSessionWarningSound(); } catch(e) {}
+}
+function hideWarningModal() {
+var modal = document.getElementById('sessionWarningModal');
+if (modal) modal.style.display = 'none';
+if (warningCountdownTimer) { clearInterval(warningCountdownTimer); warningCountdownTimer = null; }
+}
+function showSessionExpiredOverlay() {
+var overlay = document.getElementById('sessionExpiredOverlay');
+if (overlay) overlay.style.display = 'flex';
+}
+function updateSessionTimerDisplay() {
+var timerEl = document.getElementById('sessionTimerDisplay');
+var textEl = document.getElementById('sessionTimerText');
+if (!timerEl || !textEl) return;
+var lastActivity = parseInt(localStorage.getItem(SESSION_CONFIG.STORAGE_KEY) || '0');
+var now = Date.now();
+var inactiveMs = now - lastActivity;
+var timeoutMs = SESSION_CONFIG.TIMEOUT_MINUTES * 60 * 1000;
+var remainingMs = Math.max(0, timeoutMs - inactiveMs);
+var remainingMins = Math.floor(remainingMs / 60000);
+var remainingSecs = Math.floor((remainingMs % 60000) / 1000);
+textEl.textContent = String(remainingMins).padStart(2, '0') + ':' + String(remainingSecs).padStart(2, '0');
+timerEl.classList.remove('warning', 'danger');
+if (remainingMs < 120000) {
+timerEl.classList.add('danger');
+timerEl.style.background = 'rgba(239,68,68,0.15)';
+timerEl.style.borderColor = 'rgba(239,68,68,0.3)';
+timerEl.style.color = 'var(--red)';
+} else if (remainingMs < 300000) {
+timerEl.classList.add('warning');
+timerEl.style.background = 'rgba(245,158,11,0.15)';
+timerEl.style.borderColor = 'rgba(245,158,11,0.3)';
+timerEl.style.color = 'var(--yellow)';
+} else {
+timerEl.style.background = 'rgba(16,185,129,0.15)';
+timerEl.style.borderColor = 'rgba(16,185,129,0.3)';
+timerEl.style.color = 'var(--green)';
+}
+}
+function performAutoLogout() {
+if (isSessionExpired) return;
+console.log('🔐 Auto-logout triggered due to inactivity');
+isSessionExpired = true; clearAllSessionTimers(); showSessionExpiredOverlay();
+try { playSessionExpiredSound(); } catch(e) {}
+localStorage.removeItem(SESSION_CONFIG.STORAGE_KEY);
+localStorage.removeItem(SESSION_CONFIG.SESSION_START_KEY);
+if (typeof showToast === 'function') showToast('🔒 Session expired - logging out...', 'error');
+setTimeout(function() {
+localStorage.removeItem('gmsUser'); localStorage.removeItem('gmsSelectedCompany');
+window.location.href = 'login.html?reason=timeout&expired=' + Date.now();
+}, 3000);
+}
+function clearAllSessionTimers() {
+if (sessionMonitorTimer) { clearInterval(sessionMonitorTimer); sessionMonitorTimer = null; }
+if (sessionDisplayTimer) { clearInterval(sessionDisplayTimer); sessionDisplayTimer = null; }
+if (warningCountdownTimer) { clearInterval(warningCountdownTimer); warningCountdownTimer = null; }
+}
+function extendSession() {
+console.log('✅ Session extended by user action');
+resetActivityTimestamp(); hideWarningModal(); updateSessionTimerDisplay();
+if (typeof showToast === 'function') showToast('✅ Session extended successfully');
+}
+function manualLogoutNow() {
+console.log('🚪 Manual logout initiated from warning modal');
+clearAllSessionTimers();
+localStorage.removeItem(SESSION_CONFIG.STORAGE_KEY);
+localStorage.removeItem(SESSION_CONFIG.SESSION_START_KEY);
+localStorage.removeItem('gmsUser'); localStorage.removeItem('gmsSelectedCompany');
+window.location.href = 'login.html?reason=manual';
+}
+function playSessionWarningSound() {
+try {
+var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+var oscillator = audioCtx.createOscillator(); var gainNode = audioCtx.createGain();
+oscillator.connect(gainNode); gainNode.connect(audioCtx.destination);
+oscillator.frequency.value = 660; oscillator.type = 'sine'; gainNode.gain.value = 0.2;
+oscillator.start();
+setTimeout(function() { oscillator.frequency.value = 880; }, 200);
+setTimeout(function() { oscillator.stop(); audioCtx.close(); }, 400);
+} catch(e) {}
+}
+function playSessionExpiredSound() {
+try {
+var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+var oscillator = audioCtx.createOscillator(); var gainNode = audioCtx.createGain();
+oscillator.connect(gainNode); gainNode.connect(audioCtx.destination);
+oscillator.frequency.value = 440; oscillator.type = 'square'; gainNode.gain.value = 0.15;
+oscillator.start();
+setTimeout(function() { oscillator.frequency.value = 220; }, 300);
+setTimeout(function() { oscillator.stop(); audioCtx.close(); }, 600);
+} catch(e) {}
+}
+function destroyAutoLogoutSystem() {
+console.log('🔐 Auto-Logout System shutting down...');
+clearAllSessionTimers();
+SESSION_CONFIG.IDLE_EVENTS.forEach(function(eventName) {
+document.removeEventListener(eventName, throttledActivityUpdate);
+});
+window.removeEventListener('storage', handleCrossTabActivity);
+}
+window.initAutoLogoutSystem = initAutoLogoutSystem;
+window.extendSession = extendSession;
+window.manualLogoutNow = manualLogoutNow;
+window.destroyAutoLogoutSystem = destroyAutoLogoutSystem;
+window.resetActivityTimestamp = resetActivityTimestamp;
+window.performAutoLogout = performAutoLogout;
+window.GMS_CACHE = {
+CACHE_KEY : 'GMS_SMART_CACHE',
+READ_COUNT_KEY : 'GMS_READ_COUNT_TODAY',
+READ_DATE_KEY  : 'GMS_READ_COUNT_DATE',
+getReadCount : function(){
+var today = new Date().toDateString();
+if(localStorage.getItem(this.READ_DATE_KEY) !== today){
+localStorage.setItem(this.READ_DATE_KEY, today);
+localStorage.setItem(this.READ_COUNT_KEY, '0');
+}
+return parseInt(localStorage.getItem(this.READ_COUNT_KEY)||'0');
+},
+incRead : function(n){
+n = n||1;
+var count = this.getReadCount() + n;
+localStorage.setItem(this.READ_COUNT_KEY, String(count));
+var el = document.getElementById('readCounter');
+if(el) el.innerText = count;
+return count;
+},
+_all : function(){ try{ return JSON.parse(localStorage.getItem(this.CACHE_KEY)||'{}'); } catch(e){ return {}; } },
+set : function(key, data){
+var all = this._all();
+all[key] = { data: data, savedAt: Date.now() };
+try{ localStorage.setItem(this.CACHE_KEY, JSON.stringify(all)); } catch(e){ console.warn('Cache set failed:', e); }
+},
+get : function(key){ var all = this._all(); var entry = all[key]; if(!entry) return null; return entry.data; },
+invalidate : function(keys){
+var all = this._all();
+if(typeof keys === 'string') keys = [keys];
+keys.forEach(function(k){ delete all[k]; });
+localStorage.setItem(this.CACHE_KEY, JSON.stringify(all));
+},
+clear : function(){ localStorage.removeItem(this.CACHE_KEY); console.log('✅ All cache cleared'); }
+};
+window.GMS_NOTICE_CACHE = {
+KEY_NOTICE_IDS  : 'GMS_NOTICE_IDS_SEEN',
+KEY_NOTICE_TEXT : 'GMS_NOTICE_BAR_TEXT',
+KEY_LAST_ID     : 'GMS_NOTICE_LAST_ID',
+getSeenIds : function(){
+var user = JSON.parse(localStorage.getItem('gmsUser')||'{}');
+var uid = user.id||user.uid||'anon';
+try{ return JSON.parse(localStorage.getItem(this.KEY_NOTICE_IDS+'_'+uid)||'[]'); } catch(e){ return []; }
+},
+markSeen : function(ids){
+var user = JSON.parse(localStorage.getItem('gmsUser')||'{}');
+var uid = user.id||user.uid||'anon';
+localStorage.setItem(this.KEY_NOTICE_IDS+'_'+uid, JSON.stringify(ids));
+},
+getCachedText : function(){ return localStorage.getItem(this.KEY_NOTICE_TEXT)||null; },
+setCachedText : function(text){ localStorage.setItem(this.KEY_NOTICE_TEXT, text); },
+getLastId : function(){ return localStorage.getItem(this.KEY_LAST_ID)||''; },
+setLastId : function(id){ localStorage.setItem(this.KEY_LAST_ID, id); }
+};
+window.userAllowedCompanies = [];
+window.currentCompany = 'GMS TEXTILES LTD';
+window.userRole = 'user';
+window.userManpowerMcdAccess = [];
+
+// ═══════════════════════════════════════════════════════════════
+// 🔥 NEW: GREY ORDER CLOSE ACCESS CHECK FUNCTION
+// ═══════════════════════════════════════════════════════════════
+function isGreyOrderCloseAllowed(){
+  // Admin এবং Full Access user সবসময় পাবে
+  if(window.userRole === 'admin' || window.userRole === 'full') return true;
+  
+  // User data check করি
+  if(window.user){
+    // যদি greyOrderCloseAccess field থাকে এবং true হয়
+    if(window.user.greyOrderCloseAccess === true) return true;
+    
+    // যদি MCD Access এ GREY FABRIC MCD থাকে, তাহলেও access দিই
+    if(Array.isArray(window.user.mcdAccess) && 
+       window.user.mcdAccess.includes('GREY FABRIC MCD')){
+      return true;
+    }
+  }
+  
+  return false;
+}
+window.isGreyOrderCloseAllowed = isGreyOrderCloseAllowed;
+
+// ═══════════════════════════════════════════════════════════════
+// 🔽 FIX: COMPOSITE-ONLY USER CHECK (NEW ADDITION)
+// ═══════════════════════════════════════════════════════════════
+function isCompositeOnlyUser(){
+if(!window.user) return false;
+var companies = Array.isArray(window.user.userCompanies) ? window.user.userCompanies : [];
+if(companies.length === 0) return false;
+return companies.includes('GMS COMPOSITE KNITTING') &&
+!companies.includes('GMS TEXTILES LTD');
+}
+window.isCompositeOnlyUser = isCompositeOnlyUser;
+// ═══════════════════════════════════════════════════════════════
+function canUserSeeCompany(c){
+if(window.userRole==='admin'||window.userRole==='full') return true;
+return window.userAllowedCompanies.includes(c);
+}
+function canUserAccessManpowerMCD(m){
+if(window.userRole==='admin'||window.userRole==='full') return true;
+if(window.userManpowerAccess==='all') return true;
+if(window.userManpowerAccess==='selected') return window.userManpowerMcdAccess.includes(m);
+return false;
+}
+window.switchCompany = function(company){
+if(!canUserSeeCompany(company)){ showToast('❌ No access to '+company,'error'); return; }
+window.currentCompany = company;
+localStorage.setItem('gmsSelectedCompany', company);
+document.getElementById('btnTextile').classList.toggle('active', company==='GMS TEXTILES LTD');
+document.getElementById('btnComposite').classList.toggle('active', company==='GMS COMPOSITE KNITTING');
+updateCompanyUI(company);
+if(document.getElementById('home').classList.contains('activePage')) loadDashboardStock();
+if(document.getElementById('entry').classList.contains('activePage')) loadEntry();
+if(document.getElementById('reports').classList.contains('activePage')) loadReport();
+showToast('🔄 Switched to '+company);
+};
+function updateCompanyUI(company){
+var badgeText = company==='GMS TEXTILES LTD'?' TEXTILES':'🏢 COMPOSITE';
+var badgeClass = company==='GMS TEXTILES LTD'?'':'composite';
+['companyBadge','dashCompanyBadge','entryCompanyBadge','reportCompanyBadge','needleCompanyBadge','backupCompanyBadge'].forEach(function(id){
+var el=document.getElementById(id);
+if(el){el.innerHTML=badgeText;el.className='companyBadge '+badgeClass;}
+});
+if(document.getElementById('entryCompany')) document.getElementById('entryCompany').value=company;
+if(document.getElementById('reportCompany')) document.getElementById('reportCompany').value=company;
+var tex=document.getElementById('textileDashboard');
+var com=document.getElementById('compositeDashboard');
+var noa=document.getElementById('noAccessMessage');
+if(company==='GMS TEXTILES LTD'){ if(tex)tex.style.display='block'; if(com)com.style.display='none'; }
+else{ if(tex)tex.style.display='none'; if(com)com.style.display='block'; }
+if(noa) noa.style.display='none';
+}
+function setupCompanyPermissions(){
+window.userAllowedCompanies = Array.isArray(window.user.userCompanies)?window.user.userCompanies:[];
+window.userManpowerAccess = window.user.manpowerAccessLevel||(window.user.manpowerAccess===true?'all':'none');
+window.userManpowerMcdAccess = Array.isArray(window.user.manpowerMcdAccess)?window.user.manpowerMcdAccess:[];
+if(window.userAllowedCompanies.length===1){
+window.currentCompany = window.userAllowedCompanies[0];
+} else if(window.userAllowedCompanies.includes('GMS COMPOSITE KNITTING')&&!window.userAllowedCompanies.includes('GMS TEXTILES LTD')){
+window.currentCompany = 'GMS COMPOSITE KNITTING';
+} else {
+window.currentCompany = 'GMS TEXTILES LTD';
+}
+localStorage.setItem('gmsSelectedCompany', window.currentCompany);
+document.getElementById('btnTextile').classList.toggle('active', window.currentCompany==='GMS TEXTILES LTD');
+document.getElementById('btnComposite').classList.toggle('active', window.currentCompany==='GMS COMPOSITE KNITTING');
+if(!canUserSeeCompany('GMS TEXTILES LTD')){ document.getElementById('btnTextile').classList.add('disabled'); document.getElementById('btnTextile').disabled=true; }
+if(!canUserSeeCompany('GMS COMPOSITE KNITTING')){ document.getElementById('btnComposite').classList.add('disabled'); document.getElementById('btnComposite').disabled=true; }
+populateCompanyDropdowns();
+updateCompanyUI(window.currentCompany);
+if(window.userManpowerAccess==='none'&&window.userRole!=='admin'&&window.userRole!=='full'){
+var mp=document.getElementById('manpowerNav'); if(mp) mp.style.display='none';
+}
+}
+function populateCompanyDropdowns(){
+var es=document.getElementById('entryCompany');
+var rs=document.getElementById('reportCompany');
+if(es) es.innerHTML=''; if(rs) rs.innerHTML='';
+window.userAllowedCompanies.forEach(function(c){
+if(es){var o=document.createElement('option');o.value=c;o.text=c;es.appendChild(o);}
+if(rs){var o2=document.createElement('option');o2.value=c;o2.text=c;rs.appendChild(o2);}
+});
+if(es&&window.userAllowedCompanies.length>0) es.value=window.currentCompany;
+if(rs&&window.userAllowedCompanies.length>0) rs.value=window.currentCompany;
+}
+window.urlCompanyName = function(c){
+if(c==='GMS COMPOSITE KNITTING') return 'GMS COMPOSITE KNITTING IND LTD.';
+if(c==='GMS TEXTILES LTD') return 'GMS TEXTILES LTD.';
+return c||'GMS TEXTILES LTD.';
+};
+window.enc = function(v){ return encodeURIComponent(v||''); };
+window.openGatePlanEntry  = function(c,m){ location.href='gate-plan.html?company='+window.enc(window.urlCompanyName(c))+'&mcd='+window.enc(m||''); };
+window.openChallanEntry   = function(c,m){ location.href='challan-entry.html?company='+window.enc(window.urlCompanyName(c))+'&mcd='+window.enc(m||''); };
+window.openGatePlanReport = function(c,m){ location.href='gate-plan-report.html?company='+window.enc(window.urlCompanyName(c))+'&mcd='+window.enc(m||''); };
+window.openChallanReport  = function(c,m){ location.href='challan-report.html?company='+window.enc(window.urlCompanyName(c))+'&mcd='+window.enc(m||''); };
+window.compositeEntryCards = function(c,m){ return '<div class="entryCard" onclick="openGatePlanEntry(\''+c+'\',\''+m+'\')"><i class="fas fa-truck"></i> Gate Plan Entry</div><div class="entryCard" onclick="openChallanEntry(\''+c+'\',\''+m+'\')"><i class="fas fa-file-invoice"></i> Challan / Gate Pass</div><div class="entryCard" onclick="openChallanReport(\''+c+'\',\''+m+'\')"><i class="fas fa-file-alt"></i> Challan / Gate Pass Report</div>'; };
+window.compositeReportCards = function(c,m){ return '<div class="reportCard" onclick="openGatePlanReport(\''+c+'\',\''+m+'\')"><i class="fas fa-truck"></i> Gate Plan Report</div><div class="reportCard" onclick="openChallanReport(\''+c+'\',\''+m+'\')"><i class="fas fa-file-invoice"></i> Challan / Gate Pass Report</div>'; };
+window.commonEntryCards   = window.compositeEntryCards;
+window.commonReportCards  = window.compositeReportCards;
+window.openProfileModal  = function(){ document.getElementById('profileModal').style.display='flex'; };
+window.closeProfileModal = function(){ document.getElementById('profileModal').style.display='none'; };
+window.handleProfileUpload = function(input){
+if(input.files&&input.files[0]){
+var reader=new FileReader();
+reader.onload=function(e){
+var d=e.target.result;
+localStorage.setItem('userProfilePic',d);
+document.getElementById('modalProfileImg').src=d;
+document.getElementById('footerProfileImg').src=d;
+};
+reader.readAsDataURL(input.files[0]);
+}
+};
+function loadProfilePic(){
+var p=localStorage.getItem('userProfilePic');
+if(p){document.getElementById('modalProfileImg').src=p;document.getElementById('footerProfileImg').src=p;}
+}
+function showToast(msg,type){
+var t=document.createElement('div');
+t.className='toast';
+t.style.background=(type==='error')?'#ef4444':'#10b981';
+t.innerText=msg;
+document.body.appendChild(t);
+setTimeout(function(){t.remove();},2500);
+}
+window.showToast = showToast;
+var audioCtx=null;
+function initAudio(){ if(!audioCtx){ try{ audioCtx=new(window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+function playNotificationSound(){
+if(!audioCtx) initAudio();
+if(!audioCtx) return;
+try{
+var osc=audioCtx.createOscillator(); var gain=audioCtx.createGain();
+osc.connect(gain); gain.connect(audioCtx.destination);
+osc.frequency.value=880; osc.type='sine'; gain.gain.value=0.3;
+osc.start(); setTimeout(function(){osc.stop();},300);
+}catch(e){}
+}
+function clearAppBadge(){
+if('clearAppBadge' in navigator) navigator.clearAppBadge().catch(function(){});
+var b=document.getElementById('sidebarNoticeBadge'); if(b) b.style.display='none';
+}
+function updateSidebarNoticeBadge(notices){
+var badge=document.getElementById('sidebarNoticeBadge'); if(!badge) return;
+var seenIds=window.GMS_NOTICE_CACHE.getSeenIds();
+var unread=notices.filter(function(n){return !seenIds.includes(n.id);}).length;
+if(unread>0){ badge.innerText=unread>99?'99+':unread; badge.style.display='flex'; }
+else { badge.style.display='none'; }
+}
+window.logout = function(){
+destroyAutoLogoutSystem();
+localStorage.removeItem('gmsUser');
+localStorage.removeItem(SESSION_CONFIG.STORAGE_KEY);
+localStorage.removeItem(SESSION_CONFIG.SESSION_START_KEY);
+window.location.href='login.html';
+};
+window.toggleTheme = function(){
+document.body.classList.toggle('light');
+localStorage.setItem('theme',document.body.classList.contains('light')?'light':'dark');
+setTimeout(function(){ if(window._renderChartsWithLastData) window._renderChartsWithLastData(); },100);
+};
+if(localStorage.getItem('theme')==='light') document.body.classList.add('light');
+window.toggleSidebar = function(){
+document.getElementById('sidebar').classList.toggle('show');
+document.getElementById('sidebarOverlay').classList.toggle('show');
+};
+window.openPage = function(id,btn){
+document.querySelectorAll('.page').forEach(function(p){p.classList.remove('activePage');});
+document.getElementById(id).classList.add('activePage');
+document.querySelectorAll('.sidebarNav button').forEach(function(b){b.classList.remove('active');});
+if(btn) btn.classList.add('active');
+if(id==='home') loadDashboardStock();
+if(id==='backup'){ loadDashboardStock(); renderBackupLog(); }
+if(window.innerWidth<=900){
+document.getElementById('sidebar').classList.remove('show');
+document.getElementById('sidebarOverlay').classList.remove('show');
+}
+resetActivityTimestamp();
+};
+
+// ═══════════════════════════════════════════════════════════════
+// 🔥 UPDATED: loadEntry() - Grey Order Close Card Added
+// ═══════════════════════════════════════════════════════════════
+window.loadEntry = function(){
+var company=document.getElementById('entryCompany').value;
+var mcd=document.getElementById('entryMcd').value;
+var box=document.getElementById('entryBox');
+autoSaveToROI(company, mcd);
+if(company==='GMS COMPOSITE KNITTING'){box.innerHTML=window.compositeEntryCards(company,mcd);return;}
+var common=window.commonEntryCards(company,mcd);
+if(!canAccess(mcd)){box.innerHTML='<div class="entryCard">❌ Access Denied</div>'+common;return;}
+if(mcd==='ACCESSORIES MCD'){
+box.innerHTML='<div class="entryCard" onclick="location.href=\'sewing-thread.html\'"><i class="fas fa-spools"></i> Sewing Thread</div><div class="entryCard" onclick="location.href=\'twill-tape.html\'"><i class="fas fa-ruler-horizontal"></i> Twill Tape</div><div class="entryCard" onclick="location.href=\'accessories.html\'"><i class="fas fa-box"></i> Accessories</div><div class="entryCard" onclick="location.href=\'accessories-inventory.html\'"><i class="fas fa-clipboard-list"></i> Inventory</div>'+common;
+return;
+}
+if(mcd==='GREY FABRIC MCD'){
+// 🔥 NEW: Grey Order Close card added here
+box.innerHTML='<div class="entryCard" onclick="location.href=\'grey-fabric.html\'"><i class="fas fa-industry"></i> Grey Fabric Daily</div><div class="entryCard" onclick="location.href=\'grey-fabric-monthly.html\'"><i class="fas fa-calendar"></i> Grey Monthly</div><div class="entryCard grey-order-card" onclick="location.href=\'grey-fabric-order-close.html\'"><i class="fas fa-clipboard-check"></i> Grey Order Close</div>'+common;
+return;
+}
+if(mcd==='BILLING SECTION'){
+box.innerHTML='<div class="entryCard" onclick="location.href=\'billing-manpower-report.html\'"><i class="fas fa-users"></i> Billing Manpower</div>'+common;
+return;
+}
+if(mcd==='GENERAL MCD'){
+box.innerHTML='<div class="entryCard" onclick="location.href=\'general-mcd-daily.html\'" style="background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(59,130,246,0.15));border-color:var(--purple);"><i class="fas fa-file-alt" style="color:var(--purple);"></i> 📝 GENERAL MCD Daily Entry</div>'+common;
+return;
+}
+  if(mcd==='GENERAL TECHNICAL MCD'){
+box.innerHTML='<div class="entryCard" onclick="location.href=\'general-technical-mcd-dashboard.html\'" style="background:linear-gradient(135deg,rgba(6,182,212,0.15),rgba(59,130,246,0.15));border-color:var(--cyan);"><i class="fas fa-tools" style="color:var(--cyan);"></i> General Technical-MCD Daily Entry</div>'+common;
+return;
+}
+box.innerHTML='<div class="entryCard"> '+mcd+' Daily Entry</div><div class="entryCard" onclick="location.href=\'billing-manpower-report.html\'"><i class="fas fa-users"></i> Billing Manpower</div>'+common;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// 🔥 UPDATED: loadReport() - Grey Order Close Card Added
+// ═══════════════════════════════════════════════════════════════
+window.loadReport = function(){
+var company=(document.getElementById('reportCompany')||document.getElementById('entryCompany')).value;
+var mcd=document.getElementById('reportMcd').value;
+var box=document.getElementById('reportBox');
+autoSaveToROI(company, mcd);
+if(company==='GMS COMPOSITE KNITTING'){box.innerHTML=window.compositeReportCards(company,mcd);return;}
+var common=window.commonReportCards(company,mcd);
+if(!canAccess(mcd)){box.innerHTML='<div class="reportCard">❌ Access Denied</div>'+common;return;}
+if(mcd==='ACCESSORIES MCD'){
+box.innerHTML='<div class="reportCard" onclick="location.href=\'sewing-thread.html\'"><i class="fas fa-spools"></i> Sewing Thread</div><div class="reportCard" onclick="location.href=\'twill-tape.html\'"><i class="fas fa-ruler-horizontal"></i> Twill Tape</div><div class="reportCard" onclick="location.href=\'accessories.html\'"><i class="fas fa-box"></i> Accessories</div><div class="reportCard" onclick="location.href=\'accessories-inventory-report.html\'"><i class="fas fa-chart-bar"></i> Inventory</div>'+common;
+return;
+}
+if(mcd==='GREY FABRIC MCD'){
+// 🔥 NEW: Grey Order Close card added here
+box.innerHTML='<div class="reportCard" onclick="location.href=\'grey-fabric.html\'"><i class="fas fa-industry"></i> Grey Fabric</div><div class="reportCard" onclick="location.href=\'grey-fabric-monthly.html\'"><i class="fas fa-calendar"></i> Grey Monthly</div><div class="reportCard grey-order-card" onclick="location.href=\'grey-fabric-order-close.html\'"><i class="fas fa-clipboard-check"></i> Grey Order Close</div>'+common;
+return;
+}
+if(mcd==='BILLING SECTION'){
+box.innerHTML='<div class="reportCard" onclick="location.href=\'billing-manpower-report.html\'"><i class="fas fa-users"></i> Billing Manpower</div>'+common;
+return;
+}
+if(mcd==='GENERAL MCD'){
+box.innerHTML='<div class="reportCard" onclick="location.href=\'general-mcd-daily.html\'" style="background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(59,130,246,0.15));border-color:var(--purple);"><i class="fas fa-chart-bar" style="color:var(--purple);"></i>  GENERAL MCD Daily Report</div>'+common;
+return;
+}
+  if(mcd==='GENERAL TECHNICAL MCD'){
+box.innerHTML='<div class="reportCard" onclick="location.href=\'general-technical-mcd-dashboard.html\'" style="background:linear-gradient(135deg,rgba(6,182,212,0.15),rgba(59,130,246,0.15));border-color:var(--cyan);"><i class="fas fa-chart-bar" style="color:var(--cyan);"></i> General Technical-MCD Daily Report</div>'+common;
+return;
+}
+box.innerHTML='<div class="reportCard">📑 '+mcd+' Report</div><div class="reportCard" onclick="location.href=\'billing-manpower-report.html\'"><i class="fas fa-users"></i> Billing Manpower</div>'+common;
+};
+function autoSaveToROI(company, mcd){
+try{
+var autoReports = JSON.parse(localStorage.getItem('gms_all_reports') || '[]');
+var exists = autoReports.find(function(r){ return r.mcd === mcd && r.company === company; });
+if(!exists){
+autoReports.push({ mcd: mcd, company: company, report: 'Auto Entry', users: 1, usagePct: 100, addedAt: new Date().toISOString() });
+localStorage.setItem('gms_all_reports', JSON.stringify(autoReports));
+console.log('🔄 Auto-saved to ROI:', mcd, company);
+}
+}catch(e){ console.warn('autoSaveToROI error:', e); }
+}
+window.trackNeedleActivity = function(type, user, minutes){
+try{
+var activity = JSON.parse(localStorage.getItem('gms_needle_activity') || '[]');
+activity.push({ type: type, user: user || (window.user ? window.user.name : 'Unknown'),
+date: new Date().toISOString().slice(0,10), minutes: minutes || 5,
+timestamp: new Date().toISOString(), company: window.currentCompany || 'GMS TEXTILES LTD' });
+localStorage.setItem('gms_needle_activity', JSON.stringify(activity));
+console.log('🪡 Needle activity tracked:', type, user);
+window.dispatchEvent(new Event('storage'));
+}catch(e){ console.warn('trackNeedleActivity error:', e); }
+};
+window.trackButtonUsage = function(buttonName, mcd){
+try{
+var activity = JSON.parse(localStorage.getItem('gms_button_activity') || '[]');
+activity.push({ button: buttonName, mcd: mcd || 'General',
+user: window.user ? window.user.name : 'Unknown',
+date: new Date().toISOString().slice(0,10), timestamp: new Date().toISOString() });
+localStorage.setItem('gms_button_activity', JSON.stringify(activity));
+}catch(e){ console.warn('trackButtonUsage error:', e); }
+};
+window.addCustomReportToROI = function(mcd, reportName, rptDay, users, usagePct){
+try{
+var autoReports = JSON.parse(localStorage.getItem('gms_all_reports') || '[]');
+var exists = autoReports.find(function(r){ return r.mcd === mcd && r.report === reportName; });
+if(!exists){
+autoReports.push({ mcd: mcd, report: reportName, rptDay: rptDay || 1, users: users || 1,
+usagePct: usagePct || 100, company: window.currentCompany || 'GMS TEXTILES LTD',
+addedAt: new Date().toISOString() });
+localStorage.setItem('gms_all_reports', JSON.stringify(autoReports));
+console.log('✅ Custom report added to ROI:', reportName, mcd);
+window.dispatchEvent(new Event('storage'));
+return true;
+}
+return false;
+}catch(e){ console.warn('addCustomReportToROI error:', e); return false; }
+};
+window.trackReportActivity = function(mcd, reportName){
+try{
+var activity = JSON.parse(localStorage.getItem('report_activity') || '[]');
+activity.push({ mcd: mcd, report: reportName, user: window.user ? window.user.name : 'Unknown',
+date: new Date().toISOString().slice(0,10), timestamp: new Date().toISOString(),
+company: window.currentCompany || 'GMS TEXTILES LTD' });
+if(activity.length > 1000) activity.splice(0, activity.length - 1000);
+localStorage.setItem('report_activity', JSON.stringify(activity));
+console.log(' Report activity tracked:', mcd, reportName);
+window.dispatchEvent(new Event('storage'));
+}catch(e){ console.warn('trackReportActivity error:', e); }
+};
+(function(){
+var c = window.GMS_CACHE.getReadCount();
+var el = document.getElementById('readCounter');
+if(el) el.innerText = c;
+})();
+</script>
+
+<!-- ================================================================
+FIREBASE MODULE — SMART SELECTIVE CACHE + TIMESTAMP SYSTEM
+================================================================ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import {
+getFirestore, enableIndexedDbPersistence,
+collection, getDocs, doc, updateDoc, setDoc, deleteDoc,
+query, orderBy, limit, onSnapshot, getDoc
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+import { getMessaging, onMessage, getToken } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-messaging.js";
+const firebaseConfig = {
+apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",
+projectId:"gms-warehouse-tracker-7f57e",
+storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",
+messagingSenderId:"992250313291",
+appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+const messaging = getMessaging(app);
+enableIndexedDbPersistence(db).catch(function(err){
+if(err.code==='failed-precondition') console.log('Multiple tabs: persistence limited');
+else if(err.code==='unimplemented') console.log('Browser: persistence not supported');
+});
+const user = JSON.parse(localStorage.getItem('gmsUser')||'null');
+if(!user){ window.location.href='login.html'; }
+window.user     = user;
+window.userRole = user.role||'user';
+const userMCDs          = Array.isArray(user.mcdAccess)?user.mcdAccess:(user.mcd?[user.mcd]:[]);
+const needleAccess      = user.needleAccess||false;
+const needleCompositeAccess = user.needleCompositeAccess||false;
+const manpowerAccess    = user.manpowerAccessLevel||(user.manpowerAccess===true?'all':'none');
+const manpowerMcdAccess = Array.isArray(user.manpowerMcdAccess)?user.manpowerMcdAccess:[];
+const ALL_MCD = [
+'GREY FABRIC MCD','SHIPMENT MCD','BILLING SECTION','OUTER WEAR MCD',
+'YARN MCD','PRINTING MCD','JHUT MCD','GENERAL MCD','ACCESSORIES MCD',
+'LEFTOVER MCD','FINISH FABRIC MCD','YARN DYEING MCD','CHEMICAL MCD','GENERAL TECHNICAL MCD'
+];
+const FLOOR_OPENING = {
+'Kadom R':618,'Kadom N':443,'Poddo R':1889,'Poddo N':401,
+'Shapla R':1171,'Shapla N':573,'Sample R':1138,'Sample N':251,
+'EMBROIDERY R':1011,'EMBROIDERY N':287,'Belly R':796,'Belly N':335
+};
+let accessoriesChart=null,needleChart=null,greyChart=null,billingChart=null,needleIssueChart=null;
+let gmcDailyUsesChart=null,gmcPhotocopyChart=null,gmcPolyBagChart=null,gmcAcetonChart=null;
+let selectedBackupData=null;
+document.getElementById('loginInfo').innerText =
+`${user.name||'User'} • ${window.userRole.toUpperCase()} ${window.userRole==='user'?'• '+userMCDs.join(', '):''}`;
+const SYNC_QUEUE_KEY  = 'GMS_STEALTH_QUEUE';
+const COUNTER_KEY     = 'GMS_SERIAL_COUNTERS';
+const QUOTA_ALERT_KEY = 'GMS_QUOTA_LIMIT_ALERTS';
+const LOCAL_TIMESTAMPS_KEY = 'GMS_LOCAL_TIMESTAMPS';
+function getQueue(){ return JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY)||'[]'); }
+function setQueue(q){ localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(q)); }
+function getQuotaAlerts(){ return JSON.parse(localStorage.getItem(QUOTA_ALERT_KEY)||'{}'); }
+function setQuotaAlerts(d){ localStorage.setItem(QUOTA_ALERT_KEY, JSON.stringify(d)); }
+const CACHE_KEYS = {
+sewingThread        : 'sewing_stock',
+twillTape           : 'twill_stock',
+accessoriesSample   : 'accessories_stock',
+dailyPosting        : 'needle_floor_stock',
+greyFabricStock     : 'grey_stock',
+billingManpowerReport: 'billing_today',
+needleDailyReport   : 'needle_issue_today',
+manpower            : 'manpower_summary',
+generalMcdDaily     : 'general_mcd_daily',
+ALL_DASHBOARD       : ['sewing_stock','twill_stock','accessories_stock','needle_floor_stock','grey_stock','billing_today','needle_issue_today','manpower_summary','firebase_counts','general_mcd_daily']
+};
+async function updateCollectionTimestamp(collectionName){
+try{
+await setDoc(doc(db, 'system_sync', collectionName), { lastUpdated: Date.now() }, { merge: true });
+console.log('🕐 Timestamp updated for:', collectionName);
+}catch(e){ console.warn('Timestamp update failed:', e); }
+}
+window.updateCollectionTimestamp = updateCollectionTimestamp;
+function buildShouldUpdate(remoteTimestamps, forceAll){
+return function(col){
+if(forceAll) return true;
+var local = JSON.parse(localStorage.getItem(LOCAL_TIMESTAMPS_KEY)||'{}');
+if(!local[col]) return true;
+var remote = remoteTimestamps[col]||0;
+return remote > local[col];
+};
+}
+window.saveDataOffline = function(collectionName, data, serialPrefix){
+serialPrefix = serialPrefix||'';
+var queue = getQueue();
+var id = collectionName+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+var counters = JSON.parse(localStorage.getItem(COUNTER_KEY)||'{}');
+if(!counters[serialPrefix]) counters[serialPrefix]=0;
+counters[serialPrefix]++;
+localStorage.setItem(COUNTER_KEY, JSON.stringify(counters));
+var serial = serialPrefix ? serialPrefix+'-'+String(counters[serialPrefix]).padStart(3,'0') : id;
+queue.push({
+id, collection:collectionName, serial,
+data:{...data, serialNumber:serial, company:window.currentCompany},
+user:user.name||user.email||'System',
+time:new Date().toLocaleString(), status:'pending'
+});
+setQueue(queue);
+showToast('✅ Saved Successfully');
+var cacheKey = CACHE_KEYS[collectionName];
+if(cacheKey){
+window.GMS_CACHE.invalidate(Array.isArray(cacheKey)?cacheKey:[cacheKey]);
+console.log(' Cache invalidated for:', collectionName);
+}
+var localTS = JSON.parse(localStorage.getItem(LOCAL_TIMESTAMPS_KEY)||'{}');
+delete localTS[collectionName];
+localStorage.setItem(LOCAL_TIMESTAMPS_KEY, JSON.stringify(localTS));
+if(document.getElementById('home').classList.contains('activePage')){
+loadDashboardStock(true);
+}
+updateLocalUI(collectionName, data);
+if(window.userRole==='admin'||window.userRole==='full') renderAdminSyncTable();
+if(typeof resetActivityTimestamp === 'function') resetActivityTimestamp();
+};
+window.autoSyncQueue = async function(){
+var queue = getQueue();
+var pending = queue.filter(function(x){return x.status==='pending';});
+if(pending.length===0) return;
+console.log(' Auto-syncing '+pending.length+' items...');
+var syncedIds=[];
+try{
+for(var item of pending){
+try{
+await setDoc(doc(db,item.collection,item.id), item.data, {merge:true});
+item.status='synced'; item.syncedAt=new Date().toLocaleString();
+syncedIds.push(item.id);
+await updateCollectionTimestamp(item.collection);
+}catch(err){
+if(err.code==='resource-exhausted'||err.code==='permission-denied'){
+console.log('️ Sync paused (quota). Retry later.');
+break;
+}
+}
+}
+if(syncedIds.length>0){
+var newQueue=queue.map(function(it){return syncedIds.includes(it.id)?{...it,status:'synced'}:it;});
+setQueue(newQueue);
+if(window.userRole==='admin'||window.userRole==='full'){
+renderAdminSyncTable();
+showToast('☁️ '+syncedIds.length+' items synced');
+}
+}
+}catch(e){console.log('Sync error:',e);}
+};
+window.forceSyncNow = function(){
+var queue=getQueue();
+var pending=queue.filter(function(x){return x.status==='pending';});
+if(pending.length===0){showToast('✅ No pending data');return;}
+showToast('🔄 Syncing '+pending.length+' items...');
+window.autoSyncQueue();
+};
+function renderAdminSyncTable(){
+var panel=document.getElementById('adminSyncPanel'); if(!panel) return;
+panel.style.display='block';
+var queue=getQueue();
+var pending=queue.filter(function(x){return x.status==='pending';});
+var tbody=document.getElementById('pendingTableBody');
+var countEl=document.getElementById('pendingCount');
+if(countEl) countEl.innerText=pending.length;
+if(!tbody) return;
+if(pending.length===0){
+tbody.innerHTML='<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--green);font-weight:600;">✅ All data synced.</td></tr>';
+return;
+}
+tbody.innerHTML=pending.map(function(item){
+var summary=item.data.buyer||item.data.challanNo||item.data.floor||item.serial||'Entry';
+return '<tr><td style="padding:12px;">'+item.user+'</td><td style="padding:12px;">'+item.collection+'</td><td style="padding:12px;">'+summary+'</td><td style="padding:12px;color:var(--muted);">'+item.time+'</td><td style="padding:12px;text-align:center;"><span class="pending-badge">⏳ Pending</span></td></tr>';
+}).join('');
+}
+function updateLocalUI(col, data){
+if(col.includes('needle')||col.includes('posting')){
+var stockEl=document.getElementById('needleToday');
+if(stockEl){
+var current=parseInt(stockEl.innerText.replace(/,/g,''))||0;
+stockEl.innerText=(current+(data.receive||0)-(data.delivery||0)).toLocaleString();
+}
+}
+}
+window.triggerQuotaAlert = function(type, details){
+if(window.userRole!=='admin'&&window.userRole!=='full') return;
+var alerts=getQuotaAlerts();
+if(!alerts[type]){
+alerts[type]={msg:details||type+' LIMIT EXHAUSTED',time:new Date().toLocaleString()};
+setQuotaAlerts(alerts); renderQuotaAlerts();
+}
+};
+function renderQuotaAlerts(){
+var panel=document.getElementById('adminQuotaAlerts');
+var list=document.getElementById('quotaAlertList');
+if(!panel||!list) return;
+var alerts=getQuotaAlerts();
+var keys=Object.keys(alerts);
+if(keys.length===0){panel.style.display='none';return;}
+panel.style.display='block';
+list.innerHTML=keys.map(function(k){
+return '<div class="quota-alert-item"><div><span class="msg">🔴 '+k+'</span><div style="color:var(--muted);font-size:11px;margin-top:2px;">'+alerts[k].msg+'</div></div><span class="time">'+alerts[k].time+'</span></div>';
+}).join('');
+}
+window.resetQuotaAlerts = function(){ localStorage.removeItem(QUOTA_ALERT_KEY); renderQuotaAlerts(); showToast('✅ Alerts cleared'); };
+function dailyQuotaReset(){
+var lastReset=localStorage.getItem('GMS_QUOTA_LAST_RESET');
+var today=new Date().toDateString();
+if(lastReset!==today){
+localStorage.removeItem(QUOTA_ALERT_KEY);
+localStorage.removeItem(LOCAL_TIMESTAMPS_KEY);
+localStorage.setItem('GMS_QUOTA_LAST_RESET',today);
+}
+}
+function today(){ return new Date().toISOString().slice(0,10); }
+function parseNum(v){ return Number(String(v||0).replace(/,/g,''))||0; }
+function fmt(v){ return parseNum(v).toLocaleString('en-US'); }
+function allowedMCDList(){ return (window.userRole==='admin'||window.userRole==='full')?ALL_MCD:userMCDs; }
+function canAccess(mcd){ return window.userRole==='admin'||window.userRole==='full'||userMCDs.includes(mcd); }
+window.canAccess = canAccess;
+function isNeedleAllowed(){ return window.userRole==='admin'||window.userRole==='full'||needleAccess===true; }
+function isNeedleCompositeAllowed(){ return window.userRole==='admin'||window.userRole==='full'||needleCompositeAccess===true; }
+function isAccessoriesAllowed(){ return window.userRole==='admin'||window.userRole==='full'||userMCDs.includes('ACCESSORIES MCD'); }
+function isGreyAllowed(){ return window.userRole==='admin'||window.userRole==='full'||userMCDs.includes('GREY FABRIC MCD'); }
+function isBillingAllowed(){ return window.userRole==='admin'||window.userRole==='full'||userMCDs.includes('BILLING SECTION'); }
+function isGeneralMcdAllowed(){ return window.userRole==='admin'||window.userRole==='full'||userMCDs.includes('GENERAL MCD'); }
+function isManpowerAllowed(){
+if(window.userRole==='admin'||window.userRole==='full') return true;
+if(manpowerAccess==='all') return true;
+if(manpowerAccess==='selected'&&manpowerMcdAccess.length>0) return true;
+return false;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🔥 UPDATED: setupRoleUI() - Grey Order Close Button Show/Hide
+// ═══════════════════════════════════════════════════════════════
+function setupRoleUI(){
+if(window.userRole!=='admin'){
+document.getElementById('adminNav').style.display='none';
+document.getElementById('backupNav').style.display='none';
+}
+if(window.userRole==='admin'){
+var roiBtn = document.getElementById('roiNav');
+if(roiBtn) roiBtn.style.display='flex';
+}
+
+// 🔥 NEW: Grey Order Close Button Access Control
+var greyBtn = document.getElementById('greyOrderCloseNav');
+if(greyBtn){
+  if(isGreyOrderCloseAllowed()){
+    greyBtn.style.display = 'flex';
+    console.log('✅ Grey Order Close: Access Granted for', window.user?.name || 'User');
+  } else {
+    greyBtn.style.display = 'none';
+    console.log('❌ Grey Order Close: Access Denied for', window.user?.name || 'User');
+  }
+}
+
+if(!isManpowerAllowed()) document.getElementById('manpowerNav').style.display='none';
+if(!isNeedleAllowed()){
+document.getElementById('needleNav').style.display='none';
+document.getElementById('needleSummary').style.display='none';
+document.getElementById('needleChartBox').style.display='none';
+document.getElementById('needleIssueChartBox').style.display='none';
+}
+var ncSec = document.getElementById('needleCompositeSection');
+if(ncSec) {
+ncSec.style.display = isNeedleCompositeAllowed() ? 'block' : 'none';
+}
+if(!isAccessoriesAllowed()){
+document.getElementById('accessoriesSummary').style.display='none';
+document.getElementById('accessoriesChartBox').style.display='none';
+}
+if(!isGreyAllowed()) document.getElementById('greyChartBox').style.display='none';
+if(!isBillingAllowed()) document.getElementById('billingChartBox').style.display='none';
+if(!isGeneralMcdAllowed()){
+var gmcBox = document.getElementById('generalMcdChartBox');
+if(gmcBox) gmcBox.style.display='none';
+}
+var list=allowedMCDList();
+document.getElementById('entryMcd').innerHTML=list.map(function(x){return '<option>'+x+'</option>';}).join('');
+document.getElementById('reportMcd').innerHTML=list.map(function(x){return '<option>'+x+'</option>';}).join('');
+}
+async function cachedGetDocs(collectionName, cacheKey, shouldUpdate){
+if(shouldUpdate === false){
+var cached = window.GMS_CACHE.get(cacheKey);
+if(cached !== null){
+var el=document.getElementById('cacheStatusText');
+if(el) el.innerText='Cache: '+cacheKey+' ✅ (no change)';
+console.log('📦 Selective cache hit (no Firebase read):', cacheKey);
+return cached;
+}
+}
+var cached2 = window.GMS_CACHE.get(cacheKey);
+if(cached2 !== null && shouldUpdate !== true){
+var el2=document.getElementById('cacheStatusText');
+if(el2) el2.innerText='Cache: '+cacheKey+' ✅';
+console.log(' Cache hit:', cacheKey);
+return cached2;
+}
+console.log('🔥 Firebase read (selective):', cacheKey);
+var el3=document.getElementById('cacheStatusText');
+if(el3) el3.innerText='Firebase: '+cacheKey+' 🔥';
+var snap = await getDocs(collection(db, collectionName));
+var rows = [];
+snap.forEach(function(d){ rows.push({...d.data(), _docId:d.id}); });
+window.GMS_CACHE.set(cacheKey, rows);
+window.GMS_CACHE.incRead(snap.size||1);
+return rows;
+}
+async function getLatestPresent(collectionName, openingStock, shouldUpdate){
+var cacheKey = CACHE_KEYS[collectionName]||('stock_'+collectionName);
+var rows = await cachedGetDocs(collectionName, cacheKey, shouldUpdate);
+rows = rows.filter(function(x){return !!x.date;});
+rows.sort(function(a,b){return a.date.localeCompare(b.date);});
+var r=0, dv=0;
+rows.forEach(function(x){r+=Number(x.receive)||0; dv+=Number(x.delivery)||0;});
+return openingStock+r-dv;
+}
+async function getManpowerSummary(shouldUpdate){
+var rows = await cachedGetDocs('manpower', CACHE_KEYS.manpower, shouldUpdate);
+var map={}, totalCount=0, totalSalary=0;
+rows.forEach(function(x){
+var m=x.mcd||'UNKNOWN';
+if(!canUserSeeCompany(x.company)) return;
+if(manpowerAccess==='selected'&&!manpowerMcdAccess.includes(m)) return;
+if(!map[m]) map[m]={count:0,salary:0};
+map[m].count++; map[m].salary+=Number(x.salary)||0;
+totalCount++; totalSalary+=Number(x.salary)||0;
+});
+return{map,totalCount,totalSalary};
+}
+async function getNeedleFloorStock(shouldUpdate){
+var rows = await cachedGetDocs('dailyPosting', CACHE_KEYS.dailyPosting, shouldUpdate);
+var latestByFloor={};
+rows.forEach(function(x){
+if(x.floor&&x.date){
+if(!latestByFloor[x.floor]||x.date>latestByFloor[x.floor].date) latestByFloor[x.floor]=x;
+}
+});
+var floorStocks={}, total=0;
+Object.keys(FLOOR_OPENING).forEach(function(f){
+var stock=FLOOR_OPENING[f];
+if(latestByFloor[f]&&latestByFloor[f].rows){
+stock=0; latestByFloor[f].rows.forEach(function(r){stock+=Number(r.present)||0;});
+}
+floorStocks[f]=stock; total+=stock;
+});
+return{floorStocks,total};
+}
+async function getGreyData(shouldUpdate){
+var rows = await cachedGetDocs('greyFabricStock', CACHE_KEYS.greyFabricStock, shouldUpdate);
+var docs = rows.filter(function(x){return x.date&&x.rows&&x.rows.length>0;});
+docs.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+var latest=docs[0]||{rows:[],date:''};
+var labels=[],data=[],total=0;
+(latest.rows||[]).forEach(function(r){
+var closing=parseNum(r.closing||r.closingBalance||0);
+if(closing>0){labels.push(r.year||r.fabric||'Item');data.push(closing);total+=closing;}
+});
+if(total>0){labels.push('Grand Total');data.push(total);}
+return{labels,data,total,date:latest.date||''};
+}
+async function getBillingToday(shouldUpdate){
+var rows = await cachedGetDocs('billingManpowerReport', CACHE_KEYS.billingManpowerReport, shouldUpdate);
+var t=today(), total=0, leave=0, absent=0, present=0, medical=0, offDay=0;
+rows.forEach(function(x){
+if(x.date===t){
+total += Number(x.totalManpower || x.total) || 0;
+leave += Number(x.leave) || 0;
+absent += Number(x.absent) || 0;
+present += Number(x.present) || 0;
+medical += Number(x.medical) || 0;
+offDay += Number(x.offDay) || 0;
+}
+});
+return {total, leave, absent, present, medical, offDay};
+}
+async function getNeedleIssueToday(shouldUpdate){
+var rows = await cachedGetDocs('needleDailyReport', CACHE_KEYS.needleDailyReport, shouldUpdate);
+rows.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+var latest=rows[0]||{};
+return{broken:parseNum(latest.brokenNeedle),missing:parseNum(latest.missingNeedle),change:parseNum(latest.changeNeedle),date:latest.date||''};
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🔥 FIXED: getGeneralMcdDailyData()
+// ---------------------------------------------------------------
+// PROBLEM: This dashboard used to call cachedGetDocs('generalMcdDaily', ...)
+// which treats every Firestore DOCUMENT in the "generalMcdDaily" collection
+// as ONE data row (x.amount, x.department, x.date, etc. directly on the doc).
+//
+// But general-mcd-daily.html actually stores data completely differently:
+//   - Each document is keyed by MONTH ("YYYY-MM"), e.g. "2026-07"
+//   - Each document's shape is: { data: [ {row1}, {row2}, ... ], updatedAt }
+//   - Every row's "date" field is stored as "DD-MM-YYYY" (NOT "YYYY-MM-DD")
+//
+// So the old code was comparing x.date (undefined, since date lives one
+// level deeper inside doc.data array) against today() which returns
+// "YYYY-MM-DD" — a double mismatch. Result: todayRows was always empty,
+// which is exactly why the General MCD Smart Chart box on the dashboard
+// always showed "No Data" / ৳0, even though general-mcd-daily.html itself
+// displayed the data correctly (it reads the structure properly).
+//
+// FIX: flatten every month-document's "data" array into individual rows,
+// then match against today's date converted to "DD-MM-YYYY" format (same
+// format general-mcd-daily.html uses when saving/filtering).
+// ═══════════════════════════════════════════════════════════════
+function todayDMY(){
+var d = new Date();
+var dd = String(d.getDate()).padStart(2,'0');
+var mm = String(d.getMonth()+1).padStart(2,'0');
+var yyyy = d.getFullYear();
+return dd+'-'+mm+'-'+yyyy;
+}
+async function getGeneralMcdDailyData(shouldUpdate){
+var monthDocs = await cachedGetDocs('generalMcdDaily', CACHE_KEYS.generalMcdDaily, shouldUpdate);
+// Flatten: each monthDoc = { data:[...rows], updatedAt, _docId }
+var rows = [];
+monthDocs.forEach(function(monthDoc){
+if(monthDoc && Array.isArray(monthDoc.data)){
+monthDoc.data.forEach(function(r){ rows.push(r); });
+}
+});
+var t = todayDMY(); // "DD-MM-YYYY" — matches how general-mcd-daily.html stores row.date
+var todayRows = rows.filter(function(x){ return x.date === t; });
+// Fallback: if nothing was entered yet today, show the most recent available date
+// instead of a blank/zero dashboard box (keeps the widget useful at all times).
+if(todayRows.length===0 && rows.length>0){
+var allDates = rows.map(function(x){return x.date;}).filter(Boolean);
+allDates.sort(function(a,b){
+// Compare as YYYY-MM-DD by rearranging DD-MM-YYYY
+function toISO(dmy){ var p=(dmy||'').split('-'); return p.length===3 ? (p[2]+'-'+p[1]+'-'+p[0]) : ''; }
+return toISO(b).localeCompare(toISO(a));
+});
+var latestDate = allDates[0];
+if(latestDate){ todayRows = rows.filter(function(x){ return x.date === latestDate; }); t = latestDate; }
+}
+var totalAmount = 0, totalQty = 0;
+var deptMap = {}, catMap = {};
+var dailyUsesDept = {}, photocopyDept = {}, polyBagDept = {}, acetonDept = {};
+var photocopyTotalQty = 0, polyBagTotalQty = 0, acetonTotalQty = 0;
+var photocopyTotalAmt = 0, polyBagTotalAmt = 0, acetonTotalAmt = 0;
+todayRows.forEach(function(r){
+var amt = parseNum(r.amount);
+var qty = parseNum(r.issueQty);
+totalAmount += amt;
+totalQty += qty;
+var dept = r.department || 'Unknown';
+var cat = (r.category || 'Unknown').trim();
+if(!deptMap[dept]) deptMap[dept] = 0;
+deptMap[dept] += amt;
+if(!catMap[cat]) catMap[cat] = {qty:0, amt:0};
+catMap[cat].qty += qty;
+catMap[cat].amt += amt;
+if(!dailyUsesDept[dept]) dailyUsesDept[dept] = 0;
+dailyUsesDept[dept] += amt;
+if(cat.toLowerCase().includes('photocopy') || cat.toLowerCase().includes('paper')){
+if(!photocopyDept[dept]) photocopyDept[dept] = 0;
+photocopyDept[dept] += amt;
+photocopyTotalQty += qty;
+photocopyTotalAmt += amt;
+}
+if(cat.toLowerCase().includes('poly') || cat.toLowerCase().includes('bag') || cat.toLowerCase().includes('dyeing')){
+if(!polyBagDept[dept]) polyBagDept[dept] = 0;
+polyBagDept[dept] += amt;
+polyBagTotalQty += qty;
+polyBagTotalAmt += amt;
+}
+if(cat.toLowerCase().includes('aceton') || cat.toLowerCase().includes('acetone')){
+if(!acetonDept[dept]) acetonDept[dept] = 0;
+acetonDept[dept] += amt;
+acetonTotalQty += qty;
+acetonTotalAmt += amt;
+}
+});
+return {
+totalAmount: totalAmount, totalQty: totalQty, totalItems: todayRows.length,
+totalDepts: Object.keys(deptMap).length, totalCats: Object.keys(catMap).length,
+avgPerItem: totalQty > 0 ? totalAmount / totalQty : 0,
+deptMap: deptMap, catMap: catMap,
+dailyUsesDept: dailyUsesDept, photocopyDept: photocopyDept,
+polyBagDept: polyBagDept, acetonDept: acetonDept,
+photocopyTotalQty: photocopyTotalQty, photocopyTotalAmt: photocopyTotalAmt,
+polyBagTotalQty: polyBagTotalQty, polyBagTotalAmt: polyBagTotalAmt,
+acetonTotalQty: acetonTotalQty, acetonTotalAmt: acetonTotalAmt, date: t
+};
+}
+async function getFirebaseCounts(){
+var cached = window.GMS_CACHE.get('firebase_counts');
+if(cached) return cached;
+var cols=['greyFabricStock','accessoriesInventory','billingManpowerReport','dailyPosting',
+'sewingThread','twillTape','accessoriesSample','liveNotices','manpower','users',
+'needleDailyReport','gatePlans','challanGatePass','generalMcdDaily'];
+var t=today(),totalCount=0,approxBytes=0,todayCount=0,gatePlanCount=0,challanCount=0;
+for(var c of cols){
+try{
+var snap=await getDocs(collection(db,c));
+snap.forEach(function(d){
+totalCount++;
+var row=d.data();
+approxBytes+=JSON.stringify(row||{}).length*2;
+if(row.date===t) todayCount++;
+if(c==='gatePlans') gatePlanCount++;
+if(c==='challanGatePass') challanCount++;
+});
+window.GMS_CACHE.incRead(snap.size||1);
+}catch(e){console.log('Count error:',c,e);}
+}
+var result={totalCount,storagePercent:(approxBytes/1024/1024/1024)*100,todayEntry:todayCount,gatePlanCount,challanCount};
+window.GMS_CACHE.set('firebase_counts', result);
+return result;
+}
+async function smartLoadNotices(){
+try{
+var q = query(collection(db,'liveNotices'), orderBy('createdAt','desc'), limit(1));
+var snap = await getDocs(q);
+window.GMS_CACHE.incRead(1);
+if(snap.empty){
+setNoticeBar('📢 No live notice');
+return;
+}
+var latestId = snap.docs[0].id;
+var cachedLastId = window.GMS_NOTICE_CACHE.getLastId();
+if(latestId === cachedLastId){
+var cachedText = window.GMS_NOTICE_CACHE.getCachedText();
+if(cachedText){
+setNoticeBar(cachedText);
+console.log('📢 Notice: cache hit (0 extra reads)');
+return;
+}
+}
+console.log('🔥 Notice: new ID detected, full load');
+var allSnap = await getDocs(query(collection(db,'liveNotices'), orderBy('createdAt','desc'), limit(5)));
+window.GMS_CACHE.incRead(allSnap.size||1);
+var rows=[];
+allSnap.forEach(function(d){rows.push({id:d.id,...d.data()});});
+rows.sort(function(a,b){return (b.createdAt||'').localeCompare(a.createdAt||'');});
+var noticeText = rows.length>0
+? rows.map(function(n){return ' '+(n.user||'User')+': '+(n.text||'');}).join('      ')
+: '📢 No live notice';
+window.GMS_NOTICE_CACHE.setLastId(latestId);
+window.GMS_NOTICE_CACHE.setCachedText(noticeText);
+setNoticeBar(noticeText);
+updateSidebarNoticeBadge(rows);
+}catch(e){
+console.log('Notice error:',e);
+var cached = window.GMS_NOTICE_CACHE.getCachedText();
+setNoticeBar(cached||'📢 Notice loading failed');
+}
+}
+function setNoticeBar(text){
+var el=document.getElementById('noticeMove');
+if(!el) return;
+el.style.animation='none';
+el.offsetHeight;
+el.innerText=text;
+el.style.animation='marquee 30s linear infinite';
+}
+function setupNoticeListener(){
+var q = query(collection(db,'liveNotices'), orderBy('createdAt','desc'), limit(1));
+onSnapshot(q, function(snap){
+if(snap.empty) return;
+var newId = snap.docs[0].id;
+var cachedId = window.GMS_NOTICE_CACHE.getLastId();
+if(newId !== cachedId){
+console.log('🔔 New notice detected via snapshot');
+window.GMS_NOTICE_CACHE.setLastId('');
+smartLoadNotices();
+}
+var rows=[];
+snap.forEach(function(d){rows.push({id:d.id,...d.data()});});
+updateSidebarNoticeBadge(rows);
+});
+}
+const chartPalette=['#38bdf8','#22c55e','#f59e0b','#a855f7','#ef4444','#14b8a6','#eab308','#6366f1','#ec4899','#84cc16','#06b6d4','#f97316'];
+function chartColors(count){ return Array.from({length:count},function(_,i){return chartPalette[i%chartPalette.length];}); }
+const valueLabelPlugin={
+id:'valueLabelPlugin',
+afterDatasetsDraw(chart){
+const{ctx}=chart; ctx.save();
+ctx.font='600 12px Poppins';
+ctx.fillStyle=document.body.classList.contains('light')?'#1e293b':'#f1f5f9';
+ctx.textAlign='center';
+chart.data.datasets.forEach(function(dataset,di){
+const meta=chart.getDatasetMeta(di);
+meta.data.forEach(function(bar,i){
+const value=dataset.data[i];
+if(value===undefined||value===null) return;
+ctx.fillText(fmt(value),bar.x,bar.y-6);
+});
+});
+ctx.restore();
+}
+};
+function barOptions(titleText){
+const isLight=document.body.classList.contains('light');
+return{
+responsive:true,maintainAspectRatio:false,
+plugins:{
+legend:{display:false},
+title:{display:!!titleText,text:titleText,font:{size:14,weight:'600'},color:isLight?'#1e293b':'#f1f5f9'},
+tooltip:{backgroundColor:'rgba(15,23,42,.95)',titleColor:'#fff',bodyColor:'#fff',titleFont:{size:13,weight:'600'},bodyFont:{size:12,weight:'500'}}
+},
+scales:{
+y:{beginAtZero:true,grid:{color:isLight?'rgba(0,0,0,.1)':'rgba(148,163,184,.2)'},ticks:{font:{size:11,weight:'500'},color:isLight?'#475569':'#cbd5e1'}},
+x:{grid:{display:false},ticks:{font:{size:12,weight:'600'},color:isLight?'#475569':'#cbd5e1',maxRotation:45,minRotation:0,autoSkip:false,padding:8}}
+}
+};
+}
+function gmcBarOptions(){
+const isLight=document.body.classList.contains('light');
+return{
+responsive:true,maintainAspectRatio:false,
+plugins:{
+legend:{display:false},
+tooltip:{backgroundColor:'rgba(15,23,42,.95)',titleColor:'#fff',bodyColor:'#fff',titleFont:{size:11,weight:'600'},bodyFont:{size:10,weight:'500'}}
+},
+scales:{
+y:{beginAtZero:true,grid:{color:isLight?'rgba(0,0,0,.08)':'rgba(148,163,184,.15)'},ticks:{font:{size:9,weight:'500'},color:isLight?'#475569':'#cbd5e1'}},
+x:{grid:{display:false},ticks:{font:{size:8,weight:'600'},color:isLight?'#475569':'#cbd5e1',maxRotation:45,minRotation:30,autoSkip:false,padding:4}}
+}
+};
+}
+function renderCharts(sewing,accessories,twill,floorStocks,grey,billing,needleIssue,generalMcd){
+window._lastChartData=[sewing,accessories,twill,floorStocks,grey,billing,needleIssue,generalMcd];
+if(isGeneralMcdAllowed() && generalMcd){
+var isLight = document.body.classList.contains('light');
+var totalAmtEl = document.getElementById('gmcTotalAmount');
+var totalItemsEl = document.getElementById('gmcTotalItems');
+var deptsEl = document.getElementById('gmcDepartments');
+var catsEl = document.getElementById('gmcCategories');
+var avgEl = document.getElementById('gmcAvgPerItem');
+if(totalAmtEl) totalAmtEl.innerText = '৳' + fmt(generalMcd.totalAmount);
+if(totalItemsEl) totalItemsEl.innerText = fmt(generalMcd.totalItems);
+if(deptsEl) deptsEl.innerText = fmt(generalMcd.totalDepts);
+if(catsEl) catsEl.innerText = fmt(generalMcd.totalCats);
+if(avgEl) avgEl.innerText = '৳' + fmt(Math.round(generalMcd.avgPerItem));
+if(gmcDailyUsesChart) gmcDailyUsesChart.destroy();
+var duLabels = Object.keys(generalMcd.dailyUsesDept);
+var duValues = Object.values(generalMcd.dailyUsesDept);
+gmcDailyUsesChart = new Chart(document.getElementById('gmcDailyUsesChart'), {
+type: 'bar',
+data: { labels: duLabels.length ? duLabels : ['No Data'],
+datasets: [{ data: duValues.length ? duValues : [0], backgroundColor: chartColors(duLabels.length || 1), borderRadius: 6, barPercentage: 0.7 }] },
+options: gmcBarOptions()
+});
+var duTotal = duValues.reduce(function(a,b){return a+b;},0);
+var duTotalEl = document.getElementById('gmcDailyUsesTotal');
+if(duTotalEl) duTotalEl.innerText = 'Grand Total: ৳' + fmt(duTotal);
+if(gmcPhotocopyChart) gmcPhotocopyChart.destroy();
+var pcLabels = Object.keys(generalMcd.photocopyDept);
+var pcValues = Object.values(generalMcd.photocopyDept);
+gmcPhotocopyChart = new Chart(document.getElementById('gmcPhotocopyChart'), {
+type: 'bar',
+data: { labels: pcLabels.length ? pcLabels : ['No Data'],
+datasets: [{ data: pcValues.length ? pcValues : [0], backgroundColor: '#22c55e', borderRadius: 6, barPercentage: 0.7 }] },
+options: gmcBarOptions()
+});
+var pcTotalEl = document.getElementById('gmcPhotocopyTotal');
+if(pcTotalEl) pcTotalEl.innerText = 'Grand Total: ' + fmt(generalMcd.photocopyTotalQty) + ' Ream, ' + fmt(generalMcd.photocopyTotalAmt);
+if(gmcPolyBagChart) gmcPolyBagChart.destroy();
+var pbLabels = Object.keys(generalMcd.polyBagDept);
+var pbValues = Object.values(generalMcd.polyBagDept);
+gmcPolyBagChart = new Chart(document.getElementById('gmcPolyBagChart'), {
+type: 'bar',
+data: { labels: pbLabels.length ? pbLabels : ['No Data'],
+datasets: [{ data: pbValues.length ? pbValues : [0], backgroundColor: '#f59e0b', borderRadius: 6, barPercentage: 0.7 }] },
+options: gmcBarOptions()
+});
+var pbTotalEl = document.getElementById('gmcPolyBagTotal');
+if(pbTotalEl) pbTotalEl.innerText = 'Grand Total: ' + fmt(generalMcd.polyBagTotalQty) + ' Bags, ৳' + fmt(generalMcd.polyBagTotalAmt);
+if(gmcAcetonChart) gmcAcetonChart.destroy();
+var acLabels = Object.keys(generalMcd.acetonDept);
+var acValues = Object.values(generalMcd.acetonDept);
+gmcAcetonChart = new Chart(document.getElementById('gmcAcetonChart'), {
+type: 'bar',
+data: { labels: acLabels.length ? acLabels : ['No Data'],
+datasets: [{ data: acValues.length ? acValues : [0], backgroundColor: '#a855f7', borderRadius: 6, barPercentage: 0.7 }] },
+options: gmcBarOptions()
+});
+var acTotalEl = document.getElementById('gmcAcetonTotal');
+if(acTotalEl) acTotalEl.innerText = 'Grand Total: ' + fmt(generalMcd.acetonTotalQty) + ' KG, ৳' + fmt(generalMcd.acetonTotalAmt);
+}
+if(isAccessoriesAllowed()){
+if(accessoriesChart) accessoriesChart.destroy();
+accessoriesChart=new Chart(document.getElementById('accessoriesChart'),{
+type:'bar',
+data:{labels:['Sewing Thread','Accessories Sample','Twill Tape'],datasets:[{data:[sewing,accessories,twill],backgroundColor:['#38bdf8','#22c55e','#f59e0b'],borderRadius:12,barPercentage:0.6}]},
+options:barOptions('Accessories Stock Summary'),plugins:[valueLabelPlugin]
+});
+}
+if(isNeedleAllowed()){
+if(needleChart) needleChart.destroy();
+needleChart=new Chart(document.getElementById('needleChart'),{
+type:'bar',
+data:{labels:Object.keys(floorStocks),datasets:[{data:Object.values(floorStocks),backgroundColor:chartColors(Object.keys(floorStocks).length),borderRadius:10,barPercentage:0.6}]},
+options:barOptions('Needle Floor Wise Stock'),plugins:[valueLabelPlugin]
+});
+if(needleIssueChart) needleIssueChart.destroy();
+needleIssueChart=new Chart(document.getElementById('needleIssueChart'),{
+type:'bar',
+data:{labels:['Broken','Missing','Change'],datasets:[{data:[needleIssue.broken,needleIssue.missing,needleIssue.change],backgroundColor:['#ef4444','#f59e0b','#22c55e'],borderRadius:10,barPercentage:0.6}]},
+options:barOptions('Needle Issue Summary'),plugins:[valueLabelPlugin]
+});
+}
+if(isGreyAllowed()){
+if(greyChart) greyChart.destroy();
+greyChart=new Chart(document.getElementById('greyChart'),{
+type:'bar',
+data:{labels:grey.labels.length?grey.labels:['No Data'],datasets:[{data:grey.data.length?grey.data:[0],backgroundColor:chartColors((grey.data.length||1)),borderRadius:10,barPercentage:0.6}]},
+options:barOptions('Grey Fabric Present Stock'),plugins:[valueLabelPlugin]
+});
+}
+if(isBillingAllowed()){
+if(billingChart) billingChart.destroy();
+billingChart=new Chart(document.getElementById('billingChart'),{
+type:'doughnut',
+data:{labels:['Present','Leave','Absent'],datasets:[{data:[billing.present,billing.leave,billing.absent],backgroundColor:['#22c55e','#f59e0b','#ef4444'],borderWidth:3,borderColor:document.body.classList.contains('light')?'#ffffff':'#1e293b'}]},
+options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:12,weight:'600',family:'Poppins'},color:document.body.classList.contains('light')?'#1e293b':'#f1f5f9',padding:16,usePointStyle:true,pointStyle:'circle'}}}}
+});
+}
+}
+window.loadDashboardStock = async function(forceAll){
+if(window.isCompositeOnlyUser && window.isCompositeOnlyUser()){
+document.getElementById('textileDashboard').style.display='none';
+document.getElementById('compositeDashboard').style.display='block';
+var statusEl=document.getElementById('cacheStatusText');
+if(statusEl) statusEl.innerText='🏢 Composite Mode — 0 Reads';
+console.log('🏢 Composite-only — 0 Firebase reads');
+return;
+}
+if(!canUserSeeCompany(window.currentCompany)){
+document.getElementById('textileDashboard').style.display='none';
+document.getElementById('compositeDashboard').style.display='none';
+var noa=document.getElementById('noAccessMessage'); if(noa) noa.style.display='block';
+return;
+}
+var noa=document.getElementById('noAccessMessage'); if(noa) noa.style.display='none';
+if(window.currentCompany==='GMS COMPOSITE KNITTING'){
+document.getElementById('textileDashboard').style.display='none';
+document.getElementById('compositeDashboard').style.display='block';
+return;
+}
+document.getElementById('textileDashboard').style.display='block';
+document.getElementById('compositeDashboard').style.display='none';
+if(forceAll===true){
+window.GMS_CACHE.invalidate(CACHE_KEYS.ALL_DASHBOARD);
+localStorage.removeItem(LOCAL_TIMESTAMPS_KEY);
+console.log('🗑️ Force: all dashboard cache + timestamps cleared');
+}
+var statusEl=document.getElementById('cacheStatusText');
+if(statusEl) statusEl.innerText='🔍 Checking updates...';
+try{
+var remoteTimestamps = {};
+if(window.userRole==='admin' || window.userRole==='full'){
+try{
+var syncSnap = await getDocs(collection(db, 'system_sync'));
+window.GMS_CACHE.incRead(1);
+syncSnap.forEach(function(d){ remoteTimestamps[d.id] = d.data().lastUpdated||0; });
+console.log('🕐 Remote timestamps fetched:', Object.keys(remoteTimestamps).length);
+}catch(e){ console.warn('system_sync read failed:', e); }
+} else {
+console.log('📦 Normal user — skipping system_sync read');
+}
+var shouldUpdate = buildShouldUpdate(remoteTimestamps, forceAll===true);
+var sewingNeedsUpdate      = shouldUpdate('sewingThread');
+var twillNeedsUpdate       = shouldUpdate('twillTape');
+var accessoriesNeedsUpdate = shouldUpdate('accessoriesSample');
+var needleNeedsUpdate      = shouldUpdate('dailyPosting');
+var greyNeedsUpdate        = shouldUpdate('greyFabricStock');
+var billingNeedsUpdate     = shouldUpdate('billingManpowerReport');
+var needleIssueNeedsUpdate = shouldUpdate('needleDailyReport');
+var manpowerNeedsUpdate    = shouldUpdate('manpower');
+var generalMcdNeedsUpdate  = shouldUpdate('generalMcdDaily');
+console.log(' Selective Load Plan:', {
+sewingThread: sewingNeedsUpdate?'🔥Firebase':'Cache',
+twillTape: twillNeedsUpdate?'🔥Firebase':'Cache',
+accessoriesSample: accessoriesNeedsUpdate?'🔥Firebase':'📦Cache',
+dailyPosting: needleNeedsUpdate?'🔥Firebase':'Cache',
+greyFabricStock: greyNeedsUpdate?'🔥Firebase':'Cache',
+billingManpowerReport: billingNeedsUpdate?'🔥Firebase':'📦Cache',
+needleDailyReport: needleIssueNeedsUpdate?'Firebase':'Cache',
+manpower: manpowerNeedsUpdate?'Firebase':'📦Cache',
+generalMcdDaily: generalMcdNeedsUpdate?'🔥Firebase':'📦Cache',
+});
+if(statusEl) statusEl.innerText='⚡ Selective loading...';
+var sewing      = isAccessoriesAllowed() ? await getLatestPresent('sewingThread',133322, sewingNeedsUpdate) : 0;
+var twill       = isAccessoriesAllowed() ? await getLatestPresent('twillTape',171255, twillNeedsUpdate) : 0;
+var accessories = isAccessoriesAllowed() ? await getLatestPresent('accessoriesSample',21514393, accessoriesNeedsUpdate) : 0;
+var needleData  = isNeedleAllowed() ? await getNeedleFloorStock(needleNeedsUpdate) : {floorStocks:{},total:0};
+var grey        = isGreyAllowed() ? await getGreyData(greyNeedsUpdate) : {labels:[],data:[],total:0,date:''};
+var billing     = isBillingAllowed() ? await getBillingToday(billingNeedsUpdate) : {total:0,leave:0,absent:0,present:0,medical:0,offDay:0};
+var needleIssue = isNeedleAllowed() ? await getNeedleIssueToday(needleIssueNeedsUpdate) : {broken:0,missing:0,change:0,date:''};
+var generalMcd  = isGeneralMcdAllowed() ? await getGeneralMcdDailyData(generalMcdNeedsUpdate) : null;
+var firebase    = (window.userRole==='admin'||window.userRole==='full') ? await getFirebaseCounts() : null;
+var mpData      = isManpowerAllowed() ? await getManpowerSummary(manpowerNeedsUpdate) : {map:{},totalCount:0,totalSalary:0};
+var manpower    = mpData.map;
+var allowed     = allowedMCDList();
+var newLocalTS = JSON.parse(localStorage.getItem(LOCAL_TIMESTAMPS_KEY)||'{}');
+Object.keys(remoteTimestamps).forEach(function(col){
+newLocalTS[col] = remoteTimestamps[col];
+});
+localStorage.setItem(LOCAL_TIMESTAMPS_KEY, JSON.stringify(newLocalTS));
+if(statusEl) statusEl.innerText='Dashboard loaded ✅';
+if(isBillingAllowed()){
+document.getElementById('attTotal').innerText=billing.total;
+document.getElementById('attPresent').innerText=billing.present;
+document.getElementById('attLeave').innerText=billing.leave;
+document.getElementById('attAbsent').innerText=billing.absent;
+document.getElementById('attMedical').innerText=billing.medical;
+document.getElementById('attOffDay').innerText=billing.offDay;
+}
+if(firebase) updateLimitBox(firebase);
+if(isAccessoriesAllowed()){
+document.getElementById('sumAccessories').innerText=fmt(accessories);
+document.getElementById('sumSewing').innerText=fmt(sewing);
+document.getElementById('sumTwill').innerText=fmt(twill);
+}
+if(isNeedleAllowed()) document.getElementById('needleToday').innerText=fmt(needleData.total);
+renderCharts(sewing,accessories,twill,needleData.floorStocks,grey,billing,needleIssue,generalMcd);
+var html='';
+ALL_MCD.forEach(function(mcd){
+if(!allowed.includes(mcd)) return;
+var mp={count:0,salary:0};
+if(manpower[mcd]&&(manpowerAccess==='all'||manpowerMcdAccess.includes(mcd))) mp=manpower[mcd];
+if(mcd==='ACCESSORIES MCD'){
+html+='<div class="mcdBox"><h3>📦 ACCESSORIES MCD</h3><div class="miniRow"><span>📦 Accessories+Sample</span><span class="miniValue">'+fmt(accessories)+'</span></div><div class="miniRow"><span>🧵 Sewing Thread</span><span class="miniValue">'+fmt(sewing)+'</span></div><div class="miniRow"><span>📏 Twill Tape</span><span class="miniValue">'+fmt(twill)+'</span></div></div>';
+} else if(mcd==='GREY FABRIC MCD'){
+html+='<div class="mcdBox"><h3>🧵 GREY FABRIC MCD</h3><div class="miniRow"><span>📊 Closing Balance</span><span class="miniValue">'+fmt(grey.total)+'</span></div></div>';
+} else if(mcd==='BILLING SECTION'){
+html+='<div class="mcdBox"><h3>👨‍💼 BILLING SECTION</h3><div class="miniRow"><span>👨‍💼 Total</span><span class="miniValue">'+fmt(billing.total)+'</span></div><div class="miniRow"><span>✅ Present</span><span class="miniValue">'+fmt(billing.present)+'</span></div><div class="miniRow"><span>❌ Absent</span><span class="miniValue">'+fmt(billing.absent)+'</span></div></div>';
+} else if(mcd==='GENERAL MCD' && generalMcd){
+html+='<div class="mcdBox" style="cursor:pointer;border-color:var(--purple);" onclick="location.href=\'general-mcd-daily.html\'"><h3 style="background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">📊 GENERAL MCD</h3><div class="miniRow"><span>💰 Today Value</span><span class="miniValue">'+fmt(generalMcd.totalAmount)+'</span></div><div class="miniRow"><span>📦 Total Items</span><span class="miniValue">'+fmt(generalMcd.totalItems)+'</span></div><div class="miniRow"><span>🏢 Departments</span><span class="miniValue">'+fmt(generalMcd.totalDepts)+'</span></div><div class="miniRow"><span>📂 Categories</span><span class="miniValue">'+fmt(generalMcd.totalCats)+'</span></div></div>';
+} else {
+var mpHtml='';
+if(isManpowerAllowed()&&(manpowerAccess==='all'||manpowerMcdAccess.includes(mcd))){
+mpHtml='<div class="miniRow"><span>👨‍💼 Manpower</span><span class="miniValue">'+fmt(mp.count)+'</span></div><div class="miniRow"><span>💰 Salary</span><span class="miniValue">'+fmt(mp.salary)+'</span></div>';
+}
+html+='<div class="mcdBox"><h3>📂 '+mcd+'</h3>'+mpHtml+'<div class="miniRow"><span>📦 Stock</span><span class="miniValue">Cached</span></div></div>';
+}
+});
+document.getElementById('mcdDashboard').innerHTML=html||'<div class="mcdBox"><h3>🚫 No Access</h3></div>';
+}catch(e){
+console.log('Dashboard error:',e);
+if(statusEl) statusEl.innerText='Load error ❌';
+document.getElementById('mcdDashboard').innerHTML='Firebase data load error';
+}
+};
+function setupRealtimeDashboardSync(){
+var syncCol = collection(db, 'system_sync');
+onSnapshot(syncCol, function(snapshot){
+var remoteTS = {};
+snapshot.forEach(function(d){ remoteTS[d.id] = d.data().lastUpdated||0; });
+var localTS = JSON.parse(localStorage.getItem(LOCAL_TIMESTAMPS_KEY)||'{}');
+var changed = Object.keys(remoteTS).filter(function(col){
+return !localTS[col] || remoteTS[col] > localTS[col];
+});
+if(changed.length > 0){
+console.log(' Realtime: changes detected in', changed);
+if(document.getElementById('home').classList.contains('activePage')){
+loadDashboardStock(false);
+}
+}
+});
+}
+function updateLimitBox(firebase){
+var approxMB=0, storagePercent=0;
+if(firebase){approxMB=firebase.totalCount||0; storagePercent=firebase.storagePercent||0;}
+document.getElementById('storageUsed').innerText=(approxMB/10).toFixed(2)+' MB';
+document.getElementById('storagePercent').innerText=storagePercent.toFixed(2)+'%';
+document.getElementById('totalEntry').innerText=firebase?.totalCount||0;
+document.getElementById('todayEntry').innerText=firebase?.todayEntry||0;
+document.getElementById('gatePlanCount').innerText=(firebase?.gatePlanCount||0)+' / 8';
+document.getElementById('challanCount').innerText=(firebase?.challanCount||0)+' / 2';
+document.getElementById('backupMonths').innerText=localStorage.getItem('backupMonths')||'0';
+document.getElementById('activeMonths').innerText='1';
+document.getElementById('backupStatus').innerText=localStorage.getItem('backupStatus')||'READY';
+var pct=Math.min(100,storagePercent);
+var signal=document.getElementById('limitSignal');
+if(pct<80){signal.className='statusSignal safe';signal.innerHTML='<i class="fas fa-circle" style="font-size:10px"></i> SAFE';}
+else if(pct<90){signal.className='statusSignal warn';signal.innerHTML='<i class="fas fa-circle" style="font-size:10px"></i> WARNING';}
+else{signal.className='statusSignal stop';signal.innerHTML='<i class="fas fa-circle" style="font-size:10px"></i> DANGER';}
+var readCount = window.GMS_CACHE.getReadCount();
+document.getElementById('readsToday').innerText=readCount+' / 50,000';
+if(window.userRole==='admin'||window.userRole==='full'){
+if(pct>=95) window.triggerQuotaAlert('Storage','Firestore storage at '+pct.toFixed(1)+'%. Backup & clear recommended.');
+else if(pct>=85) window.triggerQuotaAlert('Storage Warning','Storage at '+pct.toFixed(1)+'%. Monitor closely.');
+}
+}
+function addBackupLog(type,details){
+var logs=JSON.parse(localStorage.getItem('backupActivityLogs')||'[]');
+logs.unshift({type,details,user:user.name||user.email||'Admin',time:new Date().toLocaleString()});
+logs=logs.slice(0,20);
+localStorage.setItem('backupActivityLogs',JSON.stringify(logs));
+renderBackupLog();
+}
+function renderBackupLog(){
+var box=document.getElementById('backupActivityLog'); if(!box) return;
+var logs=JSON.parse(localStorage.getItem('backupActivityLogs')||'[]');
+if(logs.length===0){box.innerHTML='No activity yet';return;}
+box.innerHTML=logs.map(function(x){
+return '<div class="logItem"><b>'+x.type+'</b> - '+x.details+'<br><span>'+x.time+' • '+x.user+'</span></div>';
+}).join('');
+}
+window.renderBackupLog = renderBackupLog;
+function getRowMonth(row){ var dt=row.date||row.postingDate||row.entryDate||(row.createdAt||'').slice(0,10)||''; return dt&&dt.length>=7?dt.slice(0,7):''; }
+function backupDocId(row){ return row._docId||row.id||row.challanNo||row.gatePlanNo||row.gatePassNo||(row.date||'no-date')+'-'+Date.now()+'-'+Math.floor(Math.random()*999999); }
+window.backupAllData = async function(){
+if(window.userRole!=='admin'){alert('Admin only');return;}
+try{
+var backup={date:new Date().toISOString(),backupMonths:[],data:{}};
+var cols=['greyFabricStock','accessoriesInventory','billingManpowerReport','dailyPosting','sewingThread','twillTape','accessoriesSample','liveNotices','manpower','needleDailyReport','gatePlans','challanGatePass','generalMcdDaily'];
+for(var c of cols){
+var snap=await getDocs(collection(db,c));
+backup.data[c]=[];
+window.GMS_CACHE.incRead(snap.size||1);
+snap.forEach(function(d){var row=d.data();row._docId=d.id;backup.data[c].push(row);var month=getRowMonth(row);if(month&&!backup.backupMonths.includes(month))backup.backupMonths.push(month);});
+}
+backup.backupMonths.sort();
+var blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='gms-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+localStorage.setItem('backupMonths',backup.backupMonths.length);
+localStorage.setItem('backupStatus','DONE');
+localStorage.setItem('lastBackupDate',new Date().toISOString());
+addBackupLog('BACKUP','Downloaded. Months: '+backup.backupMonths.length);
+alert('Backup Download Complete');
+window.loadDashboardStock();
+}catch(e){console.log(e);alert('Backup Failed: '+e.message);}
+};
+window.loadRestoreFile = function(event){
+if(window.userRole!=='admin'){alert('Admin only');return;}
+var file=event.target.files[0]; if(!file) return;
+var reader=new FileReader();
+reader.onload=function(e){
+try{
+selectedBackupData=JSON.parse(e.target.result);
+var monthSet=new Set();
+Object.keys(selectedBackupData.data||{}).forEach(function(col){
+(selectedBackupData.data[col]||[]).forEach(function(row){var m=getRowMonth(row);if(m)monthSet.add(m);});
+});
+var months=Array.from(monthSet).sort(); if(months.length===0){alert('No month data found');return;}
+document.getElementById('restorePanel').style.display='block';
+document.getElementById('restoreFileName').innerText=file.name;
+document.getElementById('restoreMonthCount').innerText=months.length;
+document.getElementById('restoreStatus').innerText='FILE LOADED';
+document.getElementById('restoreMonthSelect').innerHTML=months.map(function(m){return '<option value="'+m+'">'+m+'</option>';}).join('');
+addBackupLog('RESTORE FILE','Loaded: '+file.name+', months: '+months.length);
+}catch(err){console.log(err);alert('Invalid backup JSON file');}
+};
+reader.readAsText(file);
+};
+window.restoreSelectedMonth = async function(){
+if(window.userRole!=='admin'){alert('Admin only');return;}
+if(!selectedBackupData){alert('Please select backup JSON file first');return;}
+var month=document.getElementById('restoreMonthSelect').value; if(!month){alert('Please select month');return;}
+if(!confirm('Restore data for month: '+month+' ?')) return;
+try{
+document.getElementById('restoreStatus').innerText='RESTORING...'; var total=0;
+var data=selectedBackupData.data||{};
+for(var col of Object.keys(data)){
+for(var row of (data[col]||[])){
+if(getRowMonth(row)!==month) continue;
+var id=String(backupDocId(row)).replaceAll('/','-').replaceAll(' ','-');
+var cleanRow={...row}; delete cleanRow._docId;
+cleanRow.restoredAt=new Date().toISOString(); cleanRow.restoredMonth=month;
+await setDoc(doc(db,col,id),cleanRow,{merge:true}); total++;
+await updateCollectionTimestamp(col);
+}
+}
+localStorage.setItem('backupStatus','RESTORED '+month);
+localStorage.setItem('lastRestoredMonth',month);
+document.getElementById('restoreStatus').innerText='RESTORED '+total+' DATA';
+window.GMS_CACHE.clear();
+localStorage.removeItem(LOCAL_TIMESTAMPS_KEY);
+addBackupLog('RESTORE','Month '+month+' restored. Data: '+total);
+alert('Restore Complete: '+total+' data restored for '+month);
+window.loadDashboardStock(true);
+}catch(e){console.log(e);document.getElementById('restoreStatus').innerText='RESTORE FAILED';alert('Restore Failed: '+e.message);}
+};
+window.clearOldData = async function(){
+if(window.userRole!=='admin'){alert('Admin only');return;}
+var backupStatus=localStorage.getItem('backupStatus')||'';
+if(backupStatus!=='DONE'&&!backupStatus.startsWith('RESTORED')){alert('আগে Backup Now করুন।');return;}
+var now=new Date();
+var currentMonth=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+var prev=new Date(now.getFullYear(),now.getMonth()-1,1);
+var previousMonth=prev.getFullYear()+'-'+String(prev.getMonth()+1).padStart(2,'0');
+var ok=confirm('Clear Old Data?\nKEEP:\n'+currentMonth+'\n'+previousMonth+'\nDELETE: Older months\nBackup: '+backupStatus); if(!ok) return;
+var cols=['greyFabricStock','accessoriesInventory','billingManpowerReport','dailyPosting','sewingThread','twillTape','accessoriesSample','liveNotices','needleDailyReport','gatePlans','challanGatePass','generalMcdDaily'];
+var deleted=0,kept=0,skipped=0;
+try{
+for(var c of cols){
+var snap=await getDocs(collection(db,c));
+for(var d of snap.docs){
+var month=getRowMonth(d.data());
+if(!month){skipped++;continue;}
+if(month===currentMonth||month===previousMonth){kept++;continue;}
+await deleteDoc(doc(db,c,d.id)); deleted++;
+}
+}
+localStorage.setItem('backupStatus','OLD DATA CLEARED');
+localStorage.setItem('lastClearDate',new Date().toISOString());
+window.GMS_CACHE.clear();
+localStorage.removeItem(LOCAL_TIMESTAMPS_KEY);
+addBackupLog('CLEAR','Deleted: '+deleted+', Kept: '+kept+', Skipped: '+skipped);
+alert('Clear Complete\nDeleted: '+deleted+'\nKept: '+kept+'\nSkipped: '+skipped);
+window.loadDashboardStock(true);
+}catch(e){console.log(e);alert('Clear Failed: '+e.message);}
+};
+window.removeRestoredMonth = async function(){
+if(window.userRole!=='admin'){alert('Admin only');return;}
+var month=localStorage.getItem('lastRestoredMonth')||''; if(!month){alert('No restored month found.');return;}
+if(!confirm('Remove restored month data: '+month+' ?')) return;
+var cols=['greyFabricStock','accessoriesInventory','billingManpowerReport','dailyPosting','sewingThread','twillTape','accessoriesSample','liveNotices','needleDailyReport','gatePlans','challanGatePass','generalMcdDaily'];
+var deleted=0;
+try{
+for(var c of cols){
+var snap=await getDocs(collection(db,c));
+for(var d of snap.docs){
+var row=d.data();
+if(row.restoredMonth===month){await deleteDoc(doc(db,c,d.id));deleted++;}
+}
+}
+localStorage.removeItem('lastRestoredMonth');
+localStorage.setItem('backupStatus','RESTORED MONTH REMOVED');
+window.GMS_CACHE.clear();
+localStorage.removeItem(LOCAL_TIMESTAMPS_KEY);
+addBackupLog('REMOVE RESTORED','Month '+month+' removed. Data: '+deleted);
+alert('Removed: '+deleted+' data');
+window.loadDashboardStock(true);
+}catch(e){console.log(e);alert('Remove Failed: '+e.message);}
+};
+async function updateLastActive(){
+if(user.id){
+try{await updateDoc(doc(db,'users',user.id),{lastActive:new Date().toISOString()});}
+catch(e){}
+}
+}
+onMessage(messaging, function(payload){
+console.log('[FCM] Foreground:', payload);
+var title=(payload.notification||{}).title;
+var body=(payload.notification||{}).body;
+if(typeof playNotificationSound==='function') playNotificationSound();
+showToast('🔔 '+(title||'New Notice')+': '+(body||''));
+if('setAppBadge' in navigator) navigator.setAppBadge(1).catch(function(){});
+window.GMS_NOTICE_CACHE.setLastId('');
+smartLoadNotices();
+if(typeof resetActivityTimestamp === 'function') resetActivityTimestamp();
+});
+setupRoleUI();
+setupCompanyPermissions();
+(function(){
+var today = new Date().toDateString();
+var lastLogin = localStorage.getItem('GMS_LAST_FULL_LOAD');
+if(lastLogin !== today){
+console.log('🔄 First login today → Full fresh load (forceAll=true)');
+localStorage.setItem('GMS_LAST_FULL_LOAD', today);
+loadDashboardStock(true);
+} else {
+console.log('📦 Already logged in today → Selective load (forceAll=false)');
+loadDashboardStock(false);
+}
+})();
+smartLoadNotices();
+setupNoticeListener();
+if(!window.isCompositeOnlyUser || !window.isCompositeOnlyUser()){
+setupRealtimeDashboardSync();
+} else {
+console.log('🏢 Composite-only user — skipping realtime dashboard sync');
+}
+updateLastActive();
+renderBackupLog();
+loadProfilePic();
+if(typeof initAutoLogoutSystem === 'function') {
+initAutoLogoutSystem();
+}
+['click','touchstart','keydown'].forEach(function(evt){
+window.addEventListener(evt, function(){ if(!audioCtx) initAudio(); }, {once:true,passive:true});
+});
+document.addEventListener('visibilitychange', function(){
+if(document.visibilityState === 'visible'){
+clearAppBadge();
+console.log('🔄 Page visible — selective dashboard check...');
+if(document.getElementById('home').classList.contains('activePage')){
+loadDashboardStock(false);
+}
+if(typeof resetActivityTimestamp === 'function') resetActivityTimestamp();
+}
+});
+setInterval(updateLastActive, 60000);
+document.addEventListener('DOMContentLoaded', function(){
+dailyQuotaReset();
+if(window.userRole==='admin'||window.userRole==='full'){
+renderQuotaAlerts();
+renderAdminSyncTable();
+}
+setInterval(window.autoSyncQueue, 300000);
+setTimeout(window.autoSyncQueue, 2000);
+});
+</script>
+<!-- PWA SCRIPT -->
+<script>
+class GMS_PWA {
+constructor(){
+this.swRegistration=null; this.isOnline=navigator.onLine;
+this.deferredPrompt=null; this.init();
+}
+init(){ this.registerServiceWorker(); this.setupNetworkListeners(); this.setupPeriodicSync(); this.checkInstallPrompt(); }
+async registerServiceWorker(){
+if(!('serviceWorker' in navigator)) return;
+try{
+this.swRegistration=await navigator.serviceWorker.register('/sw.js',{scope:'/'});
+console.log('[PWA] SW Registered');
+this.swRegistration.addEventListener('updatefound',function(){
+var newWorker=this.swRegistration.installing;
+newWorker.addEventListener('statechange',function(){
+if(newWorker.state==='installed'&&navigator.serviceWorker.controller) this.showUpdateNotification(newWorker);
+}.bind(this));
+}.bind(this));
+}catch(err){console.error('[PWA] SW failed:',err);}
+}
+setupNetworkListeners(){
+window.addEventListener('online',function(){
+this.isOnline=true; this.updateOfflineIndicator(true);
+showToast('🌐 Internet Connected','success');
+if(typeof window.autoSyncQueue==='function') setTimeout(function(){window.autoSyncQueue();},2000);
+if(typeof resetActivityTimestamp === 'function') resetActivityTimestamp();
+}.bind(this));
+window.addEventListener('offline',function(){
+this.isOnline=false; this.updateOfflineIndicator(false);
+showToast('📴 Offline Mode Active','warning');
+}.bind(this));
+}
+updateOfflineIndicator(isOnline){
+var bar=document.getElementById('pwaOfflineBar'); if(!bar) return;
+if(isOnline){
+bar.classList.add('pwa-online-bar');
+bar.querySelector('.pwa-offline-text').textContent='🌐 Online - All features active';
+bar.querySelector('.pwa-offline-icon').textContent='';
+var btn=document.getElementById('pwaSyncBtn'); if(btn) btn.style.display='none';
+setTimeout(function(){bar.classList.remove('show');},3000);
+}else{
+bar.classList.remove('pwa-online-bar');
+bar.querySelector('.pwa-offline-text').textContent='📴 Offline Mode - Data saved locally';
+bar.querySelector('.pwa-offline-icon').textContent='';
+var btn=document.getElementById('pwaSyncBtn'); if(btn) btn.style.display='flex';
+bar.classList.add('show');
+}
+}
+async manualSync(){
+var btn=document.getElementById('pwaSyncBtn');
+if(btn){btn.disabled=true;btn.textContent='🔄 Syncing...';}
+try{
+if(typeof window.forceSyncNow==='function') await window.forceSyncNow();
+else if(typeof window.autoSyncQueue==='function') await window.autoSyncQueue();
+showToast('✅ Sync Complete','success');
+}catch(err){showToast('❌ Sync Failed','error');}
+finally{ if(btn){btn.disabled=false;btn.textContent='🔄 Sync Now';} }
+}
+setupPeriodicSync(){ setInterval(function(){ if(navigator.onLine&&typeof window.autoSyncQueue==='function') window.autoSyncQueue(); },300000); }
+checkInstallPrompt(){
+window.addEventListener('beforeinstallprompt',function(e){ e.preventDefault(); this.deferredPrompt=e; this.showInstallBanner(); }.bind(this));
+window.addEventListener('appinstalled',function(){ this.deferredPrompt=null; this.hideInstallBanner(); showToast(' GMS ERP installed!','success'); }.bind(this));
+}
+showInstallBanner(){
+if(document.getElementById('pwa-install-banner')) return;
+if(localStorage.getItem('pwaInstallDismissed')) return;
+var banner=document.createElement('div'); banner.id='pwa-install-banner';
+banner.innerHTML='<div class="pwa-install-bar"><div style="display:flex;align-items:center;gap:12px;flex:1;"><div style="width:48px;height:48px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;font-weight:800;">G</div><div><div style="font-size:14px;font-weight:600;color:var(--text);">Install GMS ERP</div><div style="font-size:12px;color:var(--muted);">Add to Home Screen for quick access</div></div></div><div style="display:flex;gap:8px;"><button class="pwa-install-btn" onclick="gmsPWA.installApp()">Install</button><button style="background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;" onclick="gmsPWA.dismissInstall()">✕</button></div></div>';
+document.body.appendChild(banner);
+}
+async installApp(){ if(!this.deferredPrompt) return; this.deferredPrompt.prompt(); await this.deferredPrompt.userChoice; this.deferredPrompt=null; this.hideInstallBanner(); }
+dismissInstall(){ this.hideInstallBanner(); localStorage.setItem('pwaInstallDismissed',Date.now()); }
+hideInstallBanner(){ var banner=document.getElementById('pwa-install-banner'); if(banner) banner.remove(); }
+showUpdateNotification(newWorker){
+var toast=document.createElement('div'); toast.style.cssText='position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--card,#1e293b);border:1px solid var(--green,#10b981);border-radius:12px;padding:12px 20px;z-index:99997;';
+toast.innerHTML='<div style="display:flex;align-items:center;gap:12px;color:var(--text);font-size:13px;font-weight:600;"><span>🔄 New version available!</span><button style="background:var(--green);color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;" onclick="gmsPWA.updateApp()">Update</button></div>';
+document.body.appendChild(toast); this.newWorker=newWorker;
+}
+updateApp(){ if(this.newWorker){this.newWorker.postMessage({type:'SKIP_WAITING'});window.location.reload();} }
+}
+const gmsPWA=new GMS_PWA();
+window.gmsPWA=gmsPWA;
+</script>
+<!-- PUSH NOTIFICATION SCRIPT -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-messaging.js";
+import { getFirestore, doc, setDoc, collection, addDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+const firebaseConfig={
+apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",
+projectId:"gms-warehouse-tracker-7f57e",
+storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",
+messagingSenderId:"992250313291",
+appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+const app=initializeApp(firebaseConfig);
+const messaging=getMessaging(app);
+const db=getFirestore(app);
+const VAPID_KEY='BDBM_HfJHBMjFT4xvzSzdV-9v_Bj_LpUbWxJkLCVGzLiJOmVCKQhDzbNja-uytZavoSBzCt6eQ0aEwCPDkwA3yU';
+const user=JSON.parse(localStorage.getItem('gmsUser')||'null');
+async function initNotifications(){
+try{
+var permission=await Notification.requestPermission();
+if(permission==='granted'){
+var token=await getToken(messaging,{vapidKey:VAPID_KEY});
+if(token&&user){
+await setDoc(doc(db,'fcmTokens',user.id||user.uid||'anonymous'),{
+token,userId:user.id||user.uid||'anonymous',userName:user.name||'Unknown',
+userRole:user.role||'user',userCompanies:user.userCompanies||[],
+platform:navigator.userAgent.includes('Android')?'Android':navigator.userAgent.includes('iPhone')?'iOS':'Desktop',
+createdAt:new Date().toISOString(),isActive:true
+},{merge:true});
+console.log('[FCM] Token saved');
+}
+}
+onMessage(messaging,function(payload){
+var title=(payload.notification||{}).title;
+var body=(payload.notification||{}).body;
+var toast=document.createElement('div');
+toast.style.cssText='position:fixed;top:80px;right:20px;background:var(--card,#1e293b);border:1px solid var(--blue,#3b82f6);border-radius:12px;padding:14px 18px;z-index:99999;box-shadow:0 10px 40px rgba(0,0,0,0.4);max-width:350px;cursor:pointer;font-family:Poppins,sans-serif;';
+toast.innerHTML='<div style="display:flex;align-items:flex-start;gap:12px;"><div style="font-size:24px;">🔔</div><div style="flex:1;"><div style="font-size:14px;font-weight:600;color:var(--text,#f1f5f9);margin-bottom:4px;">'+(title||'GMS ERP')+'</div><div style="font-size:12px;color:var(--muted,#cbd5e1);">'+(body||'New notification')+'</div></div><button style="background:transparent;border:none;color:var(--muted);font-size:16px;cursor:pointer;" onclick="this.parentElement.parentElement.remove();event.stopPropagation();"></button></div>';
+toast.addEventListener('click',function(){window.location.href=(payload.data||{}).url||'/';});
+document.body.appendChild(toast);
+setTimeout(function(){toast.remove();},5000);
+if(typeof resetActivityTimestamp === 'function') resetActivityTimestamp();
+});
+}catch(err){console.error('[FCM] Init error:',err);}
+}
+window.sendAdminNotice=async function(){
+if(!user||(user.role!=='admin'&&user.role!=='full')){alert('❌ Admin only');return;}
+var title=prompt(' Notice Title:'); if(!title) return;
+var message=prompt('📝 Notice Message:'); if(!message) return;
+try{
+await addDoc(collection(db,'liveNotices'),{title,text:message,user:user.name||'Admin',senderRole:user.role||'admin',target:'all',sendPush:true,createdAt:new Date().toISOString(),readBy:[]});
+await addDoc(collection(db,'pushQueue'),{title,body:message,target:'all',sender:user.name||'Admin',createdAt:new Date().toISOString(),status:'pending'});
+alert('✅ Notice sent to all users!');
+if(typeof resetActivityTimestamp === 'function') resetActivityTimestamp();
+}catch(err){console.error('Broadcast error:',err);alert('❌ Failed to send');}
+};
+initNotifications();
+</script>
+<!-- AUTO LOGOUT SYSTEM -->
+<script>
+(function() {
+'use strict';
+document.addEventListener('keypress', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('keyup', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('keydown', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('touchstart', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('touchmove', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('touchend', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('mousemove', (function() {
+var lastMove = 0;
+return function() {
+var now = Date.now();
+if (now - lastMove > 1000) {
+lastMove = now;
+if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); }
+}
+};
+})(), { passive: true });
+document.addEventListener('mousedown', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('mouseup', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('click', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('dblclick', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('scroll', (function() {
+var lastScroll = 0;
+return function() {
+var now = Date.now();
+if (now - lastScroll > 2000) {
+lastScroll = now;
+if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); }
+}
+};
+})(), { passive: true });
+window.addEventListener('focus', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } });
+document.addEventListener('input', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('change', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('select', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('dragstart', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('drag', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('dragend', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+document.addEventListener('drop', function() { if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); } }, { passive: true });
+window.addEventListener('resize', (function() {
+var lastResize = 0;
+return function() {
+var now = Date.now();
+if (now - lastResize > 3000) {
+lastResize = now;
+if(typeof resetActivityTimestamp === 'function') { resetActivityTimestamp(); }
+}
+};
+})(), { passive: true });
+setTimeout(function() {
+if (typeof updateSessionTimerDisplay === 'function') {
+updateSessionTimerDisplay();
+}
+}, 100);
+})();
+</script>
+</body>
+</html>

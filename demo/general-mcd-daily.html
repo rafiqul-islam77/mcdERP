@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GMS General MCD Daily Issue Smart Chart</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+:root{
+--bg:#0a1628;--card:#1e293b;--card2:#334155;--text:#f1f5f9;--muted:#cbd5e1;
+--border:#475569;--blue:#3b82f6;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;
+--purple:#8b5cf6;--cyan:#06b6d4;--shadow:0 10px 40px rgba(0,0,0,.4);
+}
+body.light{
+--bg:#f8fafc;--card:#ffffff;--card2:#f1f5f9;--text:#1e293b;--muted:#64748b;
+--border:#cbd5e1;--shadow:0 10px 40px rgba(0,0,0,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Poppins',sans-serif;line-height:1.6;transition:all .3s}
+
+.header{background:linear-gradient(135deg,var(--blue),var(--purple));padding:20px;text-align:center;color:#fff;box-shadow:var(--shadow)}
+.header h1{font-size:24px;font-weight:800}
+.header p{font-size:12px;opacity:.9;margin-top:4px}
+.container{max-width:1400px;margin:0 auto;padding:20px}
+
+.back-btn{position:fixed;top:20px;left:20px;background:var(--card);border:1px solid var(--border);padding:10px 16px;border-radius:10px;cursor:pointer;color:var(--text);font-weight:600;font-size:13px;z-index:1000;box-shadow:var(--shadow);text-decoration:none;display:flex;align-items:center;gap:6px}
+.theme-toggle{position:fixed;top:20px;right:20px;background:var(--card);border:1px solid var(--border);width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;z-index:1000;box-shadow:var(--shadow);color:var(--text)}
+
+.cacheStatusBar{display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 16px;font-size:12px;font-weight:700;background:linear-gradient(90deg,rgba(34,197,94,.1),rgba(59,130,246,.1));border:1px solid rgba(34,197,94,.2);border-radius:12px;color:var(--muted);flex-wrap:wrap;margin-bottom:20px}
+.cacheStatusBar .cacheDot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:livePulse 2s infinite;box-shadow:0 0 8px var(--green)}
+@keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.7);transform:scale(1)}70%{box-shadow:0 0 0 8px rgba(34,197,94,0);transform:scale(1.1)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0);transform:scale(1)}}
+.cacheStatusBar .cacheReadCount{color:var(--blue);font-weight:900;padding:4px 12px;background:rgba(37,99,235,.15);border-radius:12px;border:1px solid rgba(37,99,235,.3)}
+.cacheStatusBar .roiBadge{color:var(--purple);font-weight:900;padding:4px 12px;background:rgba(139,92,246,.15);border-radius:12px;border:1px solid rgba(139,92,246,.3)}
+.cacheStatusBar .syncStatus{color:var(--green);font-weight:900;padding:4px 12px;background:rgba(34,197,94,.15);border-radius:12px;border:1px solid rgba(34,197,94,.3)}
+
+.status-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:rgba(16,185,129,0.1);border-radius:10px;margin-bottom:20px;font-size:12px;font-weight:600;color:var(--green);flex-wrap:wrap;gap:8px}
+.status-bar.offline{background:rgba(245,158,11,0.1);color:var(--yellow)}
+
+.upload-box{border:2px dashed var(--blue);border-radius:12px;padding:16px;text-align:center;cursor:pointer;background:rgba(59,130,246,0.05);transition:all .3s;margin-bottom:12px}
+.upload-box:hover{background:rgba(59,130,246,0.1);border-color:var(--green)}
+.upload-box.dragover{background:rgba(16,185,129,0.1);border-color:var(--green)}
+.upload-box i{font-size:24px;color:var(--blue);margin-bottom:6px}
+.upload-box h3{font-size:13px;margin-bottom:4px}
+.upload-box p{color:var(--muted);font-size:10px}
+
+.upload-date-box{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:20px;font-size:12px}
+.upload-date-box label{font-weight:600;color:var(--muted);display:flex;align-items:center;gap:6px}
+.upload-date-box input[type="date"]{padding:8px 12px;border:2px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:12px;font-weight:600}
+.upload-date-box small{width:100%;text-align:center;color:var(--muted);display:block;margin-top:2px}
+
+.date-selection{display:flex;gap:12px;align-items:center;margin-bottom:20px;padding:14px;background:var(--card);border-radius:12px;box-shadow:var(--shadow);flex-wrap:wrap}
+.date-selection label{font-weight:600;color:var(--muted);font-size:12px;display:flex;align-items:center;gap:6px}
+.date-selection input[type="date"]{padding:8px 12px;border:2px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:12px;font-weight:600;cursor:pointer}
+.date-selection input[type="date"]:focus{outline:none;border-color:var(--blue)}
+.date-selection button{padding:8px 16px;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:12px;transition:all .3s}
+.btn-apply{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff}
+.btn-clear{background:var(--red);color:#fff}
+.btn-delete{background:linear-gradient(135deg,var(--red),#dc2626);color:#fff}
+.date-selection button:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.3)}
+
+.monthly-summary{background:linear-gradient(135deg,var(--card),var(--card2));border:2px solid var(--blue);border-radius:16px;padding:20px;margin-bottom:20px;box-shadow:var(--shadow)}
+.monthly-summary h3{font-size:16px;font-weight:700;margin-bottom:16px;color:var(--text);display:flex;align-items:center;gap:8px}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.summary-item{background:var(--bg);padding:14px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;border-left:3px solid var(--green)}
+.summary-item:nth-child(2){border-left-color:var(--blue)}
+.summary-item:nth-child(3){border-left-color:var(--yellow)}
+.summary-item:nth-child(4){border-left-color:var(--purple)}
+.summary-item:nth-child(5){border-left-color:var(--red)}
+.summary-item:nth-child(6){border-left-color:var(--cyan)}
+.summary-item span{color:var(--muted);font-size:11px;font-weight:600}
+.summary-item b{color:var(--green);font-size:16px;font-weight:800}
+
+.team-section{background:linear-gradient(135deg,var(--card),var(--card2));border:2px solid var(--purple);border-radius:16px;padding:24px;margin:20px auto;max-width:1200px;box-shadow:var(--shadow)}
+.team-section h3{text-align:center;margin-bottom:20px;font-size:18px;font-weight:700;color:var(--text);display:flex;align-items:center;justify-content:center;gap:10px}
+.team-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+.team-card{background:linear-gradient(135deg,var(--bg),var(--card2));border-radius:12px;padding:20px;text-align:center;border:2px solid var(--border);transition:all .3s}
+.team-card:hover{transform:translateY(-5px);border-color:var(--blue);box-shadow:0 10px 30px rgba(59,130,246,0.3)}
+.team-card .avatar{width:100px;height:100px;border-radius:50%;margin:0 auto 12px auto;display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:800;color:#fff;box-shadow:0 4px 15px rgba(59,130,246,0.3);border:3px solid var(--blue);overflow:hidden;position:relative}
+.team-card .avatar img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0}
+.team-card .avatar.initials{background:linear-gradient(135deg,var(--blue),var(--purple))}
+.team-card h4{margin:8px 0;font-size:14px;font-weight:700;color:var(--text)}
+.team-card p{margin:0;font-size:11px;color:var(--blue);font-weight:600}
+
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center;background:var(--card);padding:16px;border-radius:12px;box-shadow:var(--shadow)}
+.filter-btn{padding:10px 16px;border:2px solid var(--border);background:var(--bg);border-radius:10px;cursor:pointer;font-size:11px;font-weight:600;color:var(--text);transition:all .2s;text-align:center;min-width:120px}
+.filter-btn:hover{border-color:var(--blue);transform:translateY(-2px)}
+.filter-btn.active{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border-color:transparent}
+.filter-btn small{display:block;font-size:10px;color:var(--green);margin-top:4px;font-weight:700}
+.filter-btn.active small{color:#fff}
+
+.action-bar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;justify-content:center}
+.btn{padding:12px 24px;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:13px;transition:all .3s;display:inline-flex;align-items:center;gap:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
+.btn-excel{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
+.btn-pdf{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff}
+.btn-home{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff}
+.btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.2)}
+
+#dashboard-content{background:var(--card);border-radius:16px;padding:24px;box-shadow:var(--shadow);margin-bottom:20px}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+.stat-card{background:var(--bg);border-radius:12px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,0.05);border-left:4px solid var(--blue);transition:all .3s;cursor:pointer}
+.stat-card:hover{transform:translateY(-4px)}
+.stat-card.green{border-left-color:var(--green)}
+.stat-card.orange{border-left-color:var(--yellow)}
+.stat-card.purple{border-left-color:var(--purple)}
+.stat-card.red{border-left-color:var(--red)}
+.stat-card h4{font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.stat-card .value{font-size:24px;font-weight:800}
+
+.chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px;margin-bottom:20px}
+.chart-box{background:var(--bg);border-radius:16px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,0.05);cursor:pointer;transition:all .3s;border-left:4px solid var(--blue)}
+.chart-box:hover{transform:translateY(-2px)}
+.chart-box.green{border-left-color:var(--green)}
+.chart-box.orange{border-left-color:var(--yellow)}
+.chart-box.purple{border-left-color:var(--purple)}
+.chart-box h3{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.chart-box canvas{max-height:300px}
+.chart-total{margin-top:12px;padding:10px;background:rgba(16,185,129,0.1);border-radius:8px;text-align:center;font-weight:700;color:var(--green);font-size:14px}
+
+.table-section{background:var(--card);border-radius:16px;padding:20px;box-shadow:var(--shadow);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:12px;text-align:left;font-weight:700;color:var(--muted);border-bottom:2px solid var(--border);text-transform:uppercase;font-size:11px}
+td{padding:10px 12px;border-bottom:1px solid var(--border)}
+tr:hover{background:rgba(59,130,246,0.05)}
+.amount{font-weight:700;color:var(--green);text-align:right}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-state i{font-size:64px;margin-bottom:16px;opacity:.5}
+
+.toast{position:fixed;bottom:30px;right:30px;background:var(--green);color:#fff;padding:14px 20px;border-radius:10px;font-weight:600;box-shadow:var(--shadow);z-index:9999;animation:slideIn .3s}
+.toast.error{background:var(--red)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+@media(max-width:768px){
+.header h1{font-size:18px}
+.container{padding:12px}
+.stats-grid{grid-template-columns:repeat(2,1fr)}
+.chart-grid{grid-template-columns:1fr}
+.filter-bar{flex-direction:column;align-items:stretch}
+.date-selection{flex-direction:column;align-items:stretch}
+.summary-grid{grid-template-columns:1fr}
+.team-grid{grid-template-columns:1fr}
+}
+
+@media print{
+body{background:#fff!important;color:#000!important}
+.theme-toggle,.back-btn,.upload-box,.upload-date-box,.action-bar,.filter-bar,.table-section,.status-bar,.date-selection,.team-section,.cacheStatusBar{display:none!important}
+#dashboard-content{box-shadow:none!important;padding:0!important}
+.chart-box,.stat-card,.summary-item{break-inside:avoid;box-shadow:none!important;border:1px solid #ddd}
+}
+</style>
+</head>
+<body>
+
+<a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+<button class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
+
+<div class="header">
+<h1><i class="fas fa-chart-line"></i> GMS General MCD Daily Issue Smart Chart</h1>
+<p>Real-time Sync • Smart Cache (24h) • Auto Archive (30 days) • 13 Columns • Date: <span id="currentDate"></span></p>
+</div>
+
+<div class="container">
+
+<div class="cacheStatusBar">
+<div class="cacheDot"></div>
+<span id="cacheStatusText">📦 Cache Ready</span>
+<span class="cacheReadCount"><i class="fas fa-fire"></i> Today Reads: <b id="readCounter">0</b></span>
+<span class="roiBadge"><i class="fas fa-chart-line"></i> ROI: <b id="roiStatus">Active</b></span>
+<span class="syncStatus"><i class="fas fa-sync"></i> Sync: <b id="syncStatus">Active</b></span>
+</div>
+
+<div class="status-bar" id="statusBar">
+<span><i class="fas fa-circle" style="font-size:8px"></i> <span id="statusText">Ready</span></span>
+<span>Last Update: <span id="lastUpdate">-</span></span>
+</div>
+
+<div class="upload-box" id="uploadBox" onclick="document.getElementById('fileInput').click()">
+<i class="fas fa-cloud-upload-alt"></i>
+<h3>Upload Excel File (13 Columns)</h3>
+<p>SL | Trans. Date | Category | Division | Department | Section | Item Group | UOM | Item Description | Issue Qty | Amount(TK) | Issue ID | Remarks</p>
+</div>
+<input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile(event)">
+
+<div class="upload-date-box">
+<label><i class="fas fa-calendar-check"></i> Upload Date (optional):</label>
+<input type="date" id="uploadDateOverride">
+<small>তারিখ সিলেক্ট করে upload করলে ফাইলের সব row সেই তারিখেই সেভ হবে (Excel এর Trans. Date কলাম ignore হবে)। খালি রাখলে Excel এর নিজের তারিখ ব্যবহার হবে।</small>
+</div>
+
+<div class="date-selection">
+<label><i class="fas fa-calendar"></i> Select Date:</label>
+<input type="date" id="reportDate">
+<button class="btn-apply" onclick="applyDateFilter()"><i class="fas fa-filter"></i> Apply</button>
+<button class="btn-clear" onclick="clearDateFilter()"><i class="fas fa-times"></i> Latest Date</button>
+<button class="btn-delete" onclick="deleteDateData()"><i class="fas fa-trash"></i> Delete Date</button>
+</div>
+
+<div class="monthly-summary">
+<h3><i class="fas fa-chart-bar"></i> Summary - <span id="currentMonthLabel">June 2026</span></h3>
+<div class="summary-grid">
+<div class="summary-item">
+<span><i class="fas fa-calendar"></i> Total Days</span>
+<b id="summaryDays">0</b>
+</div>
+<div class="summary-item">
+<span><i class="fas fa-coins"></i> Total Amount</span>
+<b id="summaryAmount">৳0</b>
+</div>
+<div class="summary-item">
+<span><i class="fas fa-chart-line"></i> Avg Per Day</span>
+<b id="summaryAvg">৳0</b>
+</div>
+<div class="summary-item">
+<span><i class="fas fa-boxes"></i> Total Items</span>
+<b id="summaryItems">0</b>
+</div>
+<div class="summary-item">
+<span><i class="fas fa-building"></i> Departments</span>
+<b id="summaryDepts">0</b>
+</div>
+<div class="summary-item">
+<span><i class="fas fa-tags"></i> Categories</span>
+<b id="summaryCats">0</b>
+</div>
+</div>
+</div>
+
+<div class="team-section">
+<h3><i class="fas fa-users"></i> Our General MCD Team</h3>
+<div class="team-grid">
+<div class="team-card">
+<div class="avatar initials" data-initials="MK">
+<img src="https://i.ibb.co/gM3mKWDs/kamaruzzaman.jpg" alt="Md. Kamaruzzaman" onload="this.parentElement.classList.remove('initials')" onerror="this.style.display='none'">
+MK
+</div>
+<h4>Md. Kamaruzzaman</h4>
+<p>Jr. Officer</p>
+</div>
+<div class="team-card">
+<div class="avatar initials" data-initials="HR">
+<img src="https://i.ibb.co/5WqzrmzR/habib.jpg" alt="MD. HABIBUR RAHMAN" onload="this.parentElement.classList.remove('initials')" onerror="this.style.display='none'">
+HR
+</div>
+<h4>MD. HABIBUR RAHMAN</h4>
+<p>Supervisor</p>
+</div>
+<div class="team-card">
+<div class="avatar initials" data-initials="AM">
+<img src="https://i.ibb.co/PG9hvSPJ/mamun.jpg" alt="MD. ABDULLAH-AL-MAMUN" onload="this.parentElement.classList.remove('initials')" onerror="this.style.display='none'">
+AM
+</div>
+<h4>MD. ABDULLAH-AL-MAMUN</h4>
+<p>Sr. Supervisor</p>
+</div>
+<div class="team-card">
+<div class="avatar initials" data-initials="TI">
+<img src="https://i.ibb.co/fzkXCRdH/tariqul.jpg" alt="MD.TARIQUL ISLAM" onload="this.parentElement.classList.remove('initials')" onerror="this.style.display='none'">
+TI
+</div>
+<h4>MD.TARIQUL ISLAM</h4>
+<p>Asst. Officer</p>
+</div>
+</div>
+</div>
+
+<div class="action-bar">
+<button class="btn btn-excel" onclick="exportToExcel()"><i class="fas fa-file-excel"></i> Download Excel</button>
+<button class="btn btn-pdf" onclick="exportToPDF()"><i class="fas fa-file-pdf"></i> Print PDF</button>
+<button class="btn btn-home" onclick="location.href='index.html'"><i class="fas fa-home"></i> Home</button>
+</div>
+
+<div id="dashboard-content">
+<div class="stats-grid">
+<div class="stat-card" onclick="clearFilters()"><h4>Total Amount</h4><div class="value" id="statAmount">৳0</div></div>
+<div class="stat-card green" onclick="clearFilters()"><h4>Total Items</h4><div class="value" id="statItems">0</div></div>
+<div class="stat-card orange" onclick="clearFilters()"><h4>Departments</h4><div class="value" id="statDepts">0</div></div>
+<div class="stat-card purple" onclick="clearFilters()"><h4>Categories</h4><div class="value" id="statCats">0</div></div>
+<div class="stat-card red" onclick="clearFilters()"><h4>Avg. Per Item</h4><div class="value" id="statAvg">৳0</div></div>
+</div>
+
+<div id="emptyState" class="empty-state" style="display:none;">
+<i class="fas fa-inbox"></i>
+<h3>No Data Available</h3>
+<p>Upload an Excel file to get started</p>
+</div>
+
+<div class="chart-grid" id="chartGrid">
+<div class="chart-box">
+<h3><i class="fas fa-chart-pie" style="color:var(--blue)"></i> Category Wise Issue Value</h3>
+<canvas id="categoryChart"></canvas>
+<div class="chart-total" id="categoryTotal">Grand Total: ৳0</div>
+</div>
+<div class="chart-box green">
+<h3><i class="fas fa-chart-bar" style="color:var(--green)"></i> Section Wise Issue Value</h3>
+<canvas id="sectionChart"></canvas>
+<div class="chart-total" id="sectionTotal">Grand Total: ৳0</div>
+</div>
+<div class="chart-box orange">
+<h3><i class="fas fa-id-card" style="color:var(--yellow)"></i> Issue ID Wise Issue Value</h3>
+<canvas id="issueIdChart"></canvas>
+<div class="chart-total" id="issueIdTotal">Grand Total: ৳0</div>
+</div>
+<div class="chart-box purple">
+<h3><i class="fas fa-building" style="color:var(--purple)"></i> Division Wise Issue Value</h3>
+<canvas id="divisionChart"></canvas>
+<div class="chart-total" id="divisionTotal">Grand Total: ৳0</div>
+</div>
+</div>
+</div>
+
+<div class="filter-bar" id="filterBar">
+<span style="font-weight:700;font-size:13px;margin-right:10px"><i class="fas fa-filter"></i> Reports:</span>
+<button class="filter-btn active" onclick="showAllData()" id="btnAll">All Data<small id="totalAll">৳0</small></button>
+<button class="filter-btn" onclick="filterReport('photocopy')" id="btnPhotocopy">📄 Photocopy<small id="totalPhotocopy">৳0</small></button>
+<button class="filter-btn" onclick="filterReport('polybag')" id="btnPolybag">🛍️ Poly Bag<small id="totalPolybag">৳0</small></button>
+<button class="filter-btn" onclick="filterReport('aceton')" id="btnAceton">🧪 Aceton<small id="totalAceton">৳0</small></button>
+<button class="filter-btn" onclick="filterReport('stationery')" id="btnStationery">📝 Stationery<small id="totalStationery">৳0</small></button>
+<button class="filter-btn" onclick="filterReport('printing')" id="btnPrinting">🖨️ Printing<small id="totalPrinting">৳0</small></button>
+<button class="filter-btn" onclick="filterReport('laboratory')" id="btnLaboratory">🔬 Laboratory<small id="totalLaboratory">৳0</small></button>
+<button class="filter-btn" onclick="filterReport('medical')" id="btnMedical">🏥 Medical<small id="totalMedical">৳0</small></button>
+<button class="filter-btn" onclick="filterReport('miscellaneous')" id="btnMiscellaneous">📦 Miscellaneous<small id="totalMiscellaneous">৳0</small></button>
+<button class="filter-btn" onclick="filterReport('fire')" id="btnFire">🔥 Fire Safety<small id="totalFire">৳0</small></button>
+<div id="activeFilters"></div>
+</div>
+
+<div class="table-section">
+<h3 style="font-size:14px;font-weight:700;margin-bottom:12px"><i class="fas fa-table"></i> Detailed Data (13 Columns) - <span id="rowCount">0</span> rows</h3>
+<table>
+<thead>
+<tr>
+<th>SL</th><th>Date</th><th>Category</th><th>Division</th><th>Department</th>
+<th>Section</th><th>Item Group</th><th>UOM</th><th>Item Description</th>
+<th style="text-align:center">Qty</th><th style="text-align:right">Amount (TK)</th><th>Issue ID</th><th>Remarks</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+
+<div class="team-section">
+<h3><i class="fas fa-users"></i> Our General MCD Team</h3>
+<div class="team-grid">
+<div class="team-card">
+<div class="avatar initials" data-initials="MK">
+<img src="https://i.ibb.co/gM3mKWDs/kamaruzzaman.jpg" alt="Md. Kamaruzzaman" onload="this.parentElement.classList.remove('initials')" onerror="this.style.display='none'">
+MK
+</div>
+<h4>Md. Kamaruzzaman</h4>
+<p>Jr. Officer</p>
+</div>
+<div class="team-card">
+<div class="avatar initials" data-initials="HR">
+<img src="https://i.ibb.co/5WqzrmzR/habib.jpg" alt="MD. HABIBUR RAHMAN" onload="this.parentElement.classList.remove('initials')" onerror="this.style.display='none'">
+HR
+</div>
+<h4>MD. HABIBUR RAHMAN</h4>
+<p>Supervisor</p>
+</div>
+<div class="team-card">
+<div class="avatar initials" data-initials="AM">
+<img src="https://i.ibb.co/PG9hvSPJ/mamun.jpg" alt="MD. ABDULLAH-AL-MAMUN" onload="this.parentElement.classList.remove('initials')" onerror="this.style.display='none'">
+AM
+</div>
+<h4>MD. ABDULLAH-AL-MAMUN</h4>
+<p>Sr. Supervisor</p>
+</div>
+<div class="team-card">
+<div class="avatar initials" data-initials="TI">
+<img src="https://i.ibb.co/fzkXCRdH/tariqul.jpg" alt="MD.TARIQUL ISLAM" onload="this.parentElement.classList.remove('initials')" onerror="this.style.display='none'">
+TI
+</div>
+<h4>MD.TARIQUL ISLAM</h4>
+<p>Asst. Officer</p>
+</div>
+</div>
+</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, setDoc, onSnapshot, collection, getDocs, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+apiKey: "AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+authDomain: "gms-warehouse-tracker-7f57e.firebaseapp.com",
+projectId: "gms-warehouse-tracker-7f57e",
+storageBucket: "gms-warehouse-tracker-7f57e.firebasestorage.app",
+messagingSenderId: "992250313291",
+appId: "1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const ACTIVE_COL = "generalMcdDaily";
+const ARCHIVE_COL = "generalMcdDaily_archive";
+const SYNC_COL = "system_sync";
+
+let allData = [];
+let filteredData = [];
+let charts = {};
+let currentFilter = {};
+let hasInitializedFilter = false; // ensures we only auto-jump to "latest date" once per page load
+
+window.GMS_CACHE = {
+CACHE_KEY: 'GMS_MCD_CACHE_V2',
+READ_COUNT_KEY: 'GMS_MCD_READ_COUNT_TODAY',
+READ_DATE_KEY: 'GMS_MCD_READ_DATE',
+LOCAL_TS_KEY: 'GMS_MCD_LOCAL_TIMESTAMPS',
+CACHE_EXPIRY_MS: 24 * 60 * 60 * 1000,
+
+getReadCount: function(){
+var today = new Date().toDateString();
+if(localStorage.getItem(this.READ_DATE_KEY) !== today){
+localStorage.setItem(this.READ_DATE_KEY, today);
+localStorage.setItem(this.READ_COUNT_KEY, '0');
+}
+return parseInt(localStorage.getItem(this.READ_COUNT_KEY) || '0');
+},
+
+incRead: function(n){
+n = n || 1;
+var count = this.getReadCount() + n;
+localStorage.setItem(this.READ_COUNT_KEY, String(count));
+var el = document.getElementById('readCounter');
+if(el) el.innerText = count;
+return count;
+},
+
+_all: function(){
+try{ return JSON.parse(localStorage.getItem(this.CACHE_KEY) || '{}'); }
+catch(e){ return {}; }
+},
+
+set: function(key, data, timestamp){
+var all = this._all();
+all[key] = { data: data, savedAt: Date.now(), timestamp: timestamp || Date.now() };
+try{ localStorage.setItem(this.CACHE_KEY, JSON.stringify(all)); }
+catch(e){ console.warn('Cache set failed:', e); }
+},
+
+get: function(key){
+var all = this._all();
+var entry = all[key];
+if(!entry) return null;
+var age = Date.now() - entry.savedAt;
+if(age > this.CACHE_EXPIRY_MS) return null;
+return entry.data;
+},
+
+getLocalTimestamp: function(collection){
+var timestamps = JSON.parse(localStorage.getItem(this.LOCAL_TS_KEY) || '{}');
+return timestamps[collection] || 0;
+},
+
+setLocalTimestamp: function(collection, timestamp){
+var timestamps = JSON.parse(localStorage.getItem(this.LOCAL_TS_KEY) || '{}');
+timestamps[collection] = timestamp;
+localStorage.setItem(this.LOCAL_TS_KEY, JSON.stringify(timestamps));
+},
+
+needsUpdate: function(collection, remoteTimestamp){
+var localTS = this.getLocalTimestamp(collection);
+return remoteTimestamp > localTS;
+},
+
+invalidate: function(keys){
+var all = this._all();
+if(typeof keys === 'string') keys = [keys];
+keys.forEach(function(k){ delete all[k]; });
+localStorage.setItem(this.CACHE_KEY, JSON.stringify(all));
+if(Array.isArray(keys)){
+var timestamps = JSON.parse(localStorage.getItem(this.LOCAL_TS_KEY) || '{}');
+keys.forEach(function(k){ timestamps[k] = 0; });
+localStorage.setItem(this.LOCAL_TS_KEY, JSON.stringify(timestamps));
+}
+},
+
+clear: function(){
+localStorage.removeItem(this.CACHE_KEY);
+localStorage.removeItem(this.LOCAL_TS_KEY);
+}
+};
+
+async function smartLoadData() {
+var statusEl = document.getElementById('cacheStatusText');
+try {
+if(statusEl) statusEl.innerText = '🔍 Checking for updates...';
+
+var remoteTimestamp = 0;
+try {
+var syncDoc = await getDoc(doc(db, SYNC_COL, ACTIVE_COL));
+if(syncDoc.exists()) remoteTimestamp = syncDoc.data().lastUpdated || 0;
+window.GMS_CACHE.incRead(1);
+} catch(e) { console.warn('system_sync read failed:', e); }
+
+var needsUpdate = window.GMS_CACHE.needsUpdate(ACTIVE_COL, remoteTimestamp);
+
+if(!needsUpdate) {
+var cachedData = window.GMS_CACHE.get(ACTIVE_COL);
+if(cachedData !== null) {
+if(statusEl) statusEl.innerText = '✅ Report loaded (Cache 📦) - 0 Firebase reads';
+return cachedData;
+}
+}
+
+if(statusEl) statusEl.innerText = '🔥 Fetching from Firebase...';
+var snapshot = await getDocs(collection(db, ACTIVE_COL));
+var rawData = [];
+snapshot.forEach(function(docSnap){
+var d = docSnap.data();
+if(d.data) rawData = rawData.concat(d.data.map(r => ({...r, _month: docSnap.id})));
+});
+
+window.GMS_CACHE.incRead(snapshot.size || 1);
+window.GMS_CACHE.set(ACTIVE_COL, rawData, remoteTimestamp);
+window.GMS_CACHE.setLocalTimestamp(ACTIVE_COL, remoteTimestamp);
+
+if(statusEl) statusEl.innerText = '✅ Report loaded (Firebase 🔥)';
+return rawData;
+
+} catch(error) {
+console.error('❌ Smart load error:', error);
+if(statusEl) statusEl.innerText = '❌ Load failed';
+var cachedData = window.GMS_CACHE.get(ACTIVE_COL);
+if(cachedData !== null) return cachedData;
+return [];
+}
+}
+
+function setupRealtimeSync(){
+var syncCol = collection(db, SYNC_COL);
+onSnapshot(syncCol, function(snapshot){
+var remoteTS = {};
+snapshot.forEach(function(d){ remoteTS[d.id] = d.data().lastUpdated || 0; });
+var localTS = window.GMS_CACHE.getLocalTimestamp(ACTIVE_COL);
+var remoteForActive = remoteTS[ACTIVE_COL] || 0;
+
+if(remoteForActive > localTS){
+window.GMS_CACHE.invalidate([ACTIVE_COL]);
+var syncStatus = document.getElementById('syncStatus');
+if(syncStatus){
+syncStatus.innerText = 'Updated ✅';
+setTimeout(function(){ if(syncStatus) syncStatus.innerText = 'Active'; }, 2000);
+}
+if(!document.hidden) loadActiveData();
+}
+});
+}
+
+window.toggleTheme = function() {
+document.body.classList.toggle('light');
+const icon = document.getElementById('themeIcon');
+icon.className = document.body.classList.contains('light') ? 'fas fa-sun' : 'fas fa-moon';
+localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
+renderCharts();
+};
+if (localStorage.getItem('theme') === 'light') {
+document.body.classList.add('light');
+document.getElementById('themeIcon').className = 'fas fa-sun';
+}
+
+document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-GB');
+document.getElementById('reportDate').value = todayISOLocal();
+
+(function(){
+var c = window.GMS_CACHE.getReadCount();
+var el = document.getElementById('readCounter');
+if(el) el.innerText = c;
+})();
+
+window.addEventListener('online', () => { updateStatus('Online - Syncing...'); loadActiveData(); });
+window.addEventListener('offline', () => { updateStatus('Offline Mode - Using Cache', true); });
+function updateStatus(msg, offline = false) {
+document.getElementById('statusText').textContent = msg;
+document.getElementById('statusBar').className = 'status-bar' + (offline ? ' offline' : '');
+}
+
+const uploadBox = document.getElementById('uploadBox');
+['dragenter', 'dragover'].forEach(e => uploadBox.addEventListener(e, ev => { ev.preventDefault(); uploadBox.classList.add('dragover'); }));
+['dragleave', 'drop'].forEach(e => uploadBox.addEventListener(e, ev => { ev.preventDefault(); uploadBox.classList.remove('dragover'); }));
+uploadBox.addEventListener('drop', ev => { if (ev.dataTransfer.files.length) processFile(ev.dataTransfer.files[0]); });
+
+window.handleFile = function(event) { if (event.target.files[0]) processFile(event.target.files[0]); };
+
+// ---- Date helpers (row.date is always stored as "DD-MM-YYYY") ----
+function isoToDMY(iso) {
+// "YYYY-MM-DD" -> "DD-MM-YYYY"
+const [y, m, d] = iso.split('-');
+return `${d}-${m}-${y}`;
+}
+function dmyToJSDate(dmy) {
+const m = String(dmy || '').match(/^(\d{2})-(\d{2})-(\d{4})$/);
+if (!m) return null;
+return new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+}
+// Sortable "YYYY-MM-DD" key for a "DD-MM-YYYY" string, so date ordering is
+// always chronological (year -> month -> day), never a plain text compare.
+// Plain string compare on "DD-MM-YYYY" breaks across month/year boundaries -
+// e.g. "01-08-2026" (1 Aug) would sort BEFORE "28-07-2026" (28 Jul) as text,
+// even though August comes after July. That bug made freshly uploaded data
+// invisible because "latest date" picked the wrong row.
+function dmySortKey(dmy) {
+const m = String(dmy || '').match(/^(\d{2})-(\d{2})-(\d{4})$/);
+if (!m) return '';
+return `${m[3]}-${m[2]}-${m[1]}`; // YYYY-MM-DD
+}
+// FIX: <input type="date">.valueAsDate is UTC-based - assigning it a Date
+// object built from LOCAL year/month/day (like dmyToJSDate above) shifts the
+// displayed date by 1 day in any timezone ahead of UTC (e.g. Bangladesh,
+// UTC+6). That's exactly why "latest date = 21-07-2026" was showing as
+// 07/20/2026 in the picker. Setting .value directly with a plain
+// "YYYY-MM-DD" string sidesteps the UTC conversion entirely.
+function dmyToISO(dmy) {
+const m = String(dmy || '').match(/^(\d{2})-(\d{2})-(\d{4})$/);
+if (!m) return '';
+return `${m[3]}-${m[2]}-${m[1]}`;
+}
+function todayISOLocal() {
+const d = new Date();
+const yyyy = d.getFullYear();
+const mm = String(d.getMonth() + 1).padStart(2, '0');
+const dd = String(d.getDate()).padStart(2, '0');
+return `${yyyy}-${mm}-${dd}`;
+}
+
+function processFile(file) {
+updateStatus('Processing file...');
+const reader = new FileReader();
+reader.onload = function(e) {
+try {
+const data = new Uint8Array(e.target.result);
+const workbook = XLSX.read(data, { type: 'array' });
+const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: '' });
+if (jsonData.length === 0) { showToast('No data found!', true); return; }
+
+// If the user picked an "Upload Date", every row in this file is force-tagged
+// with that date, overriding whatever is in the Excel "Trans. Date" column.
+const overrideInput = document.getElementById('uploadDateOverride').value;
+const overrideDate = overrideInput ? isoToDMY(overrideInput) : '';
+
+const normalized = normalizeData(jsonData, overrideDate);
+saveToFirebase(normalized, file.name);
+} catch (err) { showToast('Error: ' + err.message, true); }
+};
+reader.readAsArrayBuffer(file);
+// Reset the input so selecting the same file again re-triggers the change event
+event.target.value = '';
+}
+
+function normalizeData(raw, overrideDate) {
+return raw.map((row, idx) => ({
+sl: row['SL'] || (idx + 1),
+date: overrideDate || formatDate(row['Trans. Date'] || row['date']),
+category: String(row['Category'] || '').trim(),
+division: String(row['Division'] || '').trim(),
+department: String(row['Department'] || '').trim(),
+section: String(row['Section'] || '').trim(),
+itemGroup: String(row['Item Group'] || '').trim(),
+uom: String(row['UOM'] || '').trim(),
+itemDescription: String(row['Item Description'] || '').trim(),
+issueQty: parseNum(row['Issue Qty'] || row['qty']),
+amount: parseNum(row['Amount(TK)'] || row['Amount']),
+issueId: String(row['Issue ID'] || '').trim(),
+remarks: String(row['Remarks'] || '').trim()
+})).filter(r => r.itemDescription || r.amount > 0);
+}
+
+function parseNum(v) { if (typeof v === 'number') return v; return Number(String(v || 0).replace(/,/g, '')) || 0; }
+
+function parseAnyDate(raw) {
+if (raw === null || raw === undefined || raw === '') return null;
+
+if (typeof raw === 'number') {
+const parsed = XLSX.SSF.parse_date_code(raw);
+if (parsed) return { d: parsed.d, m: parsed.m, y: parsed.y };
+return null;
+}
+
+if (raw instanceof Date && !isNaN(raw.getTime())) {
+return { d: raw.getDate(), m: raw.getMonth() + 1, y: raw.getFullYear() };
+}
+
+const str = String(raw).trim();
+if (!str) return null;
+
+let m = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+if (m) return { d: parseInt(m[1], 10), m: parseInt(m[2], 10), y: parseInt(m[3], 10) };
+
+m = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+if (m) return { d: parseInt(m[3], 10), m: parseInt(m[2], 10), y: parseInt(m[1], 10) };
+
+const parsedDate = new Date(str);
+if (!isNaN(parsedDate.getTime())) {
+return { d: parsedDate.getDate(), m: parsedDate.getMonth() + 1, y: parsedDate.getFullYear() };
+}
+
+return null;
+}
+
+function formatDate(d) {
+const parts = parseAnyDate(d);
+if (!parts) return '';
+return `${String(parts.d).padStart(2, '0')}-${String(parts.m).padStart(2, '0')}-${parts.y}`;
+}
+
+function getMonthKey(dateStr) {
+if (!dateStr) return '';
+const parts = dateStr.split('-');
+if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2, '0')}`;
+return '';
+}
+
+async function saveToFirebase(data, fileName) {
+updateStatus('Saving to Firebase...');
+
+await purgeExpiredData();
+
+const grouped = {};
+let skippedCount = 0;
+data.forEach(row => {
+const m = getMonthKey(row.date);
+if (m) { if (!grouped[m]) grouped[m] = []; grouped[m].push(row); }
+else { skippedCount++; }
+});
+
+try {
+const writes = [];
+for (const [month, rows] of Object.entries(grouped)) {
+const col = ACTIVE_COL;
+const docRef = doc(db, col, month);
+
+writes.push((async () => {
+let existingRows = [];
+try {
+const existingSnap = await getDoc(docRef);
+if (existingSnap.exists() && Array.isArray(existingSnap.data().data)) {
+existingRows = existingSnap.data().data;
+}
+} catch (e) {
+console.warn('Could not read existing data for merge:', e);
+}
+const mergedRows = existingRows.concat(rows).map((r, idx) => ({ ...r, sl: idx + 1 }));
+await setDoc(docRef, { data: mergedRows, updatedAt: Date.now() });
+})());
+}
+
+await Promise.all(writes);
+
+await setDoc(doc(db, SYNC_COL, ACTIVE_COL), { lastUpdated: Date.now(), collection: ACTIVE_COL }, { merge: true });
+window.GMS_CACHE.invalidate([ACTIVE_COL]);
+
+const savedCount = data.length - skippedCount;
+showToast(`✅ Added ${savedCount} rows (merged with existing data)!`);
+if (skippedCount > 0) {
+setTimeout(() => showToast(`⚠️ Skipped ${skippedCount} row(s): could not detect a valid date`, true), 2500);
+}
+updateStatus('✅ Saved successfully!');
+
+try{
+var activity = JSON.parse(localStorage.getItem('report_activity') || '[]');
+activity.push({ report: 'General MCD Daily Report', user: 'User', date: new Date().toISOString().slice(0,10), timestamp: new Date().toISOString() });
+if(activity.length > 1000) activity.splice(0, activity.length - 1000);
+localStorage.setItem('report_activity', JSON.stringify(activity));
+var roiStatus = document.getElementById('roiStatus');
+if(roiStatus){ roiStatus.innerText = 'Tracked ✅'; setTimeout(function(){ if(roiStatus) roiStatus.innerText = 'Active'; }, 2000); }
+}catch(e){}
+
+// After a fresh upload, always jump the view back to the newest date
+// (which is normally the date that was just uploaded).
+hasInitializedFilter = false;
+currentFilter.date = null;
+await loadActiveData();
+} catch (err) { showToast('Save failed: ' + err.message, true); }
+}
+
+// ==================== ROLLING 30-DAY AUTO-EXPIRY ====================
+// Only the last 30 days of data (by row date, not by month-document) is kept
+// in Firebase. Anything older is permanently deleted automatically, every
+// time data loads. This runs per-row inside each month document, so a
+// month document is only fully removed once ALL its rows have expired.
+const RETENTION_DAYS = 30;
+
+async function purgeExpiredData() {
+try {
+const now = new Date();
+now.setHours(0, 0, 0, 0);
+const cutoff = new Date(now);
+cutoff.setDate(cutoff.getDate() - RETENTION_DAYS);
+
+const snapshot = await getDocs(collection(db, ACTIVE_COL));
+const writes = [];
+let changed = false;
+
+snapshot.forEach(docSnap => {
+const docData = docSnap.data();
+const rows = Array.isArray(docData.data) ? docData.data : [];
+const kept = rows.filter(r => {
+const d = dmyToJSDate(r.date);
+return d && d >= cutoff;
+});
+if (kept.length !== rows.length) {
+changed = true;
+if (kept.length === 0) {
+writes.push(deleteDoc(doc(db, ACTIVE_COL, docSnap.id)));
+} else {
+const resequenced = kept.map((r, idx) => ({ ...r, sl: idx + 1 }));
+writes.push(setDoc(doc(db, ACTIVE_COL, docSnap.id), { data: resequenced, updatedAt: Date.now() }));
+}
+}
+});
+
+if (writes.length) {
+await Promise.all(writes);
+await setDoc(doc(db, SYNC_COL, ACTIVE_COL), { lastUpdated: Date.now() }, { merge: true });
+window.GMS_CACHE.invalidate([ACTIVE_COL]);
+}
+
+return changed;
+} catch (err) { console.error('Error purging expired data:', err); return false; }
+}
+
+window.deleteDateData = async function() {
+const dateInput = document.getElementById('reportDate').value;
+if (!dateInput) { showToast('Please select a date to delete', true); return; }
+
+const [year, month, day] = dateInput.split('-');
+const formattedDate = `${day}-${month}-${year}`;
+const monthKey = `${year}-${month}`;
+
+if (!confirm(`Are you sure you want to delete ALL data for ${formattedDate}? This cannot be undone!`)) return;
+
+try {
+updateStatus('Deleting data...');
+
+const docRef = doc(db, ACTIVE_COL, monthKey);
+const docSnap = await getDoc(docRef);
+
+if (docSnap.exists()) {
+const docData = docSnap.data();
+if (docData.data && docData.data.length) {
+const beforeCount = docData.data.length;
+const filtered = docData.data.filter(row => row.date !== formattedDate);
+
+if (filtered.length === beforeCount) {
+showToast(`No data found for ${formattedDate}`, true);
+updateStatus('Live Sync Active ✅');
+return;
+}
+
+if (filtered.length === 0) {
+await deleteDoc(docRef);
+} else {
+await setDoc(docRef, { data: filtered, updatedAt: Date.now() });
+}
+await setDoc(doc(db, SYNC_COL, ACTIVE_COL), { lastUpdated: Date.now() }, { merge: true });
+window.GMS_CACHE.invalidate([ACTIVE_COL]);
+
+allData = allData.filter(row => row.date !== formattedDate);
+
+// If the date that got deleted was the one currently on screen, the page
+// intentionally goes blank (empty state) instead of silently jumping to
+// another date - matches the expected "delete this date -> blank page" flow.
+updateFilterTotals();
+applyFilters();
+
+showToast(`✅ Deleted ${beforeCount - filtered.length} row(s) for ${formattedDate}`);
+updateStatus('Live Sync Active ✅');
+} else {
+showToast('No data found for this month', true);
+}
+} else {
+showToast('No data found for this month', true);
+}
+} catch (err) {
+showToast('Delete failed: ' + err.message, true);
+}
+};
+
+async function loadActiveData() {
+updateStatus('Loading live data...');
+await purgeExpiredData();
+const data = await smartLoadData();
+allData = data;
+// Sort by real chronological order (YYYY-MM-DD key), not raw "DD-MM-YYYY"
+// text - a plain text sort put "01-08-2026" before "28-07-2026" because
+// "01" < "28" as characters, which made brand-new uploads invisible.
+allData.sort((a, b) => dmySortKey(b.date).localeCompare(dmySortKey(a.date)));
+document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+
+// Default view = only the latest available date (never a combined
+// all-dates grand total). This only auto-applies once per page load so
+// it doesn't yank the user back while they're browsing an older date.
+if (!hasInitializedFilter) {
+const latestDate = allData.length ? allData[0].date : null;
+currentFilter.date = latestDate || null;
+const isoDate = latestDate ? dmyToISO(latestDate) : todayISOLocal();
+if (isoDate) document.getElementById('reportDate').value = isoDate;
+hasInitializedFilter = true;
+}
+
+updateFilterTotals();
+applyFilters();
+updateStatus('Live Sync Active ✅');
+}
+
+loadActiveData();
+setupRealtimeSync();
+
+setInterval(function(){
+if(!document.hidden) loadActiveData();
+}, 5 * 60 * 1000);
+
+window.applyDateFilter = function() {
+const dateInput = document.getElementById('reportDate').value;
+if (!dateInput) { showToast('Please select a date', true); return; }
+
+const [year, month, day] = dateInput.split('-');
+const formattedDate = `${day}-${month}-${year}`;
+currentFilter.date = formattedDate;
+applyFilters();
+
+const matchCount = allData.filter(r => r.date === formattedDate).length;
+if (matchCount === 0) {
+showToast(`No data found for ${formattedDate}`, true);
+} else {
+showToast(`Filter applied: ${formattedDate} (${matchCount} rows)`);
+}
+};
+
+// "Clear" now returns to the latest available date instead of combining
+// all dates into one grand total - per-day view stays the default always.
+window.clearDateFilter = function() {
+const latestDate = allData.length ? allData[0].date : null;
+currentFilter.date = latestDate || null;
+const isoDate = latestDate ? dmyToISO(latestDate) : todayISOLocal();
+if (isoDate) document.getElementById('reportDate').value = isoDate;
+applyFilters();
+showToast(latestDate ? `সর্বশেষ তারিখ দেখানো হচ্ছে: ${latestDate}` : 'কোনো ডেটা নেই');
+};
+
+window.filterReport = function(type) {
+currentFilter.reportType = type;
+document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+event.target.closest('.filter-btn').classList.add('active');
+applyFilters();
+};
+
+window.showAllData = function() {
+currentFilter.reportType = null;
+document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+document.getElementById('btnAll').classList.add('active');
+applyFilters();
+};
+
+function updateFilterTotals() {
+// Category quick-filter totals are scoped to the date currently on screen
+// (currentFilter.date), so they always match the day being viewed instead
+// of silently summing the whole month.
+const base = currentFilter.date ? allData.filter(r => r.date === currentFilter.date) : allData;
+const totals = {
+all: base.reduce((s, r) => s + r.amount, 0),
+photocopy: base.filter(r => r.itemDescription.toLowerCase().includes('photocopy')).reduce((s, r) => s + r.amount, 0),
+polybag: base.filter(r => r.itemDescription.toLowerCase().includes('poly')).reduce((s, r) => s + r.amount, 0),
+aceton: base.filter(r => r.itemDescription.toLowerCase().includes('aceton')).reduce((s, r) => s + r.amount, 0),
+stationery: base.filter(r => r.category === 'STATIONERY').reduce((s, r) => s + r.amount, 0),
+printing: base.filter(r => r.category === 'PRINTING').reduce((s, r) => s + r.amount, 0),
+laboratory: base.filter(r => r.category === 'LABORATORY ITEMS').reduce((s, r) => s + r.amount, 0),
+medical: base.filter(r => r.category === 'MEDICAL ITEMS').reduce((s, r) => s + r.amount, 0),
+miscellaneous: base.filter(r => r.category === 'MISCELLANEOUS GOODS').reduce((s, r) => s + r.amount, 0),
+fire: base.filter(r => r.category.includes('FIRE SAFETY')).reduce((s, r) => s + r.amount, 0)
+};
+
+document.getElementById('totalAll').textContent = '৳' + totals.all.toLocaleString('en-US', { maximumFractionDigits: 0 });
+document.getElementById('totalPhotocopy').textContent = '৳' + totals.photocopy.toLocaleString('en-US', { maximumFractionDigits: 0 });
+document.getElementById('totalPolybag').textContent = '৳' + totals.polybag.toLocaleString('en-US', { maximumFractionDigits: 0 });
+document.getElementById('totalAceton').textContent = '৳' + totals.aceton.toLocaleString('en-US', { maximumFractionDigits: 0 });
+document.getElementById('totalStationery').textContent = '৳' + totals.stationery.toLocaleString('en-US', { maximumFractionDigits: 0 });
+document.getElementById('totalPrinting').textContent = '৳' + totals.printing.toLocaleString('en-US', { maximumFractionDigits: 0 });
+document.getElementById('totalLaboratory').textContent = '৳' + totals.laboratory.toLocaleString('en-US', { maximumFractionDigits: 0 });
+document.getElementById('totalMedical').textContent = '৳' + totals.medical.toLocaleString('en-US', { maximumFractionDigits: 0 });
+document.getElementById('totalMiscellaneous').textContent = '৳' + totals.miscellaneous.toLocaleString('en-US', { maximumFractionDigits: 0 });
+document.getElementById('totalFire').textContent = '৳' + totals.fire.toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+function applyFilters() {
+filteredData = allData.filter(row => {
+if (currentFilter.date && row.date !== currentFilter.date) return false;
+if (!currentFilter.date && allData.length) return false; // never silently show a combined "all dates" set
+if (currentFilter.reportType) {
+if (currentFilter.reportType === 'photocopy' && !row.itemDescription.toLowerCase().includes('photocopy')) return false;
+if (currentFilter.reportType === 'polybag' && !row.itemDescription.toLowerCase().includes('poly')) return false;
+if (currentFilter.reportType === 'aceton' && !row.itemDescription.toLowerCase().includes('aceton')) return false;
+if (currentFilter.reportType === 'stationery' && row.category !== 'STATIONERY') return false;
+if (currentFilter.reportType === 'printing' && row.category !== 'PRINTING') return false;
+if (currentFilter.reportType === 'laboratory' && row.category !== 'LABORATORY ITEMS') return false;
+if (currentFilter.reportType === 'medical' && row.category !== 'MEDICAL ITEMS') return false;
+if (currentFilter.reportType === 'miscellaneous' && row.category !== 'MISCELLANEOUS GOODS') return false;
+if (currentFilter.reportType === 'fire' && !row.category.includes('FIRE SAFETY')) return false;
+}
+return true;
+});
+
+const emptyState = document.getElementById('emptyState');
+const chartGrid = document.getElementById('chartGrid');
+if (filteredData.length === 0) {
+emptyState.style.display = 'block';
+chartGrid.style.display = 'none';
+} else {
+emptyState.style.display = 'none';
+chartGrid.style.display = 'grid';
+}
+
+updateStats();
+updateMonthlySummary();
+renderCharts();
+renderTable();
+}
+
+window.clearFilters = function() {
+currentFilter.reportType = null;
+document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+document.getElementById('btnAll').classList.add('active');
+applyFilters();
+};
+
+function updateStats() {
+const total = filteredData.length;
+const amount = filteredData.reduce((s, r) => s + r.amount, 0);
+const depts = new Set(filteredData.map(r => r.department).filter(v => v)).size;
+const cats = new Set(filteredData.map(r => r.category).filter(v => v)).size;
+const avg = total > 0 ? amount / total : 0;
+
+document.getElementById('statAmount').textContent = '৳' + amount.toLocaleString('en-US', { maximumFractionDigits: 0 });
+document.getElementById('statItems').textContent = total.toLocaleString();
+document.getElementById('statDepts').textContent = depts;
+document.getElementById('statCats').textContent = cats;
+document.getElementById('statAvg').textContent = '৳' + avg.toLocaleString('en-US', { maximumFractionDigits: 0 });
+document.getElementById('rowCount').textContent = total;
+}
+
+// Summary panel now follows whatever date is selected at the top date-picker
+// (currentFilter.date / filteredData) instead of always summing the whole
+// calendar month. So the numbers here always match the date shown above.
+function updateMonthlySummary() {
+const dayData = filteredData;
+const days = new Set(dayData.map(r => r.date)).size;
+const amount = dayData.reduce((s, r) => s + r.amount, 0);
+const avg = days > 0 ? amount / days : 0;
+const items = dayData.length;
+const depts = new Set(dayData.map(r => r.department).filter(v => v)).size;
+const cats = new Set(dayData.map(r => r.category).filter(v => v)).size;
+
+document.getElementById('summaryDays').textContent = days;
+document.getElementById('summaryAmount').textContent = '৳' + amount.toLocaleString('en-US', { maximumFractionDigits: 0 });
+document.getElementById('summaryAvg').textContent = '৳' + avg.toLocaleString('en-US', { maximumFractionDigits: 0 });
+document.getElementById('summaryItems').textContent = items;
+document.getElementById('summaryDepts').textContent = depts;
+document.getElementById('summaryCats').textContent = cats;
+
+// Label now shows the actual selected date (top date-picker), not the month name.
+document.getElementById('currentMonthLabel').textContent = currentFilter.date || 'কোনো তারিখ সিলেক্ট করা নেই';
+}
+
+function renderCharts() {
+Object.values(charts).forEach(c => c && c.destroy());
+const isDark = document.body.classList.contains('light') === false;
+const textColor = isDark ? '#f1f5f9' : '#1e293b';
+const gridColor = isDark ? 'rgba(148,163,184,.2)' : 'rgba(0,0,0,.1)';
+const palette = ['#38bdf8', '#22c55e', '#f59e0b', '#a855f7', '#ef4444', '#14b8a6', '#eab308', '#6366f1', '#ec4899', '#84cc16'];
+
+const valueLabelPlugin = {
+id: 'valueLabelPlugin',
+afterDatasetsDraw(chart) {
+const { ctx } = chart;
+ctx.save();
+ctx.font = '600 11px Poppins';
+ctx.fillStyle = textColor;
+ctx.textAlign = 'center';
+chart.data.datasets.forEach((dataset, di) => {
+const meta = chart.getDatasetMeta(di);
+meta.data.forEach((bar, i) => {
+const value = dataset.data[i];
+if (value === undefined || value === null) return;
+ctx.fillText('৳' + value.toLocaleString('en-US', { maximumFractionDigits: 0 }), bar.x, bar.y - 6);
+});
+});
+ctx.restore();
+}
+};
+
+// Chart 1: Category Wise (Pie) - total = sum of ALL categories (no slicing)
+const catData = {};
+filteredData.forEach(r => { const cat = r.category || 'Unknown'; catData[cat] = (catData[cat] || 0) + r.amount; });
+const catAllLabels = Object.keys(catData);
+const catTotal = catAllLabels.reduce((s, l) => s + catData[l], 0);
+const catLabels = catAllLabels;
+const catValues = catLabels.map(l => catData[l]);
+
+charts.category = new Chart(document.getElementById('categoryChart'), {
+type: 'pie',
+data: { labels: catLabels.length ? catLabels : ['No Data'], datasets: [{ data: catValues.length ? catValues : [1], backgroundColor: palette, borderWidth: 2, borderColor: isDark ? '#1e293b' : '#fff' }] },
+options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: textColor, font: { size: 10 } } } } }
+});
+document.getElementById('categoryTotal').textContent = 'Grand Total: ৳' + catTotal.toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+// Chart 2: Section Wise (Bar) - FIX: grand total is now computed from ALL
+// sections before slicing to the top 15 for display, so it always matches
+// the other charts' totals instead of silently dropping sections 16+.
+const secData = {};
+filteredData.forEach(r => { const sec = r.section || 'Unknown'; secData[sec] = (secData[sec] || 0) + r.amount; });
+const secAllLabels = Object.keys(secData);
+const secTotal = secAllLabels.reduce((s, l) => s + secData[l], 0);
+const secLabels = secAllLabels.slice(0, 15);
+const secValues = secLabels.map(l => secData[l]);
+
+charts.section = new Chart(document.getElementById('sectionChart'), {
+type: 'bar',
+data: { labels: secLabels.length ? secLabels : ['No Data'], datasets: [{ label: 'Amount', data: secValues.length ? secValues : [0], backgroundColor: '#22c55e', borderRadius: 8 }] },
+options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: gridColor }, ticks: { color: textColor } }, x: { ticks: { color: textColor, maxRotation: 45, font: { size: 9 } } } } },
+plugins: [valueLabelPlugin]
+});
+document.getElementById('sectionTotal').textContent = 'Grand Total: ৳' + secTotal.toLocaleString('en-US', { maximumFractionDigits: 0 }) + (secAllLabels.length > 15 ? ` (showing top 15 of ${secAllLabels.length})` : '');
+
+// Chart 3: Issue ID Wise (Bar) - same fix: total from ALL issue IDs, top 10 shown
+const idData = {};
+filteredData.forEach(r => { const id = r.issueId || 'Unknown'; idData[id] = (idData[id] || 0) + r.amount; });
+const idAllLabels = Object.keys(idData);
+const idTotal = idAllLabels.reduce((s, l) => s + idData[l], 0);
+const idLabels = idAllLabels.slice(0, 10);
+const idValues = idLabels.map(l => idData[l]);
+
+charts.issueId = new Chart(document.getElementById('issueIdChart'), {
+type: 'bar',
+data: { labels: idLabels.length ? idLabels : ['No Data'], datasets: [{ label: 'Amount', data: idValues.length ? idValues : [0], backgroundColor: '#f59e0b', borderRadius: 8 }] },
+options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: gridColor }, ticks: { color: textColor } }, x: { ticks: { color: textColor, maxRotation: 45, font: { size: 9 } } } } },
+plugins: [valueLabelPlugin]
+});
+document.getElementById('issueIdTotal').textContent = 'Grand Total: ৳' + idTotal.toLocaleString('en-US', { maximumFractionDigits: 0 }) + (idAllLabels.length > 10 ? ` (showing top 10 of ${idAllLabels.length})` : '');
+
+// Chart 4: Division Wise (Bar) - already unsliced, kept as-is
+const divData = {};
+filteredData.forEach(r => { const div = r.division || 'Unknown'; divData[div] = (divData[div] || 0) + r.amount; });
+const divLabels = Object.keys(divData);
+const divValues = divLabels.map(l => divData[l]);
+const divTotal = divValues.reduce((a, b) => a + b, 0);
+
+charts.division = new Chart(document.getElementById('divisionChart'), {
+type: 'bar',
+data: { labels: divLabels.length ? divLabels : ['No Data'], datasets: [{ label: 'Amount', data: divValues.length ? divValues : [0], backgroundColor: '#8b5cf6', borderRadius: 8 }] },
+options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: gridColor }, ticks: { color: textColor } }, x: { ticks: { color: textColor, maxRotation: 45, font: { size: 9 } } } } },
+plugins: [valueLabelPlugin]
+});
+document.getElementById('divisionTotal').textContent = 'Grand Total: ৳' + divTotal.toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+function renderTable() {
+const tbody = document.getElementById('tableBody');
+tbody.innerHTML = filteredData.slice(0, 500).map((r, i) => `
+<tr>
+<td>${r.sl}</td>
+<td>${r.date}</td>
+<td>${r.category}</td>
+<td>${r.division}</td>
+<td>${r.department}</td>
+<td>${r.section}</td>
+<td>${r.itemGroup}</td>
+<td>${r.uom}</td>
+<td style="max-width:300px">${r.itemDescription}</td>
+<td style="text-align:center">${r.issueQty.toLocaleString()}</td>
+<td class="amount">৳${r.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+<td>${r.issueId}</td>
+<td>${r.remarks}</td>
+</tr>
+`).join('') + (filteredData.length > 500 ? `<tr><td colspan="13" style="text-align:center;color:var(--muted)">Showing first 500 of ${filteredData.length} rows</td></tr>` : '');
+}
+
+window.exportToExcel = function() {
+const ws = XLSX.utils.json_to_sheet(filteredData.map(r => ({
+'SL': r.sl, 'Trans. Date': r.date, 'Category': r.category, 'Division': r.division,
+'Department': r.department, 'Section': r.section, 'Item Group': r.itemGroup,
+'UOM': r.uom, 'Item Description': r.itemDescription, 'Issue Qty': r.issueQty,
+'Amount(TK)': r.amount, 'Issue ID': r.issueId, 'Remarks': r.remarks
+})));
+const wb = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb, ws, 'Daily Report');
+XLSX.writeFile(wb, `GMS-General-MCD-${new Date().toISOString().slice(0, 10)}.xlsx`);
+showToast('✅ Excel exported!');
+};
+
+// Proper multi-page, branded PDF: Page 1 = header + summary + all 4 charts
+// (clean 2x2 grid, nothing cut in half by a page-break). From page 2 onward
+// = the FULL detailed data table for the selected date - every row, however
+// many pages that takes (never capped to 500 like the on-screen table).
+window.exportToPDF = function() {
+if (!filteredData.length) { showToast('কোনো ডেটা নেই, PDF বানানো যাবে না', true); return; }
+if (!window.jspdf) { showToast('PDF লাইব্রেরি লোড হয়নি, একটু পরে আবার চেষ্টা করুন', true); return; }
+
+showToast('🖨️ PDF তৈরি হচ্ছে...');
+
+// Charts drawn in dark theme have light-colored text/labels - invisible on a
+// white PDF page. So we briefly force the light theme just to redraw/capture
+// the chart canvases, then restore whatever theme the user actually had.
+const wasLight = document.body.classList.contains('light');
+if (!wasLight) {
+document.body.classList.add('light');
+renderCharts();
+}
+
+setTimeout(() => {
+try {
+buildAndSavePdf();
+} catch (err) {
+console.error(err);
+showToast('PDF তৈরি করতে সমস্যা হয়েছে: ' + err.message, true);
+} finally {
+if (!wasLight) {
+document.body.classList.remove('light');
+renderCharts();
+}
+}
+}, 300);
+};
+
+function buildAndSavePdf() {
+const { jsPDF } = window.jspdf;
+const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+const pageWidth = pdf.internal.pageSize.getWidth();
+const pageHeight = pdf.internal.pageSize.getHeight();
+const dateLabel = currentFilter.date || 'All Dates';
+
+const totalAmount = filteredData.reduce((s, r) => s + r.amount, 0);
+const totalQty = filteredData.reduce((s, r) => s + r.issueQty, 0);
+const depts = new Set(filteredData.map(r => r.department).filter(Boolean)).size;
+const cats = new Set(filteredData.map(r => r.category).filter(Boolean)).size;
+const avg = filteredData.length ? totalAmount / filteredData.length : 0;
+
+function drawBrandHeader(title) {
+pdf.setFillColor(31, 78, 120);
+pdf.rect(0, 0, pageWidth, 16, 'F');
+pdf.setTextColor(255, 255, 255);
+pdf.setFont('helvetica', 'bold');
+pdf.setFontSize(13);
+pdf.text('GMS Textiles Ltd. — General MCD Daily Issue Report', pageWidth / 2, 7, { align: 'center' });
+pdf.setFont('helvetica', 'normal');
+pdf.setFontSize(9);
+pdf.text(title, pageWidth / 2, 13, { align: 'center' });
+}
+
+// ---- Page 1: summary + charts ----
+drawBrandHeader(`Date: ${dateLabel}`);
+
+pdf.setTextColor(55, 65, 81);
+pdf.setFont('helvetica', 'normal');
+pdf.setFontSize(10);
+pdf.text(
+`Total Amount: TK ${totalAmount.toLocaleString('en-US', { maximumFractionDigits: 0 })}   |   Items: ${filteredData.length}   |   Qty: ${totalQty.toLocaleString('en-US', { maximumFractionDigits: 0 })}   |   Departments: ${depts}   |   Categories: ${cats}   |   Avg/Item: TK ${avg.toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
+pageWidth / 2, 23, { align: 'center' }
+);
+
+const chartIds = ['categoryChart', 'sectionChart', 'issueIdChart', 'divisionChart'];
+const chartTitles = ['Category Wise Issue Value', 'Section Wise Issue Value', 'Issue ID Wise Issue Value', 'Division Wise Issue Value'];
+const marginX = 10, gap = 8, startY = 30, chartH = 78;
+const chartW = (pageWidth - marginX * 2 - gap) / 2;
+
+chartIds.forEach((id, i) => {
+const canvas = document.getElementById(id);
+if (!canvas) return;
+const col = i % 2;
+const row = Math.floor(i / 2);
+const x = marginX + col * (chartW + gap);
+const y = startY + row * (chartH + 10);
+
+pdf.setFont('helvetica', 'bold');
+pdf.setFontSize(9);
+pdf.setTextColor(31, 41, 55);
+pdf.text(chartTitles[i], x, y - 2);
+
+try {
+const dataUrl = canvas.toDataURL('image/png', 1.0);
+pdf.setDrawColor(220, 220, 220);
+pdf.rect(x, y, chartW, chartH);
+pdf.addImage(dataUrl, 'PNG', x, y, chartW, chartH);
+} catch (e) {
+console.warn('Chart image capture failed for', id, e);
+}
+});
+
+pdf.setFont('helvetica', 'normal');
+pdf.setFontSize(8);
+pdf.setTextColor(150, 150, 150);
+pdf.text('Page 1', pageWidth - 10, pageHeight - 6, { align: 'right' });
+
+// ---- Page 2+: full detailed data table (ALL rows, auto-paginated) ----
+pdf.addPage();
+
+const head = [[
+'SL', 'Date', 'Category', 'Division', 'Department', 'Section', 'Item Group',
+'UOM', 'Item Description', 'Qty', 'Amount (TK)', 'Issue ID', 'Remarks',
+]];
+const body = filteredData.map(r => [
+r.sl, r.date, r.category, r.division, r.department, r.section, r.itemGroup, r.uom,
+r.itemDescription, r.issueQty.toLocaleString('en-US'),
+r.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+r.issueId, r.remarks,
+]);
+
+pdf.autoTable({
+head, body,
+startY: 20,
+margin: { left: 6, right: 6, top: 18 },
+styles: { fontSize: 7, cellPadding: 1.6, valign: 'middle' },
+headStyles: { fillColor: [48, 84, 150], textColor: 255, fontStyle: 'bold', halign: 'center' },
+alternateRowStyles: { fillColor: [242, 246, 252] },
+columnStyles: { 0: { cellWidth: 8, halign: 'center' }, 9: { halign: 'right' }, 10: { halign: 'right' } },
+didDrawPage: () => {
+drawBrandHeader(`Detailed Data — ${dateLabel}  (${filteredData.length} rows)`);
+pdf.setFont('helvetica', 'normal');
+pdf.setFontSize(8);
+pdf.setTextColor(150, 150, 150);
+pdf.text(`Page ${pdf.internal.getCurrentPageInfo().pageNumber}`, pageWidth - 10, pageHeight - 6, { align: 'right' });
+},
+});
+
+pdf.save(`GMS-General-MCD-${dateLabel}.pdf`);
+showToast('✅ PDF Downloaded!');
+}
+
+function showToast(msg, error = false) {
+const t = document.createElement('div');
+t.className = 'toast' + (error ? ' error' : '');
+t.innerText = msg;
+document.body.appendChild(t);
+setTimeout(() => t.remove(), 3000);
+}
+window.showToast = showToast;
+
+console.log('%c═══════════════════════════════════════════', 'color: #22c55e; font-weight: bold;');
+console.log('%c  📊 GENERAL MCD DAILY REPORT - READY', 'color: #22c55e; font-weight: bold; font-size: 14px;');
+console.log('%c═══════════════════════════════════════════', 'color: #22c55e; font-weight: bold;');
+console.log('%c  ✅ Bug fixed: chart grand totals now match across all 4 charts', 'color: #3b82f6;');
+console.log('%c  ✅ Upload with explicit date override', 'color: #3b82f6;');
+console.log('%c  ✅ Default view = latest date only (no cross-date grand total)', 'color: #22c55e;');
+console.log('%c  ✅ Rolling 30-day auto-expiry (per row)', 'color: #8b5cf6;');
+console.log('%c  ✅ Date sorting fixed: chronological (YYYY-MM-DD) instead of raw text compare', 'color: #ef4444;');
+console.log('%c═══════════════════════════════════════════', 'color: #22c55e; font-weight: bold;');
+</script>
+</body>
+</html>

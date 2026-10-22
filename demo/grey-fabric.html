@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Grey Fabric Stock Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+<style>
+body{margin:0;background:#07111f;color:white;font-family:Arial,sans-serif}
+.header{text-align:center;padding:10px}
+.header h2,.header h3,.header h4{margin:2px}
+.controls{text-align:center;margin:10px}
+button{padding:9px 14px;border:0;border-radius:8px;color:white;font-weight:bold;margin:4px;cursor:pointer}
+.save{background:#16a34a}.add{background:#f59e0b}.del{background:#dc2626}.excel{background:#059669}.print{background:#7c3aed}.home{background:#2563eb}
+input{font-size:15px;padding:6px;border-radius:5px;border:1px solid #999}
+.tableWrap{overflow-x:auto;width:100%}
+table{min-width:1100px;width:96%;margin:8px auto;border-collapse:collapse;background:white;color:black;font-size:13px}
+th,td{border:1px solid #000;padding:5px;text-align:center}
+th{background:#e2f0d9;font-weight:bold}
+td input{width:100%;box-sizing:border-box;border:0;text-align:center;font-size:14px}
+.totalRow{background:#d9ead3;font-weight:bold;font-size:15px}
+.grandRow{background:#ddd;font-weight:bold;font-size:16px}
+.chartBox{width:96%;margin:8px auto;background:white;color:black;padding:10px;border:1px solid #000}
+.toast{position:fixed;right:15px;bottom:15px;background:#22c55e;color:white;padding:12px 18px;border-radius:10px;font-weight:bold;display:none}
+@page{size:A4 landscape;margin:6mm}
+@media print{
+  body{background:white;color:black}
+  .controls,.noPrint{display:none!important}
+  table{width:100%;min-width:0;font-size:10px;margin:0}
+  th,td{padding:3px}
+  .chartBox{width:100%;margin:4px 0}
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h2>GMS Textiles Ltd</h2>
+  <h4>Tansutrapur, Kaliakair, Gazipur</h4>
+  <h4>Grey Fabric MCD</h4>
+  <h3>Grey Fabric Stock Report</h3>
+</div>
+
+<div class="controls noPrint">
+  Date:
+  <input type="date" id="reportDate">
+
+  <button class="save" onclick="saveData()">💾 Save</button>
+  <button class="add" onclick="addRow()">➕ Add Row</button>
+  <button class="del" onclick="deleteDateData()">🗑 Delete Date</button>
+  <button class="excel" onclick="exportExcel()">📊 Excel</button>
+  <button class="print" onclick="window.print()">🖨 PDF / Print</button>
+  <button class="home" onclick="location.href='index.html'">🏠 Home</button>
+</div>
+
+<div class="tableWrap">
+<table id="reportTable">
+<thead>
+<tr>
+  <th>Year</th>
+  <th>Fabric Type</th>
+  <th>Previous Qty</th>
+  <th>Receive Qty (Kgs)</th>
+  <th>Last Delivery Date</th>
+  <th>Delivery Qty (Kgs)</th>
+  <th>Total Delivery (Kgs)</th>
+  <th>Closing Stock (Kgs)</th>
+  <th class="noPrint">Action</th>
+</tr>
+</thead>
+
+<tbody id="tbody"></tbody>
+
+<tfoot>
+<tr class="totalRow">
+  <td colspan="2">Leftover Total</td>
+  <td id="leftPrev">0.00</td>
+  <td id="leftOpen">0.00</td>
+  <td>0.00</td>
+  <td id="leftDelivery">0.00</td>
+  <td id="leftTotalDelivery">0.00</td>
+  <td id="leftClosing">0.00</td>
+  <td class="noPrint"></td>
+</tr>
+
+<tr class="grandRow">
+  <td colspan="2">Grand Total</td>
+  <td id="gtPrev">0.00</td>
+  <td id="gtOpen">0.00</td>
+  <td>0.00</td>
+  <td id="gtDelivery">0.00</td>
+  <td id="gtTotalDelivery">0.00</td>
+  <td id="gtClosing">0.00</td>
+  <td class="noPrint"></td>
+</tr>
+</tfoot>
+</table>
+</div>
+
+<div class="chartBox">
+  <h3 style="text-align:center;margin:0 0 5px">Closing Stock (Kgs)</h3>
+  <canvas id="stockChart" height="80"></canvas>
+</div>
+
+<div id="toast" class="toast">Saved ✅</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  doc,
+  query,
+  where
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId:"gms-warehouse-tracker-7f57e",
+  storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId:"992250313291",
+  appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+
+let chart;
+let rows=[];
+
+const defaultRows=[
+  {year:"2018",fabric:"Leftover Grey Fabric",previous:427,opening:"",lastDate:"",delivery:"",totalDelivery:427,closing:0},
+  {year:"2019",fabric:"Leftover Grey Fabric",previous:1069,opening:"",lastDate:"",delivery:"",totalDelivery:1069,closing:0},
+  {year:"2020",fabric:"Leftover Grey Fabric",previous:8282,opening:"",lastDate:"",delivery:"",totalDelivery:8282,closing:0},
+  {year:"2021",fabric:"Leftover Grey Fabric",previous:48954,opening:"",lastDate:"",delivery:"",totalDelivery:48954,closing:0},
+  {year:"2022",fabric:"Leftover Grey Fabric",previous:30823,opening:"",lastDate:"",delivery:"",totalDelivery:30823,closing:0},
+  {year:"2023",fabric:"Leftover Grey Fabric",previous:82351,opening:"",lastDate:"",delivery:"",totalDelivery:64663,closing:17688},
+  {year:"2024",fabric:"Leftover Grey Fabric",previous:65449,opening:"",lastDate:"",delivery:"",totalDelivery:40430,closing:25019},
+  {year:"2025",fabric:"Leftover Grey Fabric",previous:1677,opening:"",lastDate:"",delivery:"",totalDelivery:1322,closing:355},
+  {year:"Without Sticker",fabric:"All Sticker Missing",previous:39312,opening:"",lastDate:"",delivery:"",totalDelivery:445,closing:38867},
+  {year:"Textile-25",fabric:"Textiles Running Fabric-25/26",previous:"",opening:"",lastDate:"",delivery:"",totalDelivery:"",closing:"",manualClosing:true},
+  {year:"Composite-25",fabric:"Composite Fab.(Tex Knit)-25/26",previous:"",opening:"",lastDate:"",delivery:"",totalDelivery:"",closing:"",manualClosing:true},
+  {year:"For Dyeing-25",fabric:"Composite Fab.(For Dyeing)-25/26",previous:"",opening:"",lastDate:"",delivery:"",totalDelivery:"",closing:"",manualClosing:true}
+];
+
+function today(){
+  return new Date().toISOString().slice(0,10);
+}
+
+document.getElementById("reportDate").value=today();
+
+function format(n){
+  if(n==="" || n===null || n===undefined) return "";
+  return Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function raw(v){
+  if(v==="" || v===null || v===undefined) return "";
+  return Number(String(v).replace(/,/g,""))||0;
+}
+
+function toast(msg){
+  let t=document.getElementById("toast");
+  t.innerText=msg;
+  t.style.display="block";
+  setTimeout(()=>t.style.display="none",1600);
+}
+
+function prepareRows(list){
+  rows=(list||[]).map((r,i)=>({
+    ...r,
+    baseTotalDelivery:r.baseTotalDelivery!==undefined ? r.baseTotalDelivery : r.totalDelivery,
+    manualClosing:r.manualClosing!==undefined ? r.manualClosing : (i>=9)
+  }));
+}
+
+function calcRow(r,i){
+  let previous=raw(r.previous);
+  let receive=raw(r.opening);
+  let delivery=raw(r.delivery);
+
+  if(r.baseTotalDelivery===undefined || r.baseTotalDelivery===null || r.baseTotalDelivery===""){
+    r.baseTotalDelivery=raw(r.totalDelivery);
+  }
+
+  let totalDelivery=raw(r.baseTotalDelivery)+delivery;
+  r.totalDelivery=totalDelivery;
+
+  if(!r.manualClosing){
+    r.closing=previous+receive-totalDelivery;
+  }
+}
+
+function render(){
+  let html="";
+  rows.forEach((r,i)=>{
+    calcRow(r,i);
+    html+=`
+      <tr>
+        <td><input value="${r.year||""}" oninput="rows[${i}].year=this.value"></td>
+        <td><input value="${r.fabric||""}" oninput="rows[${i}].fabric=this.value"></td>
+        <td><input type="text" value="${r.previous!==undefined?r.previous:""}" oninput="rows[${i}].previous=this.value; calc();"></td>
+        <td><input type="text" value="${r.opening!==undefined?r.opening:""}" oninput="rows[${i}].opening=this.value; calc();"></td>
+        <td><input type="date" value="${r.lastDate||""}" oninput="rows[${i}].lastDate=this.value"></td>
+        <td><input type="text" value="${r.delivery!==undefined?r.delivery:""}" oninput="rows[${i}].delivery=this.value; calc();"></td>
+        <td><input type="text" value="${format(r.totalDelivery)}" oninput="rows[${i}].baseTotalDelivery=this.value; rows[${i}].totalDelivery=this.value; calc();"></td>
+        <td><input type="text" value="${format(r.closing)}" oninput="rows[${i}].closing=this.value; rows[${i}].manualClosing=true; calcTotalsOnly(); renderChartOnly();"></td>
+        <td class="noPrint"><button class="del" onclick="removeRow(${i})">Delete</button></td>
+      </tr>
+    `;
+  });
+  document.getElementById("tbody").innerHTML=html;
+  calcTotalsOnly();
+  renderChartOnly();
+}
+
+function calc(){
+  rows.forEach((r,i)=>calcRow(r,i));
+  calcTotalsOnly();
+  renderChartOnly();
+
+  document.querySelectorAll("#tbody tr").forEach((tr,i)=>{
+    let totalInput=tr.children[6]?.querySelector("input");
+    let closingInput=tr.children[7]?.querySelector("input");
+    if(totalInput) totalInput.value=format(rows[i].totalDelivery);
+    if(closingInput && !document.activeElement.isSameNode(closingInput)) closingInput.value=format(rows[i].closing);
+  });
+}
+
+function calcTotalsOnly(){
+  let leftPrev=0,leftReceive=0,leftDelivery=0,leftTotalDelivery=0,leftClosing=0;
+  let extraPrev=0,extraReceive=0,extraDelivery=0,extraTotalDelivery=0,extraClosing=0;
+
+  document.querySelectorAll("#tbody tr").forEach((tr,i)=>{
+    let inputs=tr.querySelectorAll("input");
+    let previous=raw(inputs[2]?.value);
+    let receive=raw(inputs[3]?.value);
+    let delivery=raw(inputs[5]?.value);
+    let totalDelivery=raw(inputs[6]?.value);
+    let closing=raw(inputs[7]?.value);
+
+    if(rows[i]){
+      rows[i].previous=inputs[2]?.value || "";
+      rows[i].opening=inputs[3]?.value || "";
+      rows[i].lastDate=inputs[4]?.value || "";
+      rows[i].delivery=inputs[5]?.value || "";
+      rows[i].totalDelivery=inputs[6]?.value || "";
+      rows[i].closing=inputs[7]?.value || "";
+    }
+
+    if(i<=8){
+      leftPrev+=previous; leftReceive+=receive; leftDelivery+=delivery;
+      leftTotalDelivery+=totalDelivery; leftClosing+=closing;
+    }
+    if(i>=9){
+      extraPrev+=previous; extraReceive+=receive; extraDelivery+=delivery;
+      extraTotalDelivery+=totalDelivery; extraClosing+=closing;
+    }
+  });
+
+  let gtPrev=leftPrev+extraPrev;
+  let gtReceive=leftReceive+extraReceive;
+  let gtDelivery=leftDelivery+extraDelivery;
+  let gtTotalDelivery=leftTotalDelivery+extraTotalDelivery;
+  let gtClosing=leftClosing+extraClosing;
+
+  document.getElementById("leftPrev").innerText=format(leftPrev);
+  document.getElementById("leftOpen").innerText=format(leftReceive);
+  document.getElementById("leftDelivery").innerText=format(leftDelivery);
+  document.getElementById("leftTotalDelivery").innerText=format(leftTotalDelivery);
+  document.getElementById("leftClosing").innerText=format(leftClosing);
+
+  document.getElementById("gtPrev").innerText=format(gtPrev);
+  document.getElementById("gtOpen").innerText=format(gtReceive);
+  document.getElementById("gtDelivery").innerText=format(gtDelivery);
+  document.getElementById("gtTotalDelivery").innerText=format(gtTotalDelivery);
+  document.getElementById("gtClosing").innerText=format(gtClosing);
+}
+
+function renderChartOnly(){
+  let gtClosing=0;
+  let trs=document.querySelectorAll("#tbody tr");
+  if(trs.length){
+    trs.forEach(tr=>{ gtClosing+=raw(tr.querySelectorAll("input")[7]?.value); });
+  } else { rows.forEach(r=>gtClosing+=raw(r.closing)); }
+  renderChart(gtClosing);
+}
+
+function renderChart(grandTotal){
+  let labels=rows.map(r=>r.year||r.fabric||"Item");
+  let data=rows.map(r=>raw(r.closing));
+  labels.push("Grand Total");
+  data.push(grandTotal);
+
+  if(chart) chart.destroy();
+  const valuePlugin={
+    id:"valuePlugin",
+    afterDatasetsDraw(chart){
+      const {ctx}=chart;
+      ctx.save(); ctx.textAlign="center"; ctx.fillStyle="#111"; ctx.font="bold 10px Arial";
+      chart.data.datasets[0].data.forEach((value,index)=>{
+        const bar=chart.getDatasetMeta(0).data[index];
+        if(bar) ctx.fillText(Number(value||0).toLocaleString("en-US"),bar.x,bar.y-7);
+      });
+      ctx.restore();
+    }
+  };
+  chart=new Chart(document.getElementById("stockChart"),{
+    type:"bar",
+    data:{ labels, datasets:[{ label:"Closing Stock", data, borderWidth:1, borderRadius:4 }] },
+    options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{beginAtZero:true}, x:{ticks:{font:{size:9}}} } },
+    plugins:[valuePlugin]
+  });
+}
+
+window.addRow=function(){
+  rows.push({year:"",fabric:"",previous:"",opening:"",lastDate:"",delivery:"",totalDelivery:"",baseTotalDelivery:"",closing:"",manualClosing:true});
+  render();
+};
+
+window.removeRow=function(i){
+  if(confirm("Delete this row?")){ rows.splice(i,1); render(); }
+};
+
+async function deleteDateOnly(date){
+  let q=query(collection(db,"greyFabricStock"),where("date","==",date));
+  let snap=await getDocs(q);
+  for(let d of snap.docs){ await deleteDoc(doc(db,"greyFabricStock",d.id)); }
+}
+
+async function getPreviousData(date){
+  let snap=await getDocs(collection(db,"greyFabricStock"));
+  let all=[];
+  snap.forEach(d=>{
+    let x=d.data();
+    if(x.date < date && x.rows && x.rows.length) all.push(x);
+  });
+  all.sort((a,b)=>b.date.localeCompare(a.date));
+  return all[0]||null;
+}
+
+async function loadData(){
+  let date=document.getElementById("reportDate").value;
+
+  // ১. বর্তমান তারিখের জন্য ডাটা আছে কি না চেক করি
+  let q=query(collection(db,"greyFabricStock"),where("date","==",date));
+  let snap=await getDocs(q);
+
+  if(!snap.empty){
+    prepareRows(snap.docs[0].data().rows||[]);
+    render();
+    return;
+  }
+
+  // ২. আজ ডাটা না থাকলে, আগের যে কোনো দিনের লেটেস্ট ডাটা খুঁজি
+  let prevData = await getPreviousData(date);
+  if(prevData && prevData.rows){
+    // আগের দিনের ডাটা হুবহু কপি করছি
+    let clonedRows = JSON.parse(JSON.stringify(prevData.rows));
+    
+    // শুধু আজকের রিসিভ এবং ডেলিভারি ইনপুটগুলো খালি করছি যাতে আজকের নতুন এন্ট্রি দেওয়া যায়, 
+    // কিন্তু প্রিভিয়াস এবং টোটাল ডেলিভারি আগের মতোই থাকছে।
+    clonedRows.forEach(r => {
+        r.opening = ""; 
+        r.delivery = ""; 
+        r.baseTotalDelivery = r.totalDelivery; 
+    });
+
+    prepareRows(clonedRows);
+    render();
+    return;
+  }
+
+  // ৩. একদম নতুন ডাটাবেজ হলে ডিফল্ট রো লোড হবে
+  prepareRows(JSON.parse(JSON.stringify(defaultRows)));
+  render();
+}
+
+window.saveData=async function(){
+  let date=document.getElementById("reportDate").value;
+  rows.forEach((r,i)=>calcRow(r,i));
+  calcTotalsOnly();
+  await deleteDateOnly(date);
+  await addDoc(collection(db,"greyFabricStock"),{ date, rows, savedAt:new Date().toISOString() });
+  toast("Grey Fabric Saved ✅");
+};
+
+window.deleteDateData=async function(){
+  let date=document.getElementById("reportDate").value;
+  if(confirm("Delete this date data?")){
+    await deleteDateOnly(date);
+    loadData(); // আগের দিনের ডাটা অটোমেটিক আবার নিয়ে আসবে
+    toast("Deleted ✅");
+  }
+};
+
+window.exportExcel=function(){
+  let clone=document.getElementById("reportTable").cloneNode(true);
+  clone.querySelectorAll(".noPrint").forEach(x=>x.remove());
+  let html=`<html><head><meta charset="UTF-8"></head><body><h2>GMS Textiles Ltd</h2><h3>Grey Fabric Stock Report</h3>${clone.outerHTML}</body></html>`;
+  let file=new Blob([html],{type:"application/vnd.ms-excel"});
+  let a=document.createElement("a"); a.href=URL.createObjectURL(file); a.download="grey-fabric-stock-report.xls"; a.click();
+};
+
+document.getElementById("reportDate").addEventListener("change",loadData);
+
+document.addEventListener("input",function(e){
+  if(!e.target.closest("#tbody")) return;
+  calcTotalsOnly();
+  renderChartOnly();
+});
+
+document.addEventListener("keydown",function(e){
+  if(e.target.tagName!=="INPUT" || e.key!=="Enter") return;
+  e.preventDefault();
+  let td=e.target.closest("td"); let tr=e.target.closest("tr");
+  if(!td || !tr) return;
+  let colIndex=[...tr.children].indexOf(td);
+  let nextTr=tr.nextElementSibling;
+  if(nextTr){
+    let nextInput=nextTr.children[colIndex]?.querySelector("input");
+    if(nextInput){ nextInput.focus(); nextInput.select(); }
+  }
+});
+
+loadData();
+</script>
+
+</body>
+</html>

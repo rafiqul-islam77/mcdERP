@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Month Wise Needle Stock Qty & Value Report</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+<style>
+body{
+  margin:0;
+  background:#07111f;
+  color:white;
+  font-family:Arial,sans-serif;
+}
+
+.header{
+  text-align:center;
+  padding:10px 5px 4px;
+}
+
+.header h2,.header h3,.header h4{
+  margin:2px;
+}
+
+.controls{
+  text-align:center;
+  margin:10px;
+}
+
+input{
+  padding:8px;
+  border-radius:6px;
+  border:1px solid #999;
+  font-weight:bold;
+}
+
+button{
+  padding:10px 16px;
+  border:0;
+  border-radius:8px;
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+  margin:4px;
+}
+
+.show{background:#2563eb}
+.excel{background:#059669}
+.print{background:#7c3aed}
+.home{background:#0f766e}
+
+.reportBox{
+  width:1040px;
+  max-width:99%;
+  margin:10px auto;
+  background:white;
+  color:black;
+}
+
+.titleTable{
+  width:100%;
+  border-collapse:collapse;
+  background:white;
+  color:black;
+}
+
+.titleTable td{
+  border:0;
+  text-align:center;
+  font-weight:bold;
+}
+
+.companyTitle{font-size:24px}
+.subTitle{font-size:14px}
+.reportTitle{font-size:15px}
+
+table.reportTable{
+  width:100%;
+  border-collapse:collapse;
+  background:white;
+  color:black;
+  font-size:14px;
+}
+
+.reportTable th,
+.reportTable td{
+  border:1px solid #000;
+  padding:3px 5px;
+  text-align:center;
+}
+
+.reportTable th{
+  background:#b7c9df;
+  font-weight:bold;
+}
+
+.monthCell{
+  font-weight:normal;
+  background:white;
+}
+
+.totalRow{
+  background:#ffffff;
+  font-weight:bold;
+  font-size:18px;
+}
+
+.totalRow td{
+  font-weight:bold;
+}
+
+.grandRow{
+  background:#e8f1dd;
+  font-weight:bold;
+  font-size:20px;
+}
+
+@page{
+  size:A4 landscape;
+  margin:7mm;
+}
+
+@media print{
+  body{
+    background:white;
+    color:black;
+  }
+
+  .controls{
+    display:none!important;
+  }
+
+  .header{
+    display:none!important;
+  }
+
+  .reportBox{
+    width:100%;
+    max-width:100%;
+    margin:0;
+  }
+
+  table.reportTable{
+    font-size:12px;
+  }
+
+  .reportTable th,
+  .reportTable td{
+    padding:2px 4px;
+  }
+
+  .companyTitle{font-size:22px}
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h2>GMS Textiles Ltd</h2>
+  <h4>Tansutrapur, Kaliakoir, Gazipur</h4>
+  <h3>Month Wise Needle Stock Qty & Value Report</h3>
+</div>
+
+<div class="controls">
+  Year:
+  <input type="number" id="reportYear" style="width:90px">
+
+  From Month:
+  <input type="month" id="fromMonth">
+
+  To Month:
+  <input type="month" id="toMonth">
+
+  <button class="show" onclick="loadReport()">🔍 Show Report</button>
+  <button class="excel" onclick="exportExcel()">📊 Excel</button>
+  <button class="print" onclick="window.print()">🖨 PDF / Print</button>
+  <button class="home" onclick="location.href='index.html'">🏠 Home</button>
+</div>
+
+<div class="reportBox" id="reportArea">
+
+<table class="titleTable">
+<tr>
+  <td colspan="9" class="companyTitle">Gms Textiles Ltd</td>
+</tr>
+<tr>
+  <td colspan="9" class="subTitle">Tansutrapur, Kaliakoir, Gazipur</td>
+</tr>
+<tr>
+  <td colspan="9" class="reportTitle" id="reportTitle">Month Wise Needle Stock Qty &amp; Value Report-2026</td>
+</tr>
+</table>
+
+<table class="reportTable" id="reportTable">
+<thead>
+<tr>
+  <th style="width:48px">Sl no</th>
+  <th style="width:98px">Production<br>Floor Name</th>
+  <th style="width:150px">Month</th>
+  <th style="width:120px">Previous Balance</th>
+  <th style="width:120px">Monthly<br>Received</th>
+  <th style="width:120px">Total Qty</th>
+  <th style="width:120px">Monthly Issue</th>
+  <th style="width:120px">Present Stock</th>
+  <th>Remarks</th>
+</tr>
+</thead>
+
+<tbody id="tbody"></tbody>
+
+<tfoot>
+<tr class="grandRow">
+  <td colspan="3">Grand&nbsp; Total</td>
+  <td id="gtPrevious">0</td>
+  <td id="gtReceived">0</td>
+  <td id="gtTotalQty">0</td>
+  <td id="gtIssue">0</td>
+  <td id="gtPresent">0</td>
+  <td></td>
+</tr>
+</tfoot>
+</table>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyD-wBCF5eeWMHobLFOhBzKW7aB2pagz9-w",
+  authDomain:"gms-warehouse-tracker-7f57e.firebaseapp.com",
+  projectId:"gms-warehouse-tracker-7f57e",
+  storageBucket:"gms-warehouse-tracker-7f57e.firebasestorage.app",
+  messagingSenderId:"992250313291",
+  appId:"1:992250313291:web:ee3bceae76d4d53bc26bce"
+};
+
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+
+const floorGroups=[
+  {name:"Shapla",floors:["Shapla R","Shapla N"]},
+  {name:"Poddo",floors:["Poddo R","Poddo N"]},
+  {name:"Sample",floors:["Sample R","Sample N"]},
+  {name:"EMB",floors:["EMBROIDERY R","EMBROIDERY N"]},
+  {name:"Belly",floors:["Belly R","Belly N"]},
+  {name:"Kadom",floors:["Kadom R","Kadom N"]}
+];
+
+const monthNames=[
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December"
+];
+
+const openingFallback={
+  "2026-01":{Shapla:2727,Poddo:3149,Sample:2675,EMB:2576,Belly:2489,Kadom:3067},
+  "2026-02":{Shapla:2495,Poddo:2379,Sample:2558,EMB:1845,Belly:1960,Kadom:2443},
+  "2026-03":{Shapla:3123,Poddo:4545,Sample:2799,EMB:1916,Belly:2823,Kadom:2300},
+  "2026-04":{Shapla:2541,Poddo:2876,Sample:2261,EMB:1802,Belly:1918,Kadom:1466}
+};
+
+const receiveFallback={
+  "2026-01":{Shapla:9380,Poddo:9490,Sample:3140,EMB:3200,Belly:4820,Kadom:9000},
+  "2026-02":{Shapla:8490,Poddo:12330,Sample:3080,EMB:2300,Belly:4830,Kadom:7780},
+  "2026-03":{Shapla:7090,Poddo:7620,Sample:2320,EMB:2100,Belly:4000,Kadom:7310},
+  "2026-04":{Shapla:9540,Poddo:11290,Sample:3290,EMB:2540,Belly:3760,Kadom:10340}
+};
+
+const issueFallback={
+  "2026-01":{Shapla:9612,Poddo:10260,Sample:3257,EMB:3931,Belly:5349,Kadom:9624},
+  "2026-02":{Shapla:7862,Poddo:10164,Sample:2839,EMB:2229,Belly:3967,Kadom:7923},
+  "2026-03":{Shapla:7672,Poddo:9289,Sample:2858,EMB:2214,Belly:4905,Kadom:8144},
+  "2026-04":{Shapla:10337,Poddo:11876,Sample:4162,EMB:3044,Belly:4547,Kadom:10745}
+};
+
+function currentYM(){
+  return new Date().toISOString().slice(0,7);
+}
+
+document.getElementById("reportYear").value=new Date().getFullYear();
+document.getElementById("fromMonth").value="2026-01";
+document.getElementById("toMonth").value="2026-04";
+
+function fmt(n){
+  return Number(n||0).toLocaleString("en-US");
+}
+
+function ym(year,month){
+  return year+"-"+String(month).padStart(2,"0");
+}
+
+function monthNo(ymText){
+  return Number(ymText.slice(5,7));
+}
+
+function getMonthList(from,to){
+  let list=[];
+  let [fy,fm]=from.split("-").map(Number);
+  let [ty,tm]=to.split("-").map(Number);
+
+  let d=new Date(fy,fm-1,1);
+  let end=new Date(ty,tm-1,1);
+
+  while(d<=end){
+    list.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"));
+    d.setMonth(d.getMonth()+1);
+  }
+
+  return list;
+}
+
+function rowSum(rows,field){
+  let total=0;
+  (rows||[]).forEach(r=>{
+    total+=Number(r[field])||0;
+  });
+  return total;
+}
+
+async function getDailyPosting(){
+  let snap=await getDocs(collection(db,"dailyPosting"));
+  let data=[];
+
+  snap.forEach(d=>{
+    let x=d.data();
+    if(x.date && x.month && x.floor && Array.isArray(x.rows)){
+      data.push(x);
+    }
+  });
+
+  return data;
+}
+
+function getFirebaseGroupMonth(allDocs,monthKey,group){
+  let previous=0,received=0,issue=0,present=0,found=false;
+
+  group.floors.forEach(floor=>{
+    let docs=allDocs
+      .filter(x=>x.month===monthKey && x.floor===floor)
+      .sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+
+    if(docs.length){
+      found=true;
+      let first=docs[0];
+      let last=docs[docs.length-1];
+
+      previous+=rowSum(first.rows,"previous");
+      present+=rowSum(last.rows,"present");
+
+      docs.forEach(day=>{
+        received+=rowSum(day.rows,"receive");
+        issue+=rowSum(day.rows,"delivery");
+      });
+    }
+  });
+
+  return{found,previous,received,issue,present};
+}
+
+function getFallbackGroupMonth(monthKey,groupName,carryPrevious){
+  let previous =
+    carryPrevious!==null && carryPrevious!==undefined
+    ? carryPrevious
+    : Number(openingFallback[monthKey]?.[groupName]||0);
+
+  let received=Number(receiveFallback[monthKey]?.[groupName]||0);
+  let issue=Number(issueFallback[monthKey]?.[groupName]||0);
+  let totalQty=previous+received;
+  let present=totalQty-issue;
+
+  return{previous,received,totalQty,issue,present};
+}
+
+window.loadReport=async function(){
+  let from=document.getElementById("fromMonth").value;
+  let to=document.getElementById("toMonth").value;
+
+  if(!from || !to){
+    alert("Month select koro");
+    return;
+  }
+
+  if(from>to){
+    alert("From month To month er cheye boro hote parbe na");
+    return;
+  }
+
+  let allDocs=await getDailyPosting();
+  let months=getMonthList(from,to);
+
+  document.getElementById("reportTitle").innerText =
+    "Month Wise Needle Stock Qty & Value Report-" + to.slice(0,4);
+
+  let carryByGroup={};
+  let html="";
+  let sl=1;
+
+  let gtPrevious=0,gtReceived=0,gtTotalQty=0,gtIssue=0,gtPresent=0;
+
+  months.forEach(monthKey=>{
+    let monthTotal={previous:0,received:0,totalQty:0,issue:0,present:0};
+    let monthName=monthNames[monthNo(monthKey)-1];
+
+    floorGroups.forEach((g,idx)=>{
+      let fb=getFallbackGroupMonth(
+        monthKey,
+        g.name,
+        carryByGroup[g.name]
+      );
+
+      let firebase=getFirebaseGroupMonth(allDocs,monthKey,g);
+
+      let r;
+      if(firebase.found){
+        let previous = carryByGroup[g.name]!==undefined ? carryByGroup[g.name] : firebase.previous;
+        let received = firebase.received;
+        let issue = firebase.issue;
+        let totalQty = previous + received;
+        let present = totalQty - issue;
+
+        r={previous,received,totalQty,issue,present};
+      }else{
+        r=fb;
+      }
+
+      carryByGroup[g.name]=r.present;
+
+      monthTotal.previous+=r.previous;
+      monthTotal.received+=r.received;
+      monthTotal.totalQty+=r.totalQty;
+      monthTotal.issue+=r.issue;
+      monthTotal.present+=r.present;
+
+      html+=`
+      <tr>
+        <td>${idx===0?sl:""}</td>
+        <td>${g.name}</td>
+        ${idx===0?`<td rowspan="${floorGroups.length}" class="monthCell">${monthName}</td>`:""}
+        <td>${fmt(r.previous)}</td>
+        <td>${fmt(r.received)}</td>
+        <td>${fmt(r.totalQty)}</td>
+        <td>${fmt(r.issue)}</td>
+        <td>${fmt(r.present)}</td>
+        <td></td>
+      </tr>`;
+      sl++;
+    });
+
+    html+=`
+    <tr class="totalRow">
+      <td colspan="3">Total Qty</td>
+      <td>${fmt(monthTotal.previous)}</td>
+      <td>${fmt(monthTotal.received)}</td>
+      <td>${fmt(monthTotal.totalQty)}</td>
+      <td>${fmt(monthTotal.issue)}</td>
+      <td>${fmt(monthTotal.present)}</td>
+      <td></td>
+    </tr>`;
+
+    gtPrevious+=monthTotal.previous;
+    gtReceived+=monthTotal.received;
+    gtTotalQty+=monthTotal.totalQty;
+    gtIssue+=monthTotal.issue;
+    gtPresent+=monthTotal.present;
+  });
+
+  document.getElementById("tbody").innerHTML=html;
+
+  document.getElementById("gtPrevious").innerText=fmt(gtPrevious);
+  document.getElementById("gtReceived").innerText=fmt(gtReceived);
+  document.getElementById("gtTotalQty").innerText=fmt(gtTotalQty);
+  document.getElementById("gtIssue").innerText=fmt(gtIssue);
+  document.getElementById("gtPresent").innerText=fmt(gtPresent);
+};
+
+window.exportExcel=function(){
+  let html=`
+  <html>
+  <head><meta charset="UTF-8"></head>
+  <body>
+  ${document.getElementById("reportArea").outerHTML}
+  </body>
+  </html>`;
+
+  let file=new Blob([html],{type:"application/vnd.ms-excel"});
+  let a=document.createElement("a");
+  a.href=URL.createObjectURL(file);
+  a.download="month-wise-needle-stock-qty-report.xls";
+  a.click();
+};
+
+loadReport();
+</script>
+
+</body>
+</html>

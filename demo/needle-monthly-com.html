@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<title>Needle Monthly Report - GMS Composite</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#07111f;color:white;font-family:'Poppins',Arial,sans-serif}
+.header{text-align:center;padding:12px;background:linear-gradient(135deg,#1e293b,#0f172a);border-bottom:2px solid #3b82f6}
+.header h2{margin:4px;font-size:20px;background:linear-gradient(135deg,#8b5cf6,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header h3{margin:4px;font-size:14px;color:#94a3b8}
+.controls{text-align:center;margin:10px;padding:10px;background:rgba(30,41,59,0.8);border-radius:10px}
+.controls label{font-weight:600;margin:0 6px;color:#cbd5e1}
+button{padding:10px 14px;border:0;border-radius:8px;color:white;font-weight:bold;margin:4px;cursor:pointer;transition:all 0.3s}
+button:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+.show{background:#2563eb}.excel{background:#16a34a}.print{background:#7c3aed}.home{background:#0f766e}.refresh{background:#f59e0b;color:#000}
+input,select{font-size:14px;padding:8px;border-radius:6px;border:1px solid #475569;background:#1e293b;color:white;margin:0 4px}
+.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px;padding:0 10px}
+.kpiBox{background:linear-gradient(135deg,#101b2d,#1e293b);border:1px solid #263855;border-radius:14px;padding:14px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.2)}
+.kpiBox span{font-size:12px;color:#9fb0c7;font-weight:bold;display:block}
+.kpiBox b{display:block;color:#22c55e;font-size:24px;margin-top:6px;font-weight:900}
+.kpiBox:nth-child(2) b{color:#3b82f6}
+.kpiBox:nth-child(3) b{color:#f59e0b}
+.kpiBox:nth-child(4) b{color:#ef4444}
+.tableWrap{overflow-x:auto;width:100%;margin:10px 0}
+table{min-width:1050px;width:98%;margin:10px auto;border-collapse:collapse;background:white;color:black;font-size:12px;box-shadow:0 4px 12px rgba(0,0,0,0.2);border-radius:8px;overflow:hidden}
+th,td{border:1px solid #000;padding:6px;text-align:center}
+th{background:linear-gradient(135deg,#1e293b,#334155);color:white;font-weight:bold}
+.floorTitle{background:linear-gradient(135deg,#3b82f6,#8b5cf6)!important;color:white!important;font-size:15px;font-weight:900;letter-spacing:0.5px}
+.totalRow{background:linear-gradient(135deg,#d9ead3,#a7d9a7);font-weight:bold;color:#000}
+.grandRow{background:linear-gradient(135deg,#ffe599,#fbbf24);font-weight:bold;font-size:14px;color:#000}
+.loading{text-align:center;padding:40px;color:#94a3b8;font-size:16px;font-weight:600}
+.noData{text-align:center;color:#94a3b8;padding:40px;font-weight:bold;font-size:16px}
+
+/* Signature Section */
+.signatureSection{
+  margin-top:30px;
+  margin-bottom:20px;
+  display:none;
+  page-break-inside:avoid;
+}
+.signatureTable{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+.signatureTable td{
+  width:33.33%;
+  text-align:center;
+  vertical-align:top;
+  padding:5px;
+  border:none;
+}
+.signatureLine{
+  border-top:2px solid #000;
+  width:70%;
+  margin:0 auto 4px auto;
+  height:0;
+}
+.signatureLabel{
+  font-weight:bold;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:1px;
+}
+
+@page{
+  size:A4 portrait;
+  margin:10mm;
+}
+
+@media print{
+  body{background:white!important;color:black!important}
+  .controls,.kpi,.noPrint{display:none!important}
+  .signatureSection{display:block!important}
+  table{width:100%!important;min-width:0!important;font-size:9px!important;margin:2px 0;box-shadow:none!important}
+  th,td{padding:3px!important}
+  .tableWrap{margin-bottom:20px;page-break-after:auto}
+  .floorTitle{font-size:12px!important}
+  .header{background:none!important;border:none!important}
+  .header h2,.header h3{color:black!important;-webkit-text-fill-color:black!important}
+}
+
+@media(max-width:700px){
+  .kpi{grid-template-columns:1fr 1fr}
+  .header h2{font-size:16px}
+  .header h3{font-size:12px}
+  button{padding:8px 10px;font-size:12px}
+  input,select{font-size:12px;padding:6px}
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h2>🪡 GMS COMPOSITE - NEEDLE MONTHLY REPORT</h2>
+  <h3>Needle Daily Posting → Monthly Summary</h3>
+</div>
+
+<div class="controls noPrint">
+  <label>📅 Month:</label>
+  <input type="month" id="monthInput">
+
+  <label>🏭 Floor:</label>
+  <select id="floorFilter">
+    <option value="">-- All Floors --</option>
+    <optgroup label="BUILDING 02">
+      <option>A-FLOOR(BUILDING NO-02)_NEW</option>
+      <option>A-FLOOR(BUILDING NO-02)_RUNNING</option>
+      <option>B-FLOOR(BUILDING NO-02)_NEW</option>
+      <option>B-FLOOR(BUILDING NO-02)_RUNNING</option>
+    </optgroup>
+    <optgroup label="BUILDING 04">
+      <option>C-FLOOR ( BUILDING NO-04)_NEW</option>
+      <option>C-FLOOR ( BUILDING NO-04)_RUNNING</option>
+      <option>D-FLOOR ( BUILDING NO -04)_NEW</option>
+      <option>D-FLOOR ( BUILDING NO -04)_RUNNING</option>
+    </optgroup>
+    <optgroup label="BUILDING 03">
+      <option>E-FLOOR ( BUILDING NO-03)_NEW</option>
+      <option>E-FLOOR ( BUILDING NO-03)_RUNNING</option>
+    </optgroup>
+    <optgroup label="BUILDING 01">
+      <option>EMB-(BUILDING NO-01)_NEW</option>
+      <option>EMB-(BUILDING NO-01)_RUNNING</option>
+      <option>TRAINING CENTRE-(BUILDING NO-01)_NEW</option>
+      <option>TRAINING CENTRE-(BUILDING NO-01)_RUNNING</option>
+    </optgroup>
+    <optgroup label="BUILDING 6A">
+      <option>F-FLOOR (BUILDING NO-6A)_NEW</option>
+      <option>F-FLOOR (BUILDING NO-6A)_RUNNING</option>
+      <option>G-FLOOR ( BUILDING NO-6A)_NEW</option>
+      <option>G-FLOOR ( BUILDING NO-6A)_RUNNING</option>
+    </optgroup>
+    <optgroup label="BUILDING 6B">
+      <option>H-FLOOR (BUILDING NO-6B)_NEW</option>
+      <option>H-FLOOR (BUILDING NO-6B)_RUNNING</option>
+      <option>I-FLOOR (BUILDING NO-06 B)_NEW</option>
+      <option>I-FLOOR (BUILDING NO-06 B)_RUNNING</option>
+    </optgroup>
+    <optgroup label="BUILDING 09">
+      <option>J-FLOOR(BUILDING NO-09)_NEW</option>
+      <option>J-FLOOR(BUILDING NO-09)_RUNNING</option>
+      <option>K-FLOOR(BUILDING NO-09)_NEW</option>
+      <option>K-FLOOR(BUILDING NO-09)_RUNNING</option>
+    </optgroup>
+    <optgroup label="BUILDING 03 (SAMPLE)">
+      <option>SAMPLE-(BUILDING NO-03)_NEW</option>
+      <option>SAMPLE-(BUILDING NO-03)_RUNNING</option>
+    </optgroup>
+  </select>
+
+  <button class="show" onclick="loadReport()">🔍 Show Report</button>
+  <button class="refresh" onclick="loadReport()">🔄 Refresh</button>
+  <button class="excel" onclick="exportExcel()">📊 Excel</button>
+  <button class="print" onclick="window.print()">🖨 PDF / Print</button>
+  <button class="home" onclick="location.href='needle.html'">🪡 Entry</button>
+  <button class="home" onclick="location.href='index.html'">🏠 Home</button>
+</div>
+
+<div class="kpi noPrint">
+  <div class="kpiBox"><span>📥 Total Receive</span><b id="kpiReceive">0</b></div>
+  <div class="kpiBox"><span>📤 Total Delivery</span><b id="kpiDelivery">0</b></div>
+  <div class="kpiBox"><span>📦 Present Stock</span><b id="kpiPresent">0</b></div>
+  <div class="kpiBox"><span>📌 Total BNR/BNF</span><b id="kpiBN">0</b></div>
+</div>
+
+<div id="reportArea">
+  <div class="loading">📊 Month সিলেক্ট করে "Show Report" চাপুন...</div>
+</div>
+
+<!-- Signature Section (Only visible in print) -->
+<div class="signatureSection noPrint">
+  <table class="signatureTable">
+    <tr>
+      <td>
+        <div class="signatureLine"></div>
+        <div class="signatureLabel">Prepared By</div>
+      </td>
+      <td>
+        <div class="signatureLine"></div>
+        <div class="signatureLabel">Checked By</div>
+      </td>
+      <td>
+        <div class="signatureLine"></div>
+        <div class="signatureLabel">Authorised By</div>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+// =========================================
+// 🔐 SUPABASE CONFIG (প্রথম কোড থেকে)
+// =========================================
+const SUPABASE_URL = 'https://hmatleeearcaltguosiz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_VA7UkQqRwCxdeVwHuxzsjw_dQxOPiIj';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const COMPANY_CODE = 'composite';
+
+// =========================================
+// 📦 ALL FLOORS LIST
+// =========================================
+const ALL_FLOORS = [
+  "A-FLOOR(BUILDING NO-02)_NEW",
+  "A-FLOOR(BUILDING NO-02)_RUNNING",
+  "B-FLOOR(BUILDING NO-02)_NEW",
+  "B-FLOOR(BUILDING NO-02)_RUNNING",
+  "C-FLOOR ( BUILDING NO-04)_NEW",
+  "C-FLOOR ( BUILDING NO-04)_RUNNING",
+  "D-FLOOR ( BUILDING NO -04)_NEW",
+  "D-FLOOR ( BUILDING NO -04)_RUNNING",
+  "E-FLOOR ( BUILDING NO-03)_NEW",
+  "E-FLOOR ( BUILDING NO-03)_RUNNING",
+  "EMB-(BUILDING NO-01)_NEW",
+  "EMB-(BUILDING NO-01)_RUNNING",
+  "TRAINING CENTRE-(BUILDING NO-01)_NEW",
+  "TRAINING CENTRE-(BUILDING NO-01)_RUNNING",
+  "F-FLOOR (BUILDING NO-6A)_NEW",
+  "F-FLOOR (BUILDING NO-6A)_RUNNING",
+  "G-FLOOR ( BUILDING NO-6A)_NEW",
+  "G-FLOOR ( BUILDING NO-6A)_RUNNING",
+  "H-FLOOR (BUILDING NO-6B)_NEW",
+  "H-FLOOR (BUILDING NO-6B)_RUNNING",
+  "I-FLOOR (BUILDING NO-06 B)_NEW",
+  "I-FLOOR (BUILDING NO-06 B)_RUNNING",
+  "J-FLOOR(BUILDING NO-09)_NEW",
+  "J-FLOOR(BUILDING NO-09)_RUNNING",
+  "K-FLOOR(BUILDING NO-09)_NEW",
+  "K-FLOOR(BUILDING NO-09)_RUNNING",
+  "SAMPLE-(BUILDING NO-03)_NEW",
+  "SAMPLE-(BUILDING NO-03)_RUNNING"
+];
+
+const monthNames = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
+function formatMonth(monthStr){
+  if(!monthStr) return "";
+  const [year, month] = monthStr.split("-");
+  const monthIndex = parseInt(month) - 1;
+  return monthNames[monthIndex] + " " + year;
+}
+
+function n(v){ return Number(v) || 0; }
+
+function isR(floor){
+  return String(floor || "").trim().toUpperCase().endsWith("_RUNNING");
+}
+
+function bnName(floor){
+  return isR(floor) ? "BNF" : "BNR";
+}
+
+async function getCompanyId(){
+  const {data, error} = await supabase.from('companies').select('id').eq('code', COMPANY_CODE).single();
+  if(error || !data){
+    console.error('Company not found');
+    return null;
+  }
+  return data.id;
+}
+
+// =========================================
+// 📊 MAIN REPORT LOAD FUNCTION
+// =========================================
+async function loadReport(){
+  const month = document.getElementById("monthInput").value;
+  const floorFilter = document.getElementById("floorFilter").value;
+
+  if(!month){
+    alert("❌ Month সিলেক্ট করুন!");
+    return;
+  }
+
+  const formattedMonth = formatMonth(month);
+  const reportArea = document.getElementById("reportArea");
+  
+  reportArea.innerHTML = '<div class="loading">⏳ ডাটা লোড হচ্ছে... অপেক্ষা করুন...</div>';
+
+  try{
+    const companyId = await getCompanyId();
+    if(!companyId){
+      reportArea.innerHTML = '<div class="noData">❌ Company config error!</div>';
+      return;
+    }
+
+    // মাসের শুরু ও শেষ তারিখ বের করা
+    const [year, monthNum] = month.split("-");
+    const startDate = `${year}-${monthNum}-01`;
+    const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
+    const endDate = `${year}-${monthNum}-${String(lastDay).padStart(2, '0')}`;
+
+    // Supabase থেকে মাসের ডাটা আনা
+    const {data: reports, error} = await supabase
+      .from('needle_reports')
+      .select('floor, report_date, rows, operator')
+      .eq('company_id', companyId)
+      .gte('report_date', startDate)
+      .lte('report_date', endDate)
+      .order('report_date', {ascending: true});
+
+    if(error){
+      console.error('Query error:', error);
+      reportArea.innerHTML = `<div class="noData">❌ ডাটা লোড করতে সমস্যা: ${error.message}</div>`;
+      return;
+    }
+
+    if(!reports || reports.length === 0){
+      reportArea.innerHTML = `<div class="noData">📭 ${formattedMonth} মাসে কোনো ডাটা পাওয়া যায়নি</div>`;
+      document.getElementById("kpiReceive").innerText = '0';
+      document.getElementById("kpiDelivery").innerText = '0';
+      document.getElementById("kpiPresent").innerText = '0';
+      document.getElementById("kpiBN").innerText = '0';
+      return;
+    }
+
+    // ফ্লোর অনুযায়ী ডাটা ফিল্টার
+    const floorsToShow = floorFilter ? [floorFilter] : ALL_FLOORS;
+    
+    let html = "";
+    let grandReceive = 0, grandDelivery = 0, grandPresent = 0, grandBN = 0;
+
+    floorsToShow.forEach(floor => {
+      const floorReports = reports.filter(r => r.floor === floor);
+      if(floorReports.length === 0) return;
+
+      // আইটেম ম্যাপ তৈরি
+      const itemMap = {};
+
+      floorReports.forEach(dayReport => {
+        if(!dayReport.rows || !Array.isArray(dayReport.rows)) return;
+
+        dayReport.rows.forEach(row => {
+          if(!row.itemCode || !row.size) return;
+
+          const key = `${row.itemCode}__${row.size}`;
+
+          if(!itemMap[key]){
+            itemMap[key] = {
+              sl: row.sl || "",
+              itemCode: row.itemCode,
+              needleType: row.needleType || "",
+              size: row.size || "",
+              brand: row.brand || "",
+              opening: n(row.opening),
+              previous: n(row.previous),
+              receive: 0,
+              delivery: 0,
+              present: 0,
+              bn: 0,
+              firstDate: dayReport.report_date,
+              lastDate: ""
+            };
+          }
+
+          // রিসিভ, ডেলিভারি, BN যোগ করা
+          itemMap[key].receive += n(row.receive);
+          itemMap[key].delivery += n(row.delivery);
+          itemMap[key].bn += n(row.bn);
+
+          // প্রথম দিনের previous ও opening সেট করা
+          if(dayReport.report_date < itemMap[key].firstDate){
+            itemMap[key].previous = n(row.previous);
+            itemMap[key].opening = n(row.opening);
+            itemMap[key].firstDate = dayReport.report_date;
+          }
+
+          // শেষ দিনের present সেট করা
+          if(!itemMap[key].lastDate || dayReport.report_date >= itemMap[key].lastDate){
+            itemMap[key].present = n(row.present);
+            itemMap[key].needleType = row.needleType || itemMap[key].needleType;
+            itemMap[key].size = row.size || itemMap[key].size;
+            itemMap[key].brand = row.brand || itemMap[key].brand;
+            itemMap[key].lastDate = dayReport.report_date;
+          }
+        });
+      });
+
+      // আইটেম সাজানো
+      const items = Object.values(itemMap).sort((a, b) => {
+        if(a.sl && b.sl) return n(a.sl) - n(b.sl);
+        return a.itemCode.localeCompare(b.itemCode);
+      });
+
+      if(items.length === 0) return;
+
+      // ফ্লোর টোটাল
+      let floorReceive = 0, floorDelivery = 0, floorPresent = 0, floorBN = 0;
+      const titleBN = bnName(floor);
+      const shortFloor = floor.replace(/\s*\(BUILDING NO[^)]*\)/gi, '').replace(/_NEW|_RUNNING/g, '').trim();
+
+      html += `
+      <div class="tableWrap">
+      <table>
+        <thead>
+          <tr><th colspan="9" class="floorTitle">${shortFloor} (${isR(floor) ? 'RUNNING' : 'NEW'}) - ${formattedMonth}</th></tr>
+          <tr>
+            <th>SL</th>
+            <th>Code</th>
+            <th>Needle Type</th>
+            <th>Size</th>
+            <th>Total Receive</th>
+            <th>Total Delivery</th>
+            <th>Present Stock</th>
+            <th>${titleBN}</th>
+            <th>Brand</th>
+          </tr>
+        </thead>
+        <tbody>
+      `;
+
+      items.forEach((r, i) => {
+        floorReceive += n(r.receive);
+        floorDelivery += n(r.delivery);
+        floorPresent += n(r.present);
+        floorBN += n(r.bn);
+
+        html += `
+        <tr>
+          <td>${r.sl || i + 1}</td>
+          <td>${r.itemCode}</td>
+          <td>${r.needleType}</td>
+          <td>${r.size}</td>
+          <td>${r.receive.toLocaleString()}</td>
+          <td>${r.delivery.toLocaleString()}</td>
+          <td><b>${r.present.toLocaleString()}</b></td>
+          <td>${r.bn.toLocaleString()}</td>
+          <td>${r.brand}</td>
+        </tr>`;
+      });
+
+      html += `
+        </tbody>
+        <tfoot>
+          <tr class="totalRow">
+            <td colspan="4" style="text-align:right"><b>${shortFloor} TOTAL →</b></td>
+            <td><b>${floorReceive.toLocaleString()}</b></td>
+            <td><b>${floorDelivery.toLocaleString()}</b></td>
+            <td><b>${floorPresent.toLocaleString()}</b></td>
+            <td><b>${floorBN.toLocaleString()}</b></td>
+            <td>-</td>
+          </tr>
+        </tfoot>
+      </table>
+      </div>`;
+
+      grandReceive += floorReceive;
+      grandDelivery += floorDelivery;
+      grandPresent += floorPresent;
+      grandBN += floorBN;
+    });
+
+    if(html !== ""){
+      html += `
+      <div class="tableWrap">
+      <table>
+        <tr class="grandRow">
+          <td colspan="4" style="text-align:right"><b>MONTHLY GRAND TOTAL - ${formattedMonth} →</b></td>
+          <td><b>${grandReceive.toLocaleString()}</b></td>
+          <td><b>${grandDelivery.toLocaleString()}</b></td>
+          <td><b>${grandPresent.toLocaleString()}</b></td>
+          <td><b>${grandBN.toLocaleString()}</b></td>
+          <td>-</td>
+        </tr>
+      </table>
+      </div>`;
+    }
+
+    reportArea.innerHTML = html || `<div class="noData">📭 সিলেক্ট করা ফ্লোরের জন্য কোনো ডাটা পাওয়া যায়নি</div>`;
+
+    // KPI আপডেট
+    document.getElementById("kpiReceive").innerText = grandReceive.toLocaleString();
+    document.getElementById("kpiDelivery").innerText = grandDelivery.toLocaleString();
+    document.getElementById("kpiPresent").innerText = grandPresent.toLocaleString();
+    document.getElementById("kpiBN").innerText = grandBN.toLocaleString();
+
+  }catch(e){
+    console.error('loadReport error:', e);
+    reportArea.innerHTML = `<div class="noData">❌ Error: ${e.message}</div>`;
+  }
+}
+
+// =========================================
+// 📊 EXCEL EXPORT
+// =========================================
+window.exportExcel = function(){
+  const reportArea = document.getElementById("reportArea").innerHTML;
+  const monthVal = document.getElementById("monthInput").value;
+  const formattedMonth = formatMonth(monthVal);
+  
+  if(!reportArea || reportArea.includes('noData') || reportArea.includes('loading')){
+    alert("❌ আগে Report লোড করুন!");
+    return;
+  }
+
+  const file = new Blob([`
+    <html>
+    <head>
+    <meta charset="UTF-8">
+    <style>
+      body{font-family:Arial,sans-serif}
+      table{border-collapse:collapse;width:100%;margin:10px 0}
+      th,td{border:1px solid #000;padding:6px;text-align:center}
+      th{background:#1e293b;color:white;font-weight:bold}
+      .floorTitle{background:#3b82f6!important;color:white!important;font-size:14px;font-weight:bold}
+      .totalRow{background:#d9ead3;font-weight:bold}
+      .grandRow{background:#ffe599;font-weight:bold;font-size:13px}
+    </style>
+    </head>
+    <body>
+      <h2 style="text-align:center">GMS COMPOSITE - NEEDLE MONTHLY REPORT</h2>
+      <h3 style="text-align:center">${formattedMonth}</h3>
+      ${reportArea}
+    </body>
+    </html>
+  `], {type: "application/vnd.ms-excel"});
+
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file);
+  a.download = `needle-monthly-report-${monthVal}.xls`;
+  a.click();
+  
+  alert("✅ Excel ডাউনলোড হয়েছে!");
+};
+
+// =========================================
+// 🚀 INIT
+// =========================================
+window.loadReport = loadReport;
+
+// ডিফল্ট মাস সেট করা (বর্তমান মাস)
+document.getElementById("monthInput").value = new Date().toISOString().slice(0, 7);
+
+// Enter key press এ রিপোর্ট লোড
+document.addEventListener('keydown', e => {
+  if(e.ctrlKey && e.key === 'Enter'){
+    e.preventDefault();
+    loadReport();
+  }
+});
+</script>
+
+</body>
+</html>

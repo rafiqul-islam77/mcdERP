@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>GMS Composite - Needle Ageing Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+body{font-family:'Inter',Arial,sans-serif;background:#0a0f1e;color:#e2e8f0;min-height:100vh;}
+
+.header{
+  background:linear-gradient(135deg,#0f1e40 0%,#1a0a2e 100%);
+  border-bottom:2px solid #8b5cf6;
+  padding:18px 20px 14px;
+  text-align:center;
+  position:relative;
+}
+.header h1{
+  font-size:28px;font-weight:900;letter-spacing:1px;
+  background:linear-gradient(90deg,#a78bfa,#38bdf8,#34d399);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.header h2{font-size:15px;color:#94a3b8;margin-top:4px;letter-spacing:2px;text-transform:uppercase;}
+.live-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:#052e16;border:1px solid #22c55e;
+  color:#22c55e;padding:4px 14px;border-radius:20px;
+  font-size:12px;font-weight:700;margin-top:8px;
+}
+.live-dot{width:8px;height:8px;background:#22c55e;border-radius:50%;animation:pulse 1.4s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.4);}}
+
+.topbar{
+  display:flex;flex-wrap:wrap;gap:8px;
+  justify-content:center;align-items:center;
+  padding:14px 16px;background:#0d1526;
+  border-bottom:1px solid #1e293b;
+}
+select{
+  padding:9px 14px;background:#1e293b;color:#e2e8f0;
+  border:1px solid #334155;border-radius:8px;
+  font-size:14px;font-weight:600;cursor:pointer;
+  min-width:180px;
+}
+select:focus{outline:none;border-color:#8b5cf6;}
+.btn{
+  padding:9px 18px;border:none;border-radius:8px;
+  font-size:13px;font-weight:700;cursor:pointer;
+  transition:all .2s;letter-spacing:.3px;
+}
+.btn:hover{filter:brightness(1.15);transform:translateY(-1px);}
+.btn-blue{background:#2563eb;color:#fff;}
+.btn-green{background:#059669;color:#fff;}
+.btn-purple{background:#7c3aed;color:#fff;}
+.btn-amber{background:#d97706;color:#fff;}
+.btn-req{
+  background:linear-gradient(135deg,#f59e0b,#ef4444);
+  color:#fff;font-size:14px;padding:10px 22px;
+  box-shadow:0 4px 14px rgba(239,68,68,.35);
+  position:relative;
+}
+.btn-req::after{
+  content:'';position:absolute;top:-2px;right:-2px;
+  width:10px;height:10px;background:#ef4444;
+  border-radius:50%;animation:pulse 1s infinite;
+}
+
+.dashboard{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:10px;padding:14px 16px;
+}
+.card{
+  background:#0d1b33;border:1.5px solid #1e3a5f;
+  border-radius:12px;padding:16px 14px;text-align:center;
+  cursor:pointer;transition:all .2s;
+}
+.card:hover{border-color:#8b5cf6;transform:translateY(-2px);}
+.card.active{border-color:#22c55e;background:#062318;}
+.card-label{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+.card-val{font-size:34px;font-weight:900;line-height:1;}
+.c-total .card-val{color:#38bdf8;}
+.c-running .card-val{color:#22c55e;}
+.c-slow .card-val{color:#facc15;}
+.c-nodel .card-val{color:#f97316;}
+.c-critical .card-val{color:#f87171;}
+.c-stock .card-val{color:#a78bfa;}
+
+#filterBar{
+  display:none;align-items:center;gap:10px;flex-wrap:wrap;
+  background:#1e1440;border:1px solid #7c3aed;
+  margin:0 16px;padding:10px 16px;border-radius:10px;
+}
+#filterBar span{font-size:13px;}
+#filterName{color:#c084fc;font-weight:700;}
+.btn-clear{padding:5px 12px;background:#7f1d1d;color:#fca5a5;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;}
+
+.section-title{
+  display:flex;align-items:center;gap:8px;
+  font-size:16px;font-weight:700;color:#cbd5e1;
+  padding:14px 16px 8px;
+}
+.section-title::after{content:'';flex:1;height:1px;background:#1e293b;}
+
+.table-wrap{overflow-x:auto;overflow-y:auto;max-height:400px;margin:0 16px 14px;border-radius:10px;border:1px solid #1e293b;}
+table{width:100%;border-collapse:collapse;min-width:600px;}
+thead th{
+  background:#0f172a;color:#94a3b8;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.6px;padding:10px 8px;
+  border-bottom:2px solid #1e293b;position:sticky;top:0;z-index:5;
+  white-space:nowrap;
+}
+tbody td{
+  padding:8px 8px;font-size:12px;font-weight:600;
+  border-bottom:1px solid #0f1a2e;text-align:center;
+}
+tbody tr:hover{background:#0f1e3a;}
+
+/* Stock cell styles */
+.stock-normal{background:#1d4ed8;color:#fff;border-radius:4px;padding:2px 8px;display:inline-block;}
+.stock-warn{background:#c2410c;color:#fff;border-radius:4px;padding:2px 8px;display:inline-block;}
+.stock-empty{background:#e2e8f0;color:#0f172a;border-radius:4px;padding:2px 8px;display:inline-block;}
+
+.row-danger td{background:#1f0808 !important;}
+.row-danger{border-left:3px solid #ef4444;}
+
+/* Custom row highlight */
+.row-custom td{background:#1a1a00 !important;}
+.row-custom{border-left:3px solid #f59e0b;}
+.custom-badge{
+  display:inline-block;background:#92400e;color:#fbbf24;
+  font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px;
+  margin-left:4px;vertical-align:middle;
+}
+
+.st-run{color:#22c55e;}
+.st-slow{color:#facc15;}
+.st-stop{color:#f97316;}
+.st-crit{color:#f87171;}
+.total-row td{background:#0f1a2e;color:#22c55e;font-size:13px;font-weight:700;}
+
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:0 16px 20px;}
+.chart-box{background:#fff;border-radius:12px;padding:14px;height:300px;}
+canvas{width:100%!important;height:100%!important;}
+
+/* Loading overlay */
+#loadingOverlay{
+  display:none;position:fixed;inset:0;background:rgba(10,15,30,.88);
+  z-index:9997;justify-content:center;align-items:center;flex-direction:column;gap:14px;
+}
+#loadingOverlay.show{display:flex;}
+.spinner{width:48px;height:48px;border:4px solid #1e293b;border-top-color:#8b5cf6;border-radius:50%;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.load-txt{color:#94a3b8;font-size:14px;font-weight:600;}
+
+/* ══ REQUISITION MODAL ══ */
+#reqModal{
+  display:none;position:fixed;inset:0;z-index:9999;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(4px);
+  justify-content:center;align-items:flex-start;
+  padding:30px 10px;overflow-y:auto;
+}
+#reqModal.show{display:flex;}
+.modal-box{
+  background:#0d1526;border:2px solid #f59e0b;
+  border-radius:16px;width:100%;max-width:860px;
+  animation:modalIn .25s ease;
+}
+@keyframes modalIn{from{transform:translateY(-30px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.modal-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;border-bottom:1px solid #1e293b;
+  background:linear-gradient(90deg,#1a0a00,#0d1526);
+  border-radius:14px 14px 0 0;
+}
+.modal-head h3{
+  font-size:18px;font-weight:900;
+  background:linear-gradient(90deg,#f59e0b,#ef4444);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.modal-close{
+  background:none;border:none;color:#94a3b8;
+  font-size:24px;cursor:pointer;padding:0 4px;
+  transition:color .2s;
+}
+.modal-close:hover{color:#f87171;}
+.modal-controls{
+  display:flex;gap:8px;flex-wrap:wrap;
+  padding:12px 20px;border-bottom:1px solid #1e293b;
+  align-items:center;
+}
+.req-info{
+  background:#1a1000;border:1px solid #d97706;
+  border-radius:8px;padding:8px 14px;margin:0 20px 10px;
+  font-size:12px;color:#fbbf24;line-height:1.6;
+}
+.req-info strong{color:#f59e0b;}
+
+#reqTable{min-width:700px;}
+#reqTable thead th{background:#1a0a00;color:#fbbf24;}
+#reqTable tbody td{font-size:12px;}
+.req-total-row td{background:#1a0a00;color:#f59e0b;font-weight:700;}
+.floor-group-header td{
+  background:#0f172a;color:#7c3aed;
+  font-size:12px;font-weight:700;
+  text-align:left;padding:8px 14px;
+  border-bottom:1px solid #1e293b;
+}
+
+@media print{
+  body{background:#fff!important;color:#000!important;}
+  .topbar,.btn,.btn-req,.dashboard,#filterBar,.chart-grid,#reqModal,#loadingOverlay{display:none!important;}
+  .header{background:#fff!important;border-bottom:2px solid #000;}
+  .header h1{-webkit-text-fill-color:#000!important;}
+  .header h2,.live-badge{color:#000!important;}
+  table{border:1px solid #000!important;}
+  th,td{color:#000!important;border:1px solid #999!important;background:#fff!important;}
+  .stock-normal,.stock-warn,.stock-empty{background:#ddd!important;color:#000!important;}
+  .total-row td{background:#eee!important;}
+}
+@media(max-width:700px){
+  .header h1{font-size:20px;}
+  .chart-grid{grid-template-columns:1fr;}
+  .dashboard{grid-template-columns:repeat(3,1fr);}
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="load-txt" id="loadTxt">Loading data...</div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <h1>GMS COMPOSITE</h1>
+  <h2>Needle Ageing Live Report</h2>
+  <div><span class="live-badge"><span class="live-dot"></span>LIVE DATA</span></div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <select id="floorSel" onchange="applyFilters()">
+    <option value="ALL">ALL FLOORS</option>
+  </select>
+  <button class="btn btn-req" onclick="openRequisition()">📋 Requisition</button>
+  <button class="btn btn-blue" onclick="window.print()">🖨️ Print</button>
+  <button class="btn btn-green" onclick="exportExcel()">📊 Excel</button>
+  <button class="btn btn-purple" onclick="exportPDF()">📄 PDF</button>
+  <button class="btn btn-amber" onclick="loadReport()">🔄 Refresh</button>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard">
+  <div class="card c-total active" onclick="filterCat('all',this)">
+    <div class="card-label">Total Items</div>
+    <div class="card-val" id="cTotal">0</div>
+  </div>
+  <div class="card c-running" onclick="filterCat('running',this)">
+    <div class="card-label">Running</div>
+    <div class="card-val" id="cRun">0</div>
+  </div>
+  <div class="card c-slow" onclick="filterCat('slow',this)">
+    <div class="card-label">Slow Moving</div>
+    <div class="card-val" id="cSlow">0</div>
+  </div>
+  <div class="card c-nodel" onclick="filterCat('noDelivery',this)">
+    <div class="card-label">No Delivery</div>
+    <div class="card-val" id="cNoDel">0</div>
+  </div>
+  <div class="card c-critical" onclick="filterCat('critical',this)">
+    <div class="card-label">Critical (≤5 days)</div>
+    <div class="card-val" id="cCrit">0</div>
+  </div>
+  <div class="card c-stock" onclick="filterCat('all',this)">
+    <div class="card-label">Total Stock</div>
+    <div class="card-val" id="cStock">0</div>
+  </div>
+</div>
+
+<!-- FILTER INDICATOR -->
+<div id="filterBar">
+  <span>🔍 Filter: <span id="filterName">All</span></span>
+  <button class="btn-clear" onclick="clearFilter()">✕ Clear</button>
+</div>
+
+<!-- CRITICAL TABLE -->
+<div class="section-title">⚠️ Critical Stock Alert (≤ 5 days)</div>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Floor</th><th>Code</th><th>Needle Type</th><th>Size</th><th>Brand</th>
+        <th>Stock</th><th>Avg Delivery/Day</th><th>Est. Days Left</th><th>Custom?</th>
+      </tr>
+    </thead>
+    <tbody id="critBody"></tbody>
+  </table>
+</div>
+
+<!-- MAIN TABLE -->
+<div class="section-title">📊 Detailed Ageing Report</div>
+<div class="table-wrap">
+  <table id="mainTable">
+    <thead>
+      <tr>
+        <th>Floor</th><th>SL</th><th>Code</th><th>Needle Type</th><th>Size</th><th>Brand</th>
+        <th>Stock</th><th>Avg Del/Day</th><th>Est. Days</th>
+        <th>No Del Days</th><th>Status</th><th>Custom?</th>
+      </tr>
+    </thead>
+    <tbody id="mainBody"></tbody>
+  </table>
+</div>
+
+<!-- CHARTS -->
+<div class="section-title">📈 Stock & Consumption Charts</div>
+<div class="chart-grid">
+  <div class="chart-box"><canvas id="stockChart"></canvas></div>
+  <div class="chart-box"><canvas id="trendChart"></canvas></div>
+</div>
+
+<!-- ══ REQUISITION MODAL ══ -->
+<div id="reqModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>📋 Needle Requisition List</h3>
+      <button class="modal-close" onclick="closeRequisition()">×</button>
+    </div>
+    <div class="modal-controls">
+      <select id="reqFloorSel" onchange="renderRequisition()">
+        <option value="ALL">ALL FLOORS</option>
+      </select>
+      <button class="btn btn-blue" onclick="printRequisition()">🖨️ Print</button>
+      <button class="btn btn-green" onclick="exportRequisitionExcel()">📊 Excel</button>
+      <button class="btn btn-purple" onclick="exportRequisitionPDF()">📄 PDF</button>
+    </div>
+    <div class="req-info">
+      ⚡ <strong>Auto Requisition Logic:</strong> যেসব আইটেমে <strong>≤ 2 দিনের স্টক</strong> অবশিষ্ট আছে সেগুলো এখানে দেখাচ্ছে।
+      প্রতিটি আইটেমের জন্য <strong>Suggested Qty = (Avg Daily Delivery × 7 days)</strong> — ৭ দিনের সাপ্লাই নিশ্চিত করতে।
+      <br>🟡 <strong>হলুদ রঙের row = Add Row দিয়ে যোগ করা custom আইটেম</strong> (master list এ ছিল না)।
+    </div>
+    <div class="table-wrap" style="max-height:450px;margin:0 20px 16px;">
+      <table id="reqTable">
+        <thead>
+          <tr>
+            <th>#</th><th>Floor</th><th>Code</th><th>Type</th><th>Size</th><th>Brand</th>
+            <th>Current Stock</th><th>Avg/Day</th><th>Days Left</th><th>Suggested Qty (7d)</th><th>Custom?</th>
+          </tr>
+        </thead>
+        <tbody id="reqBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+/* ── SUPABASE ── */
+const SUPABASE_URL = 'https://hmatleeearcaltguosiz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_VA7UkQqRwCxdeVwHuxzsjw_dQxOPiIj';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const COMPANY_CODE = 'composite';
+
+/* ── FLOOR ITEMS (master list) ── */
+const FLOOR_ITEMS = {
+  "A-FLOOR(BUILDING NO-02)_NEW":[
+    [1,"SN-003","DB X 1","7","ORGAN",0.03985072,8],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,18],[3,"SN-029","DB X 1","9","ORGAN",0.06552784,86],[4,"SN-056","DB X 1","11","ORGAN",0.06131768,22],[5,"SN-065","DB X 1","12","ORGAN",0.00616,15],[6,"SN-094","DC X 1-KN","8","ORGAN",0.096,77],[7,"SN-107","DC X 1","9","ORGAN",0.10728008,144],[8,"SN-126","DC X 1","11","ORGAN",0.10620288,16],[9,"SN-147","UY X 128","8","ORGAN",0.08,13],[10,"SN-163","UY X 128","9","ORGAN",0.16077616,74],[11,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,34],[12,"SN-183","UY X 128","10","ORGAN",0.13031448,109],[13,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,33],[14,"SN-203","UY X 128","11","ORGAN",0.13286432,45],[15,"SN-237","DP X 5","7","ORGAN",0.056,9],[16,"SN-261","DP X 5","11","ORGAN",0.06874008,50],[17,"SN-263","DP X 5-KN","11","ORGAN",0.06,6],[18,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,55],[19,"SN-308","DP X 17","11","ORGAN",0.15784,33],[20,"SN-320","DV X 57","14","ORGAN",0.14264,20]
+  ],
+  "A-FLOOR(BUILDING NO-02)_RUNNING":[
+    [1,"SN-003","DB X 1","7","ORGAN",0.03985072,31],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,46],[3,"SN-014","DB X 1 SF","8","ORGAN",0.05984984,20],[4,"SN-029","DB X 1","9","ORGAN",0.06552784,174],[5,"SN-032","DB X 1-SF","9","ORGAN",0.072,19],[6,"SN-043","DB X 1","10","ORGAN",0.06118872,32],[7,"SN-056","DB X 1","11","ORGAN",0.06131768,43],[8,"SN-065","DB X 1","12","ORGAN",0.00616,20],[9,"SN-085","DC X 1","7","ORGAN",0.07969632,19],[10,"SN-092","DC X 1","8","ORGAN",0.10636168,50],[11,"SN-094","DC X 1-KN","8","ORGAN",0.096,131],[12,"SN-107","DC X 1","9","ORGAN",0.10728008,197],[13,"SN-126","DC X 1","11","ORGAN",0.10620288,39],[14,"SN-147","UY X 128","8","ORGAN",0.08,37],[15,"SN-156","UY X 128- GAS SF","8 LP","ORGAN",0.0856,20],[16,"SN-163","UY X 128","9","ORGAN",0.16077616,199],[17,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,9],[18,"SN-183","UY X 128","10","ORGAN",0.13031448,100],[19,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,51],[20,"SN-203","UY X 128","11","ORGAN",0.13286432,94],[21,"SN-212","UY X 128-KK-KN","11","ORGAN",0.0835932,47],[22,"SN-220","UY X 128","12","ORGAN",0.7621176,37],[23,"SN-261","DP X 5","11","ORGAN",0.06874008,28],[24,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,57],[25,"SN-308","DP X 17","11","ORGAN",0.15784,21],[26,"SN-320","DV X 57","14","ORGAN",0.14264,30],[27,"SN-480","LWX1669E","14","GROZ",0.4864,30],[28,"SN-481","LWX1669E","12","GROZ",0.4864,50]
+  ],
+  "B-FLOOR(BUILDING NO-02)_NEW":[[1,"SN-013","DB X 1","8","ORGAN",0.32559112,21],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,74],[3,"SN-043","DB X 1","10","ORGAN",0.06118872,62],[4,"SN-056","DB X 1","11","ORGAN",0.06131768,85],[5,"SN-065","DB X 1","12","ORGAN",0.00616,8],[6,"SN-092","DC X 1","8","ORGAN",0.10636168,22],[7,"SN-107","DC X 1","9","ORGAN",0.10728008,146],[8,"SN-120","DC X 1 27 SAN 10","10","GROZ(FFG)",0.0904,43],[9,"SN-126","DC X 1","11","ORGAN",0.10620288,33],[10,"SN-163","UY X 128","9","ORGAN",0.16077616,62],[11,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,61],[12,"SN-183","UY X 128","10","ORGAN",0.13031448,43],[13,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,79],[14,"SN-203","UY X 128","11","ORGAN",0.13286432,49],[15,"SN-223","UYX 128-KN","12","ORGAN",0.0688,27],[16,"SN-261","DP X 5","11","ORGAN",0.06874008,39],[17,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,8],[18,"SN-297","UO X 163","12","GROZ(FFG)",0.08448,2],[19,"SN-308","DP X 17","11","ORGAN",0.15784,39],[20,"SN-318","DV X 57","12","ORGAN",0.16,6]],
+  "B-FLOOR(BUILDING NO-02)_RUNNING":[[1,"SN-013","DB X 1","8","ORGAN",0.32559112,13],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,26],[3,"SN-043","DB X 1","10","ORGAN",0.06118872,49],[4,"SN-056","DB X 1","11","ORGAN",0.06131768,37],[5,"SN-065","DB X 1","12","ORGAN",0.00616,15],[6,"SN-085","DC X 1","7","ORGAN",0.07969632,55],[7,"SN-092","DC X 1","8","ORGAN",0.10636168,28],[8,"SN-107","DC X 1","9","ORGAN",0.10728008,86],[9,"SN-119","DC X 1","10","ORGAN",0.0904,61],[10,"SN-126","DC X 1","11","ORGAN",0.10620288,34],[11,"SN-147","UY X 128","8","ORGAN",0.08,24],[12,"SN-163","UY X 128","9","ORGAN",0.16077616,30],[13,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,15],[14,"SN-183","UY X 128","10","ORGAN",0.13031448,49],[15,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,39],[16,"SN-203","UY X 128","11","ORGAN",0.13286432,32],[17,"SN-220","UY X 128","12","ORGAN",0.7621176,39],[18,"SN-261","DP X 5","11","ORGAN",0.06874008,32],[19,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,13],[20,"SN-308","DP X 17","11","ORGAN",0.15784,119],[21,"SN-317","DV X 57","11","ORGAN",0.00872,5],[22,"SN-320","DV X 57","14","ORGAN",0.14264,20]],
+  "C-FLOOR ( BUILDING NO-04)_NEW":[[1,"SN-029","DB X 1","9","ORGAN",0.06552784,85],[2,"SN-043","DB X 1","10","ORGAN",0.06118872,66],[3,"SN-056","DB X 1","11","ORGAN",0.06131768,60],[4,"SN-092","DC X 1","8","ORGAN",0.10636168,8],[5,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,24],[6,"SN-107","DC X 1","9","ORGAN",0.10728008,65],[7,"SN-126","DC X 1","11","ORGAN",0.10620288,20],[8,"SN-163","UY X 128","9","ORGAN",0.16077616,79],[9,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,10],[10,"SN-183","UY X 128","10","ORGAN",0.13031448,70],[11,"SN-203","UY X 128","11","ORGAN",0.13286432,43],[12,"SN-220","UY X 128","12","ORGAN",0.7621176,25],[13,"SN-250","DP X 5","9","ORGAN",0.03824,16],[14,"SN-261","DP X 5","11","ORGAN",0.06874008,53],[15,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,48],[16,"SN-300","DP X 17","9","GROZ(FFG)",0.03544,7],[17,"SN-308","DP X 17","11","ORGAN",0.15784,54]],
+  "C-FLOOR ( BUILDING NO-04)_RUNNING":[[1,"SN-013","DB X 1","8","ORGAN",0.32559112,25],[2,"SN-014","DB X 1 SF","8","ORGAN",0.05984984,118],[3,"SN-029","DB X 1","9","ORGAN",0.06552784,263],[4,"SN-032","DB X 1-SF","9","ORGAN",0.072,4],[5,"SN-043","DB X 1","10","ORGAN",0.06118872,150],[6,"SN-045","DB X K5 KK","10","GROZ(FFG)",0.0344,49],[7,"SN-056","DB X 1","11","ORGAN",0.06131768,102],[8,"SN-058","DB X K5 KK","11","ORGAN",0.0344,37],[9,"SN-065","DB X 1","12","ORGAN",0.00616,22],[10,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,45],[11,"SN-092","DC X 1","8","ORGAN",0.10636168,92],[12,"SN-095","DC X 1-SF","8","ORGAN",0.18658816,5],[13,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,180],[14,"SN-107","DC X 1","9","ORGAN",0.10728008,476],[15,"SN-126","DC X 1","11","ORGAN",0.10620288,21],[16,"SN-133","DC X 1","12","ORGAN",0.08432,22],[17,"SN-140","UY X 128","7","ORGAN",0.0584,30],[18,"SN-147","UY X 128","8","ORGAN",0.08,20],[19,"SN-163","UY X 128","9","ORGAN",0.16077616,149],[20,"SN-169","UY X 128- KK - KN","9","ORGAN",0.08226448,40],[21,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,150],[22,"SN-183","UY X 128","10","ORGAN",0.13031448,115],[23,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,115],[24,"SN-203","UY X 128","11","ORGAN",0.13286432,190],[25,"SN-220","UY X 128","12","ORGAN",0.7621176,22],[26,"SN-222","UY X 128 NY2 SPD","12","ORGAN",0.0688,62],[27,"SN-231","UY X 128","14","ORGAN",0.06392,10],[28,"SN-248","DP X 5","9","GROZ(FFG)",0.03432,54],[29,"SN-261","DP X 5","11","ORGAN",0.06874008,42],[30,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,22],[31,"SN-308","DP X 17","11","ORGAN",0.15784,77]],
+  "D-FLOOR ( BUILDING NO -04)_NEW":[[1,"SN-013","DB X 1","8","ORGAN",0.32559112,35],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,137],[3,"SN-056","DB X 1","11","ORGAN",0.06131768,70],[4,"SN-095","DC X 1-SF","8","ORGAN",0.18658816,10],[5,"SN-107","DC X 1","9","ORGAN",0.10728008,112],[6,"SN-126","DC X 1","11","ORGAN",0.10620288,94],[7,"SN-163","UY X 128","9","ORGAN",0.16077616,42],[8,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,54],[9,"SN-183","UY X 128","10","ORGAN",0.13031448,62],[10,"SN-203","UY X 128","11","ORGAN",0.13286432,58],[11,"SN-220","UY X 128","12","ORGAN",0.7621176,95],[12,"SN-222","UY X 128 NY2 SPD","12","ORGAN",0.0688,64],[13,"SN-261","DP X 5","11","ORGAN",0.06874008,42],[14,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,18],[15,"SN-308","DP X 17","11","ORGAN",0.15784,43]],
+  "D-FLOOR ( BUILDING NO -04)_RUNNING":[[1,"SN-003","DB X 1","7","ORGAN",0.03985072,24],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,59],[3,"SN-029","DB X 1","9","ORGAN",0.06552784,168],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,38],[5,"SN-056","DB X 1","11","ORGAN",0.06131768,41],[6,"SN-058","DB X K5 KK","11","ORGAN",0.0344,27],[7,"SN-065","DB X 1","12","ORGAN",0.00616,35],[8,"SN-085","DC X 1","7","ORGAN",0.07969632,11],[9,"SN-092","DC X 1","8","ORGAN",0.10636168,62],[10,"SN-107","DC X 1","9","ORGAN",0.10728008,327],[11,"SN-126","DC X 1","11","ORGAN",0.10620288,67],[12,"SN-133","DC X 1","12","ORGAN",0.08432,44],[13,"SN-147","UY X 128","8","ORGAN",0.08,49],[14,"SN-163","UY X 128","9","ORGAN",0.16077616,53],[15,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,86],[16,"SN-183","UY X 128","10","ORGAN",0.13031448,158],[17,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,32],[18,"SN-203","UY X 128","11","ORGAN",0.13286432,37],[19,"SN-220","UY X 128","12","ORGAN",0.7621176,41],[20,"SN-222","UY X 128 NY2 SPD","12","ORGAN",0.0688,77],[21,"SN-231","UY X 128","14","ORGAN",0.06392,45],[22,"SN-261","DP X 5","11","ORGAN",0.06874008,56],[23,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,62],[24,"SN-308","DP X 17","11","ORGAN",0.15784,32]],
+  "E-FLOOR ( BUILDING NO-03)_NEW":[[1,"SN-029","DB X 1","9","ORGAN",0.06552784,118],[2,"SN-107","DC X 1","9","ORGAN",0.10728008,167],[3,"SN-163","UY X 128","9","ORGAN",0.16077616,134],[4,"SN-183","UY X 128","10","ORGAN",0.13031448,46],[5,"SN-203","UY X 128","11","ORGAN",0.13286432,19],[6,"SN-261","DP X 5","11","ORGAN",0.06874008,23],[7,"SN-308","DP X 17","11","ORGAN",0.15784,19]],
+  "E-FLOOR ( BUILDING NO-03)_RUNNING":[[1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,85],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,74],[3,"SN-029","DB X 1","9","ORGAN",0.06552784,211],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,170],[5,"SN-056","DB X 1","11","ORGAN",0.06131768,21],[6,"SN-085","DC X 1","7","ORGAN",0.07969632,47],[7,"SN-092","DC X 1","8","ORGAN",0.10636168,15],[8,"SN-095","DC X 1-SF","8","ORGAN",0.18658816,182],[9,"SN-107","DC X 1","9","ORGAN",0.10728008,547],[10,"SN-113","DC X 1 KN","9 LP","ORGAN",0.19304736,15],[11,"SN-126","DC X 1","11","ORGAN",0.10620288,7],[12,"SN-140","UY X 128","7","ORGAN",0.0584,33],[13,"SN-147","UY X 128","8","ORGAN",0.08,42],[14,"SN-155","UY X 128- SF","8","ORGAN",0.1388436,10],[15,"SN-156","UY X 128- GAS SF","8 LP","ORGAN",0.0856,10],[16,"SN-163","UY X 128","9","ORGAN",0.16077616,396],[17,"SN-172","UY X 128 GAS SPD","9","ORGAN",0.1307632,14],[18,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,5],[19,"SN-176","UY X 128 SF","9","ORGAN",0.13350376,16],[20,"SN-183","UY X 128","10","ORGAN",0.13031448,162],[21,"SN-194","UY X 128 SF","10","ORGAN",0.24,9],[22,"SN-203","UY X 128","11","ORGAN",0.13286432,102],[23,"SN-261","DP X 5","11","ORGAN",0.06874008,28]],
+  "EMB-(BUILDING NO-01)_NEW":[[1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,10],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,97],[3,"SN-029","DB X 1","9","ORGAN",0.06552784,78],[4,"SN-056","DB X 1","11","ORGAN",0.06131768,37],[5,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,28],[6,"SN-079","PH - C70 -","14","ORGAN",0.76981432,32],[7,"SN-082","PH - C70 -","16","ORGAN",0.27975952,43]],
+  "EMB-(BUILDING NO-01)_RUNNING":[[1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,346],[2,"SN-003","DB X 1","7","ORGAN",0.03985072,93],[3,"SN-013","DB X 1","8","ORGAN",0.32559112,417],[4,"SN-014","DB X 1 SF","8","ORGAN",0.05984984,30],[5,"SN-029","DB X 1","9","ORGAN",0.06552784,349],[6,"SN-056","DB X 1","11","ORGAN",0.06131768,64],[7,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,101],[8,"SN-079","PH - C70 -","14","ORGAN",0.76981432,35],[9,"SN-082","PH - C70 -","16","ORGAN",0.27975952,119]],
+  "F-FLOOR (BUILDING NO-6A)_NEW":[[1,"SN-013","DB X 1","8","ORGAN",0.32559112,19],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,93],[3,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,17],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,22],[5,"SN-056","DB X 1","11","ORGAN",0.06131768,40],[6,"SN-065","DB X 1","12","ORGAN",0.00616,6],[7,"SN-092","DC X 1","8","ORGAN",0.10636168,30],[8,"SN-107","DC X 1","9","ORGAN",0.10728008,65],[9,"SN-113","DC X 1 KN","9 LP","ORGAN",0.19304736,24],[10,"SN-126","DC X 1","11","ORGAN",0.10620288,9],[11,"SN-147","UY X 128","8","ORGAN",0.08,24],[12,"SN-163","UY X 128","9","ORGAN",0.16077616,45],[13,"SN-183","UY X 128","10","ORGAN",0.13031448,108],[14,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,20],[15,"SN-203","UY X 128","11","ORGAN",0.13286432,7],[16,"SN-209","UY X 128 KN","11 HP","ORGAN",0.0856,37],[17,"SN-220","UY X 128","12","ORGAN",0.7621176,26],[18,"SN-231","UY X 128","14","ORGAN",0.06392,10],[19,"SN-250","DP X 5","9","ORGAN",0.03824,8],[20,"SN-261","DP X 5","11","ORGAN",0.06874008,51],[21,"SN-278","UO X 113(UO X 1)","9","ORGAN",0.08336,50],[22,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,6],[23,"SN-308","DP X 17","11","ORGAN",0.15784,59],[24,"SN-317","DV X 57","11","ORGAN",0.00872,5]],
+  "F-FLOOR (BUILDING NO-6A)_RUNNING":[[1,"SN-013","DB X 1","8","ORGAN",0.32559112,67],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,66],[3,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,17],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,127],[5,"SN-056","DB X 1","11","ORGAN",0.06131768,20],[6,"SN-058","DB X K5 KK","11","ORGAN",0.0344,36],[7,"SN-065","DB X 1","12","ORGAN",0.00616,29],[8,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,20],[9,"SN-092","DC X 1","8","ORGAN",0.10636168,93],[10,"SN-107","DC X 1","9","ORGAN",0.10728008,534],[11,"SN-113","DC X 1 KN","9 LP","ORGAN",0.19304736,53],[12,"SN-119","DC X 1","10","ORGAN",0.0904,200],[13,"SN-126","DC X 1","11","ORGAN",0.10620288,49],[14,"SN-133","DC X 1","12","ORGAN",0.08432,85],[15,"SN-136","DC X 1","14","ORGAN",0.10672496,22],[16,"SN-163","UY X 128","9","ORGAN",0.16077616,45],[17,"SN-183","UY X 128","10","ORGAN",0.13031448,166],[18,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,87],[19,"SN-203","UY X 128","11","ORGAN",0.13286432,130],[20,"SN-209","UY X 128 KN","11 HP","ORGAN",0.0856,185],[21,"SN-222","UY X 128 NY2 SPD","12","ORGAN",0.0688,61],[22,"SN-224","UY X 128-KN","12 LP","ORGAN",0.07704976,100],[23,"SN-231","UY X 128","14","ORGAN",0.06392,20],[24,"SN-248","DP X 5","9","GROZ(FFG)",0.03432,100],[25,"SN-261","DP X 5","11","ORGAN",0.06874008,38],[26,"SN-287","UO X 113(UO X 1)","11","GROZ(FFG)",0.12056,36],[27,"SN-308","DP X 17","11","ORGAN",0.15784,67],[28,"SN-317","DV X 57","11","ORGAN",0.00872,20]],
+  "G-FLOOR ( BUILDING NO-6A)_NEW":[[1,"SN-013","DB X 1","8","ORGAN",0.32559112,65],[2,"SN-019","DB X 1 KN","8 LP","ORGAN",0.1,30],[3,"SN-029","DB X 1","9","ORGAN",0.06552784,79],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,45],[5,"SN-056","DB X 1","11","ORGAN",0.06131768,44],[6,"SN-065","DB X 1","12","ORGAN",0.00616,10],[7,"SN-071","DB X 1","14","GROZ(GEBEDUR)",0.0344,31],[8,"SN-092","DC X 1","8","ORGAN",0.10636168,32],[9,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,38],[10,"SN-107","DC X 1","9","ORGAN",0.10728008,73],[11,"SN-126","DC X 1","11","ORGAN",0.10620288,61],[12,"SN-147","UY X 128","8","ORGAN",0.08,42],[13,"SN-163","UY X 128","9","ORGAN",0.16077616,34],[14,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,23],[15,"SN-183","UY X 128","10","ORGAN",0.13031448,81],[16,"SN-203","UY X 128","11","ORGAN",0.13286432,66],[17,"SN-220","UY X 128","12","ORGAN",0.7621176,33],[18,"SN-250","DP X 5","9","ORGAN",0.03824,14],[19,"SN-261","DP X 5","11","ORGAN",0.06874008,16],[20,"SN-308","DP X 17","11","ORGAN",0.15784,78],[21,"SN-317","DV X 57","11","ORGAN",0.00872,103],[22,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,25]],
+  "G-FLOOR ( BUILDING NO-6A)_RUNNING":[[1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,62],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,89],[3,"SN-029","DB X 1","9","ORGAN",0.06552784,110],[4,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,15],[5,"SN-043","DB X 1","10","ORGAN",0.06118872,136],[6,"SN-048","DB X 1-KN","10 LP","ORGAN",0.132536,50],[7,"SN-056","DB X 1","11","ORGAN",0.06131768,48],[8,"SN-065","DB X 1","12","ORGAN",0.00616,39],[9,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,40],[10,"SN-092","DC X 1","8","ORGAN",0.10636168,60],[11,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,65],[12,"SN-107","DC X 1","9","ORGAN",0.10728008,433],[13,"SN-119","DC X 1","10","ORGAN",0.0904,78],[14,"SN-126","DC X 1","11","ORGAN",0.10620288,20],[15,"SN-133","DC X 1","12","ORGAN",0.08432,77],[16,"SN-147","UY X 128","8","ORGAN",0.08,58],[17,"SN-163","UY X 128","9","ORGAN",0.16077616,62],[18,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,32],[19,"SN-183","UY X 128","10","ORGAN",0.13031448,73],[20,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,23],[21,"SN-203","UY X 128","11","ORGAN",0.13286432,65],[22,"SN-220","UY X 128","12","ORGAN",0.7621176,22],[23,"SN-225","UY X 128","12","GROZ(GEBEDUR)",0.07405864,18],[24,"SN-231","UY X 128","14","ORGAN",0.06392,40],[25,"SN-250","DP X 5","9","ORGAN",0.03824,3],[26,"SN-261","DP X 5","11","ORGAN",0.06874008,37],[27,"SN-263","DP X 5-KN","11","ORGAN",0.06,33],[28,"SN-265","DP X 5","14","GROZ(FFG)",0.03272,20],[29,"SN-308","DP X 17","11","ORGAN",0.15784,14],[30,"SN-317","DV X 57","11","ORGAN",0.00872,25],[31,"SN-318","DV X 57","12","ORGAN",0.16,16],[32,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,60]],
+  "H-FLOOR (BUILDING NO-6B)_NEW":[[1,"SN-029","DB X 1","9","ORGAN",0.06552784,45],[2,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,7],[3,"SN-043","DB X 1","10","ORGAN",0.06118872,69],[4,"SN-045","DB X K5 KK","10","GROZ(FFG)",0.0344,9],[5,"SN-056","DB X 1","11","ORGAN",0.06131768,77],[6,"SN-107","DC X 1","9","ORGAN",0.10728008,114],[7,"SN-126","DC X 1","11","ORGAN",0.10620288,71],[8,"SN-163","UY X 128","9","ORGAN",0.16077616,126],[9,"SN-183","UY X 128","10","ORGAN",0.13031448,98],[10,"SN-203","UY X 128","11","ORGAN",0.13286432,94],[11,"SN-206","UY X 128 SPD","11","ORGAN",0.20594336,19],[12,"SN-220","UY X 128","12","ORGAN",0.7621176,56],[13,"SN-261","DP X 5","11","ORGAN",0.06874008,79],[14,"SN-308","DP X 17","11","ORGAN",0.15784,66],[15,"SN-317","DV X 57","11","ORGAN",0.00872,90],[16,"SN-351","LW X 6 T/1669 E","14","GROZ(FFG)",0.2684,5]],
+  "H-FLOOR (BUILDING NO-6B)_RUNNING":[[1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,76],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,30],[3,"SN-029","DB X 1","9","ORGAN",0.06552784,252],[4,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,30],[5,"SN-043","DB X 1","10","ORGAN",0.06118872,32],[6,"SN-045","DB X K5 KK","10","GROZ(FFG)",0.0344,118],[7,"SN-056","DB X 1","11","ORGAN",0.06131768,25],[8,"SN-058","DB X K5 KK","11","ORGAN",0.0344,17],[9,"SN-065","DB X 1","12","ORGAN",0.00616,35],[10,"SN-085","DC X 1","7","ORGAN",0.07969632,26],[11,"SN-092","DC X 1","8","ORGAN",0.10636168,21],[12,"SN-107","DC X 1","9","ORGAN",0.10728008,342],[13,"SN-126","DC X 1","11","ORGAN",0.10620288,81],[14,"SN-146","UY X 128","8","GROZ(FFG)",0.08,30],[15,"SN-163","UY X 128","9","ORGAN",0.16077616,37],[16,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,16],[17,"SN-177","UY X 128 SAN 10 XS","9","GROZ(FFG)",0.08305976,15],[18,"SN-183","UY X 128","10","ORGAN",0.13031448,128],[19,"SN-203","UY X 128","11","ORGAN",0.13286432,32],[20,"SN-206","UY X 128 SPD","11","ORGAN",0.20594336,16],[21,"SN-225","UY X 128","12","GROZ(GEBEDUR)",0.07405864,30],[22,"SN-230","UY X 128","14","GROZ(GEBEDUR)",0.08835888,40],[23,"SN-231","UY X 128","14","ORGAN",0.06392,70],[24,"SN-250","DP X 5","9","ORGAN",0.03824,14],[25,"SN-261","DP X 5","11","ORGAN",0.06874008,108],[26,"SN-263","DP X 5-KN","11","ORGAN",0.06,68],[27,"SN-308","DP X 17","11","ORGAN",0.15784,84],[28,"SN-317","DV X 57","11","ORGAN",0.00872,155],[29,"SN-318","DV X 57","12","ORGAN",0.16,71],[30,"SN-324","DV X 57","10","ORGAN",0.2048,58],[31,"SN-352","LW X 6 T/1669 E","16","GROZ(FFG)",0.2684,30],[32,"SN-418","DB X 1-GEBEDURE-FFG ,NO-08,GROZ","8","GROZ",0.0496,65],[33,"SN-479","DV X 43","14","ORGAN",0.13288,55]],
+  "I-FLOOR (BUILDING NO-06 B)_NEW":[[1,"SN-013","DB X 1","8","ORGAN",0.32559112,52],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,60],[3,"SN-043","DB X 1","10","ORGAN",0.06118872,76],[4,"SN-056","DB X 1","11","ORGAN",0.06131768,29],[5,"SN-092","DC X 1","8","ORGAN",0.10636168,62],[6,"SN-107","DC X 1","9","ORGAN",0.10728008,52],[7,"SN-126","DC X 1","11","ORGAN",0.10620288,8],[8,"SN-163","UY X 128","9","ORGAN",0.16077616,71],[9,"SN-183","UY X 128","10","ORGAN",0.13031448,50],[10,"SN-203","UY X 128","11","ORGAN",0.13286432,71],[11,"SN-261","DP X 5","11","ORGAN",0.06874008,60],[12,"SN-308","DP X 17","11","ORGAN",0.15784,37],[13,"SN-317","DV X 57","11","ORGAN",0.00872,36]],
+  "I-FLOOR (BUILDING NO-06 B)_RUNNING":[[1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,130],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,140],[3,"SN-029","DB X 1","9","ORGAN",0.06552784,85],[4,"SN-036","DB X 1 KN","9LP","ORGAN",0.09410144,14],[5,"SN-043","DB X 1","10","ORGAN",0.06118872,128],[6,"SN-045","DB X K5 KK","10","GROZ(FFG)",0.0344,123],[7,"SN-056","DB X 1","11","ORGAN",0.06131768,7],[8,"SN-058","DB X K5 KK","11","ORGAN",0.0344,18],[9,"SN-065","DB X 1","12","ORGAN",0.00616,78],[10,"SN-085","DC X 1","7","ORGAN",0.07969632,55],[11,"SN-092","DC X 1","8","ORGAN",0.10636168,141],[12,"SN-107","DC X 1","9","ORGAN",0.10728008,268],[13,"SN-126","DC X 1","11","ORGAN",0.10620288,53],[14,"SN-146","UY X 128","8","GROZ(FFG)",0.08,5],[15,"SN-163","UY X 128","9","ORGAN",0.16077616,60],[16,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,20],[17,"SN-183","UY X 128","10","ORGAN",0.13031448,89],[18,"SN-203","UY X 128","11","ORGAN",0.13286432,33],[19,"SN-220","UY X 128","12","ORGAN",0.7621176,9],[20,"SN-225","UY X 128","12","GROZ(GEBEDUR)",0.07405864,5],[21,"SN-231","UY X 128","14","ORGAN",0.06392,42],[22,"SN-248","DP X 5","9","GROZ(FFG)",0.03432,23],[23,"SN-261","DP X 5","11","ORGAN",0.06874008,59],[24,"SN-263","DP X 5-KN","11","ORGAN",0.06,45],[25,"SN-265","DP X 5","14","GROZ(FFG)",0.03272,23],[26,"SN-308","DP X 17","11","ORGAN",0.15784,77],[27,"SN-317","DV X 57","11","ORGAN",0.00872,41],[28,"SN-318","DV X 57","12","ORGAN",0.16,40],[29,"SN-320","DV X 57","14","ORGAN",0.14264,49],[30,"SN-343","DM X 13","10","GROZ(FFG)",0.06,24],[31,"SN-418","DB X 1-GEBEDURE-FFG ,NO-08,GROZ","8","GROZ",0.0496,84],[32,"SN-479","DV X 43","14","ORGAN",0.13288,13]],
+  "J-FLOOR(BUILDING NO-09)_NEW":[[1,"SN-029","DB X 1","9","ORGAN",0.06552784,72],[2,"SN-107","DC X 1","9","ORGAN",0.10728008,66],[3,"SN-163","UY X 128","9","ORGAN",0.16077616,72],[4,"SN-183","UY X 128","10","ORGAN",0.13031448,41],[5,"SN-197","UY X 128 GAS SF","10 LP","ORGAN",0.1744,30],[6,"SN-203","UY X 128","11","ORGAN",0.13286432,25],[7,"SN-261","DP X 5","11","ORGAN",0.06874008,21],[8,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,33],[9,"SN-308","DP X 17","11","ORGAN",0.15784,17]],
+  "J-FLOOR(BUILDING NO-09)_RUNNING":[[1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,92],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,86],[3,"SN-029","DB X 1","9","ORGAN",0.06552784,190],[4,"SN-043","DB X 1","10","ORGAN",0.06118872,51],[5,"SN-056","DB X 1","11","ORGAN",0.06131768,66],[6,"SN-085","DC X 1","7","ORGAN",0.07969632,58],[7,"SN-092","DC X 1","8","ORGAN",0.10636168,62],[8,"SN-107","DC X 1","9","ORGAN",0.10728008,215],[9,"SN-119","DC X 1","10","ORGAN",0.0904,42],[10,"SN-126","DC X 1","11","ORGAN",0.10620288,57],[11,"SN-140","UY X 128","7","ORGAN",0.0584,34],[12,"SN-147","UY X 128","8","ORGAN",0.08,29],[13,"SN-163","UY X 128","9","ORGAN",0.16077616,110],[14,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,123],[15,"SN-183","UY X 128","10","ORGAN",0.13031448,79],[16,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,30],[17,"SN-203","UY X 128","11","ORGAN",0.13286432,86],[18,"SN-220","UY X 128","12","ORGAN",0.7621176,25],[19,"SN-261","DP X 5","11","ORGAN",0.06874008,39],[20,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,20],[21,"SN-308","DP X 17","11","ORGAN",0.15784,44],[22,"SN-332","FLX 118-GCS","10","ORGAN",0.27132,50],[23,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,38],[24,"SN-338","FLX 118-GCS NY2","9","ORGAN",0.3005824,17]],
+  "K-FLOOR(BUILDING NO-09)_NEW":[[1,"SN-029","DB X 1","9","ORGAN",0.06552784,86],[2,"SN-071","DB X 1","14","GROZ(GEBEDUR)",0.0344,5],[3,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,28],[4,"SN-107","DC X 1","9","ORGAN",0.10728008,170],[5,"SN-147","UY X 128","8","ORGAN",0.08,5],[6,"SN-156","UY X 128- GAS SF","8 LP","ORGAN",0.0856,16],[7,"SN-163","UY X 128","9","ORGAN",0.16077616,99],[8,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,104],[9,"SN-183","UY X 128","10","ORGAN",0.13031448,92],[10,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,109],[11,"SN-203","UY X 128","11","ORGAN",0.13286432,124],[12,"SN-206","UY X 128 SPD","11","ORGAN",0.20594336,30],[13,"SN-220","UY X 128","12","ORGAN",0.7621176,5],[14,"SN-263","DP X 5-KN","11","ORGAN",0.06,59],[15,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,46],[16,"SN-301","DP X 17","9","ORGAN",0.056,3],[17,"SN-308","DP X 17","11","ORGAN",0.15784,30],[18,"SN-330","FLX 118-GCS","9","ORGAN",0.28,26],[19,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,101]],
+  "K-FLOOR(BUILDING NO-09)_RUNNING":[[1,"SN-001","DB X 1","7","GROZ(FFG)",0.05070144,74],[2,"SN-013","DB X 1","8","ORGAN",0.32559112,53],[3,"SN-029","DB X 1","9","ORGAN",0.06552784,112],[4,"SN-032","DB X 1-SF","9","ORGAN",0.072,31],[5,"SN-043","DB X 1","10","ORGAN",0.06118872,81],[6,"SN-056","DB X 1","11","ORGAN",0.06131768,17],[7,"SN-065","DB X 1","12","ORGAN",0.00616,20],[8,"SN-085","DC X 1","7","ORGAN",0.07969632,19],[9,"SN-092","DC X 1","8","ORGAN",0.10636168,36],[10,"SN-101","DC X 1-KN","8 LP","ORGAN",0.1818584,48],[11,"SN-107","DC X 1","9","ORGAN",0.10728008,234],[12,"SN-126","DC X 1","11","ORGAN",0.10620288,24],[13,"SN-163","UY X 128","9","ORGAN",0.16077616,74],[14,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,36],[15,"SN-183","UY X 128","10","ORGAN",0.13031448,51],[16,"SN-191","UY X 128-KK-KN","10","ORGAN",0.13284256,6],[17,"SN-195","UY X 128 GAS KN","10 LP","ORGAN",0.30747248,36],[18,"SN-203","UY X 128","11","ORGAN",0.13286432,76],[19,"SN-206","UY X 128 SPD","11","ORGAN",0.20594336,15],[20,"SN-220","UY X 128","12","ORGAN",0.7621176,46],[21,"SN-231","UY X 128","14","ORGAN",0.06392,7],[22,"SN-250","DP X 5","9","ORGAN",0.03824,5],[23,"SN-261","DP X 5","11","ORGAN",0.06874008,25],[24,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,11],[25,"SN-300","DP X 17","9","GROZ(FFG)",0.03544,30],[26,"SN-308","DP X 17","11","ORGAN",0.15784,41],[27,"SN-330","FLX 118-GCS","9","ORGAN",0.28,50],[28,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,246]],
+  "SAMPLE-(BUILDING NO-03)_NEW":[[1,"SN-029","DB X 1","9","ORGAN",0.06552784,38],[2,"SN-056","DB X 1","11","ORGAN",0.06131768,25],[3,"SN-107","DC X 1","9","ORGAN",0.10728008,44],[4,"SN-126","DC X 1","11","ORGAN",0.10620288,65],[5,"SN-163","UY X 128","9","ORGAN",0.16077616,27],[6,"SN-203","UY X 128","11","ORGAN",0.13286432,56],[7,"SN-261","DP X 5","11","ORGAN",0.06874008,29],[8,"SN-287","UO X 113(UO X 1)","11","GROZ(FFG)",0.12056,29],[9,"SN-308","DP X 17","11","ORGAN",0.15784,33],[10,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,49],[11,"SN-351","LW X 6 T/1669 E","14","GROZ(FFG)",0.2684,5]],
+  "SAMPLE-(BUILDING NO-03)_RUNNING":[[1,"SN-003","DB X 1","7","ORGAN",0.03985072,73],[2,"SN-029","DB X 1","9","ORGAN",0.06552784,100],[3,"SN-056","DB X 1","11","ORGAN",0.06131768,22],[4,"SN-070","DB X 1","14","GROZ(FFG)",0.03300576,30],[5,"SN-085","DC X 1","7","ORGAN",0.07969632,51],[6,"SN-107","DC X 1","9","ORGAN",0.10728008,222],[7,"SN-126","DC X 1","11","ORGAN",0.10620288,50],[8,"SN-140","UY X 128","7","ORGAN",0.0584,46],[9,"SN-147","UY X 128","8","ORGAN",0.08,34],[10,"SN-163","UY X 128","9","ORGAN",0.16077616,94],[11,"SN-175","UY X 128 GAS KN","9 LP","ORGAN",0.18394952,67],[12,"SN-183","UY X 128","10","ORGAN",0.13031448,47],[13,"SN-191","UY X 128-KK-KN","10","ORGAN",0.13284256,38],[14,"SN-203","UY X 128","11","ORGAN",0.13286432,94],[15,"SN-225","UY X 128","12","GROZ(GEBEDUR)",0.07405864,94],[16,"SN-248","DP X 5","9","GROZ(FFG)",0.03432,23],[17,"SN-250","DP X 5","9","ORGAN",0.03824,10],[18,"SN-261","DP X 5","11","ORGAN",0.06874008,115],[19,"SN-265","DP X 5","14","GROZ(FFG)",0.03272,10],[20,"SN-277","UO X 113(UO X 1)","9","GROZ(FFG)",0.086,60],[21,"SN-289","UO X 113(UO X 1)","11","ORGAN",0.1256,31],[22,"SN-299","UO X 113(UO X 1)","14","ORGAN",0.17488,22],[23,"SN-308","DP X 17","11","ORGAN",0.15784,75],[24,"SN-312","DP X 17 kk(DPxN31)","11 J","ORGAN",0.05704,45],[25,"SN-320","DV X 57","14","ORGAN",0.14264,62],[26,"SN-334","FLX 118-GCS","11","ORGAN",0.3914096,68],[27,"SN-351","LW X 6 T/1669 E","14","GROZ(FFG)",0.2684,20]],
+  "TRAINING CENTRE-(BUILDING NO-01)_NEW":[[1,"SN-029","DB X 1","9","ORGAN",0.06552784,26],[2,"SN-107","DC X 1","9","ORGAN",0.10728008,20],[3,"SN-120","DC X 1 27 SAN 10","10","GROZ(FFG)",0.0904,9],[4,"SN-163","UY X 128","9","ORGAN",0.16077616,27]],
+  "TRAINING CENTRE-(BUILDING NO-01)_RUNNING":[[1,"SN-029","DB X 1","9","ORGAN",0.06552784,37],[2,"SN-043","DB X 1","10","ORGAN",0.06118872,13],[3,"SN-107","DC X 1","9","ORGAN",0.10728008,59],[4,"SN-119","DC X 1","10","ORGAN",0.0904,4],[5,"SN-163","UY X 128","9","ORGAN",0.16077616,34],[6,"SN-183","UY X 128","10","ORGAN",0.13031448,12],[7,"SN-261","DP X 5","11","ORGAN",0.06874008,21],[8,"SN-308","DP X 17","11","ORGAN",0.15784,6]]
+};
+
+/* ── GLOBAL STATE ── */
+let allData = [];
+let currentCat = 'all';
+let reqData = [];
+
+function showLoading(txt){ document.getElementById('loadTxt').textContent=txt||'Loading...'; document.getElementById('loadingOverlay').classList.add('show'); }
+function hideLoading(){ document.getElementById('loadingOverlay').classList.remove('show'); }
+
+async function getCompanyId(){
+  const { data } = await supabase.from('companies').select('id').eq('code', COMPANY_CODE).single();
+  return data ? data.id : null;
+}
+
+function populateFloorSelects(){
+  const floors = Object.keys(FLOOR_ITEMS);
+  [document.getElementById('floorSel'), document.getElementById('reqFloorSel')].forEach(sel => {
+    floors.forEach(f => {
+      const op = document.createElement('option');
+      op.value = f; op.textContent = f;
+      sel.appendChild(op);
+    });
+  });
+}
+
+/* ════════════════════════════════════════
+   KEY FIX: loadReport
+   - master list থেকে base items নাও
+   - Supabase থেকে custom rows (isCustom=true) collect করো
+   - সব reports এর history aggregate করো
+   - latest present দিয়ে stock override করো
+════════════════════════════════════════ */
+async function loadReport(){
+  showLoading('Supabase থেকে data load হচ্ছে...');
+  try{
+    const companyId = await getCompanyId();
+    if(!companyId){ alert('Company not found!'); hideLoading(); return; }
+
+    showLoading('সব floor এর reports fetch হচ্ছে...');
+    const { data: reports, error } = await supabase
+      .from('needle_reports')
+      .select('floor, report_date, rows')
+      .eq('company_id', companyId)
+      .order('report_date', { ascending: true });
+
+    if(error){ alert('DB Error: ' + error.message); hideLoading(); return; }
+    if(!reports || !reports.length){ renderUI([]); hideLoading(); return; }
+
+    // Latest report per floor
+    const latestPerFloor = {};
+    reports.forEach(r => { latestPerFloor[r.floor] = r; });
+
+    // ── STEP 1: Build itemMap from master list ──
+    const itemMap = {};
+    const masterKeys = new Set(); // floor__code__size
+
+    Object.entries(FLOOR_ITEMS).forEach(([floor, items]) => {
+      items.forEach(item => {
+        const key = `${floor}__${item[1]}__${item[3]}`;
+        masterKeys.add(key);
+        itemMap[key] = {
+          floor, sl: item[0], code: item[1], type: item[2],
+          size: item[3], brand: item[4], price: item[5],
+          opening: item[6],
+          stock: item[6],
+          deliveryTotal: 0, deliveryDays: 0, history: [],
+          isCustom: false
+        };
+      });
+    });
+
+    // ── STEP 2: Collect CUSTOM rows from Supabase (not in master list) ──
+    // We scan ALL saved reports to find custom items ever added
+    const customItemMap = {}; // floor__code__size -> row data
+
+    reports.forEach(rep => {
+      if(!rep.rows) return;
+      rep.rows.forEach(row => {
+        const key = `${rep.floor}__${row.itemCode}__${row.size}`;
+        if(!masterKeys.has(key)){
+          // Custom row — collect or update meta
+          if(!customItemMap[key]){
+            customItemMap[key] = {
+              floor: rep.floor,
+              code: row.itemCode || '',
+              type: row.needleType || '',
+              size: row.size || '',
+              brand: row.brand || '',
+              price: row.unitPrice || 0,
+              opening: row.opening || row.previous || 0,
+              stock: 0,
+              deliveryTotal: 0, deliveryDays: 0, history: [],
+              isCustom: true,
+              sl: row.sl || 999
+            };
+          }
+        }
+      });
+    });
+
+    // Add custom items to itemMap
+    Object.entries(customItemMap).forEach(([key, val]) => {
+      itemMap[key] = val;
+    });
+
+    // ── STEP 3: Aggregate delivery history across ALL reports ──
+    reports.forEach(rep => {
+      if(!rep.rows) return;
+      rep.rows.forEach(row => {
+        const key = `${rep.floor}__${row.itemCode}__${row.size}`;
+        if(itemMap[key]){
+          const d = Number(row.delivery) || 0;
+          itemMap[key].history.push(d);
+          if(d > 0){
+            itemMap[key].deliveryTotal += d;
+            itemMap[key].deliveryDays++;
+          }
+        }
+      });
+    });
+
+    // ── STEP 4: Override stock with LATEST present from Supabase ──
+    // This is the KEY fix — custom rows get their real present stock
+    Object.values(latestPerFloor).forEach(rep => {
+      if(!rep.rows) return;
+      rep.rows.forEach(row => {
+        const key = `${rep.floor}__${row.itemCode}__${row.size}`;
+        if(itemMap[key]){
+          // Use saved present stock (real balance after receive/delivery)
+          const presentVal = Number(row.present);
+          if(!isNaN(presentVal)){
+            itemMap[key].stock = presentVal;
+          }
+        }
+      });
+    });
+
+    // ── STEP 5: Compute ageing stats ──
+    allData = Object.values(itemMap).map(item => {
+      const avg = item.deliveryDays ? item.deliveryTotal / item.deliveryDays : 0;
+      const stockDays = avg > 0 ? item.stock / avg : 9999;
+
+      // Count consecutive no-delivery days at the end of history
+      let noDel = 0;
+      for(let i = item.history.length - 1; i >= 0; i--){
+        if(item.history[i] > 0) break;
+        noDel++;
+      }
+
+      let cat = 'running';
+      if(item.stock === 0 || noDel >= 30) cat = 'noDelivery';
+      else if(noDel >= 13) cat = 'slow';
+      else if(avg > 0 && stockDays <= 5) cat = 'critical';
+
+      return { ...item, avg, stockDays, noDel, cat };
+    });
+
+    // Requisition: items with ≤ 2 days stock (avg > 0)
+    reqData = allData
+      .filter(i => i.avg > 0 && i.stockDays <= 2)
+      .sort((a,b) => a.stockDays - b.stockDays);
+
+    applyFilters();
+  }catch(e){
+    console.error('loadReport error:', e);
+    alert('Error: ' + e.message);
+  }
+  hideLoading();
+}
+
+/* ── APPLY FILTERS ── */
+function applyFilters(){
+  const floor = document.getElementById('floorSel').value;
+  let d = allData;
+  if(floor !== 'ALL') d = d.filter(i => i.floor === floor);
+  if(currentCat !== 'all') d = d.filter(i => i.cat === currentCat);
+  renderUI(d);
+}
+
+/* ── RENDER UI ── */
+function renderUI(data){
+  const cnt = { total:data.length, running:0, slow:0, noDelivery:0, critical:0, stock:0 };
+  data.forEach(i => { if(cnt[i.cat]!==undefined) cnt[i.cat]++; cnt.stock += i.stock; });
+
+  document.getElementById('cTotal').textContent   = cnt.total;
+  document.getElementById('cRun').textContent     = cnt.running;
+  document.getElementById('cSlow').textContent    = cnt.slow;
+  document.getElementById('cNoDel').textContent   = cnt.noDelivery;
+  document.getElementById('cCrit').textContent    = cnt.critical;
+  document.getElementById('cStock').textContent   = cnt.stock.toLocaleString();
+
+  // Main table
+  let mainHTML = '';
+  data.forEach(item => {
+    const days = item.avg > 0 ? Math.floor(item.stockDays) : '∞';
+    const sc = item.stock === 0 ? 'stock-empty' : item.stockDays <= 5 ? 'stock-warn' : 'stock-normal';
+    const rc = item.noDel >= 30 ? 'row-danger' : item.isCustom ? 'row-custom' : '';
+    let statusCls = 'st-run', statusTxt = 'Running';
+    if(item.cat === 'noDelivery'){ statusCls='st-stop'; statusTxt='No Delivery'; }
+    else if(item.cat === 'slow'){ statusCls='st-slow'; statusTxt='Slow Moving'; }
+    else if(item.cat === 'critical'){ statusCls='st-crit'; statusTxt='Critical'; }
+
+    const customBadge = item.isCustom ? '<span class="custom-badge">ADD</span>' : '';
+    mainHTML += `<tr class="${rc}">
+      <td style="text-align:left;font-size:10px">${item.floor.replace(/\s*\(BUILDING[^)]*\)/i,'').replace(/_NEW|_RUNNING/,'')}</td>
+      <td>${item.sl}</td>
+      <td>${item.code}${customBadge}</td>
+      <td>${item.type}</td><td>${item.size}</td><td>${item.brand}</td>
+      <td><span class="${sc}">${item.stock}</span></td>
+      <td>${item.avg.toFixed(2)}</td>
+      <td>${days !== '∞' ? days+' days' : '∞'}</td>
+      <td>${item.noDel} days</td>
+      <td class="${statusCls}">${statusTxt}</td>
+      <td>${item.isCustom ? '✅' : ''}</td>
+    </tr>`;
+  });
+
+  mainHTML += `<tr class="total-row">
+    <td colspan="6">TOTAL ${data.length} ITEMS (${data.filter(i=>i.isCustom).length} custom)</td>
+    <td>${cnt.stock.toLocaleString()}</td>
+    <td colspan="5">LIVE</td>
+  </tr>`;
+
+  document.getElementById('mainBody').innerHTML = mainHTML ||
+    '<tr><td colspan="12" style="padding:20px;color:#22c55e;text-align:center">📭 No data</td></tr>';
+
+  // Critical table
+  let critHTML = '';
+  data.filter(i => i.cat === 'critical').forEach(item => {
+    const customBadge = item.isCustom ? '<span class="custom-badge">ADD</span>' : '';
+    critHTML += `<tr class="${item.isCustom?'row-custom':''}">
+      <td style="text-align:left;font-size:10px">${item.floor.replace(/\s*\(BUILDING[^)]*\)/i,'').replace(/_NEW|_RUNNING/,'')}</td>
+      <td>${item.code}${customBadge}</td>
+      <td>${item.type}</td><td>${item.size}</td><td>${item.brand}</td>
+      <td><span class="stock-warn">${item.stock}</span></td>
+      <td>${item.avg.toFixed(2)}</td>
+      <td>${Math.floor(item.stockDays)} days</td>
+      <td>${item.isCustom ? '✅' : ''}</td>
+    </tr>`;
+  });
+  document.getElementById('critBody').innerHTML = critHTML ||
+    '<tr><td colspan="9" style="padding:14px;color:#22c55e;text-align:center">✅ All stocks healthy</td></tr>';
+
+  drawCharts(data);
+}
+
+/* ── CHARTS ── */
+function drawCharts(data){
+  ['stockChart','trendChart'].forEach(id => { const c = Chart.getChart(id); if(c) c.destroy(); });
+  const top = data.slice(0, 40);
+  const labels = top.map(i => `${i.code}-${i.size}`);
+  const bgColors = top.map(i => i.isCustom ? '#d97706' : '#2563eb');
+
+  new Chart(document.getElementById('stockChart'), {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'Current Stock', data:top.map(i=>i.stock), backgroundColor:bgColors, borderRadius:4 }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{color:'#334155'}}, tooltip:{callbacks:{
+        label: ctx => ` Stock: ${ctx.raw}${top[ctx.dataIndex]?.isCustom?' (Custom)':''}`
+      }}},
+      scales:{ x:{ticks:{maxRotation:50,color:'#334155',font:{size:9}}}, y:{ticks:{color:'#334155'}} }
+    }
+  });
+
+  new Chart(document.getElementById('trendChart'), {
+    type:'line',
+    data:{ labels, datasets:[{ label:'Total Consumption', data:top.map(i=>i.deliveryTotal), borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,.1)', fill:true, tension:.3, pointRadius:3 }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#334155'}}},
+      scales:{ x:{ticks:{maxRotation:50,color:'#334155',font:{size:9}}}, y:{ticks:{color:'#334155'}} }
+    }
+  });
+}
+
+/* ── CATEGORY FILTER ── */
+window.filterCat = function(cat, el){
+  currentCat = cat;
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const names = { all:'All Items', running:'Running', slow:'Slow Moving', noDelivery:'No Delivery', critical:'Critical' };
+  document.getElementById('filterName').textContent = names[cat];
+  document.getElementById('filterBar').style.display = cat === 'all' ? 'none' : 'flex';
+  applyFilters();
+};
+
+window.clearFilter = function(){
+  currentCat = 'all';
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+  document.querySelector('.card').classList.add('active');
+  document.getElementById('filterBar').style.display = 'none';
+  applyFilters();
+};
+
+/* ── REQUISITION MODAL ── */
+window.openRequisition = function(){
+  renderRequisition();
+  document.getElementById('reqModal').classList.add('show');
+};
+window.closeRequisition = function(){
+  document.getElementById('reqModal').classList.remove('show');
+};
+
+window.renderRequisition = function(){
+  const floor = document.getElementById('reqFloorSel').value;
+  let items = reqData;
+  if(floor !== 'ALL') items = items.filter(i => i.floor === floor);
+
+  if(!items.length){
+    document.getElementById('reqBody').innerHTML =
+      '<tr><td colspan="11" style="padding:20px;color:#22c55e;text-align:center">✅ সকল আইটেমে পর্যাপ্ত স্টক আছে!</td></tr>';
+    return;
+  }
+
+  const byFloor = {};
+  items.forEach(i => { if(!byFloor[i.floor]) byFloor[i.floor]=[]; byFloor[i.floor].push(i); });
+
+  let html = '', serial = 1;
+  Object.entries(byFloor).forEach(([floorName, floorItems]) => {
+    const customCount = floorItems.filter(i=>i.isCustom).length;
+    html += `<tr class="floor-group-header"><td colspan="11">🏢 ${floorName} (${floorItems.length} items${customCount?', '+customCount+' custom':''})</td></tr>`;
+    floorItems.forEach(item => {
+      const days = Math.floor(item.stockDays * 10) / 10;
+      const suggested = Math.ceil(item.avg * 7);
+      const urgency = days <= 1 ? '#ef4444' : '#f59e0b';
+      const customBadge = item.isCustom ? '<span class="custom-badge">ADD</span>' : '';
+      html += `<tr ${item.isCustom?'style="background:#1a1000"':''}>
+        <td>${serial++}</td>
+        <td style="font-size:10px">${item.floor.replace(/\s*\(BUILDING[^)]*\)/i,'').replace(/_NEW|_RUNNING/,'')}</td>
+        <td>${item.code}${customBadge}</td>
+        <td>${item.type}</td>
+        <td>${item.size}</td>
+        <td>${item.brand}</td>
+        <td style="color:${urgency};font-weight:900">${item.stock}</td>
+        <td>${item.avg.toFixed(2)}</td>
+        <td style="color:${urgency};font-weight:900">${days} days</td>
+        <td style="color:#22c55e;font-weight:900">${suggested} pcs</td>
+        <td>${item.isCustom?'✅':''}</td>
+      </tr>`;
+    });
+  });
+
+  html += `<tr class="req-total-row">
+    <td colspan="6">TOTAL: ${items.length} items (${items.filter(i=>i.isCustom).length} custom)</td>
+    <td>${items.reduce((s,i)=>s+i.stock,0)}</td>
+    <td></td><td></td>
+    <td>${items.reduce((s,i)=>s+Math.ceil(i.avg*7),0)} pcs</td>
+    <td></td>
+  </tr>`;
+
+  document.getElementById('reqBody').innerHTML = html;
+};
+
+/* ── EXPORTS ── */
+window.printRequisition = function(){
+  const floor = document.getElementById('reqFloorSel').value;
+  const date = new Date().toLocaleDateString('en-BD');
+  const printWin = window.open('','','width=900,height=700');
+  printWin.document.write(`<html><head><title>Needle Requisition</title>
+    <style>body{font-family:Arial;padding:20px;color:#000;}h2,h3{text-align:center;}
+    table{width:100%;border-collapse:collapse;margin-top:16px;}
+    th,td{border:1px solid #999;padding:6px 8px;text-align:center;font-size:12px;}
+    th{background:#1e293b;color:#fff;}
+    .grp{background:#f1f5f9;font-weight:bold;text-align:left;padding:8px 12px;}
+    .custom{background:#fef3c7;}.tot{background:#fef9c3;font-weight:bold;}
+    </style></head><body>
+    <h2>GMS COMPOSITE - NEEDLE REQUISITION</h2>
+    <h3>Floor: ${floor} | Date: ${date}</h3>
+    <p style="text-align:center;color:#dc2626;font-size:13px">⚡ Items with ≤ 2 days stock | Suggested = 7 days supply | 🟡 = Custom Added Item</p>
+    <table>
+      <thead><tr><th>#</th><th>Floor</th><th>Code</th><th>Type</th><th>Size</th><th>Brand</th>
+      <th>Stock</th><th>Avg/Day</th><th>Days Left</th><th>Suggested Qty</th><th>Custom?</th></tr></thead>
+      <tbody>${document.getElementById('reqBody').innerHTML}</tbody>
+    </table>
+    <p style="margin-top:20px;font-size:11px;text-align:right">Generated: ${new Date().toLocaleString()}</p>
+    </body></html>`);
+  printWin.document.close();
+  setTimeout(() => printWin.print(), 400);
+};
+
+window.exportRequisitionExcel = function(){
+  const floor = document.getElementById('reqFloorSel').value;
+  const wb = XLSX.utils.table_to_book(document.getElementById('reqTable'), { sheet:'Requisition' });
+  XLSX.writeFile(wb, `Needle_Requisition_${floor}_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+window.exportRequisitionPDF = function(){ window.printRequisition(); };
+
+window.exportExcel = function(){
+  const wb = XLSX.utils.table_to_book(document.getElementById('mainTable'), { sheet:'Ageing' });
+  XLSX.writeFile(wb, `Needle_Ageing_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+window.exportPDF = function(){ window.print(); };
+window.loadReport = loadReport;
+window.applyFilters = applyFilters;
+
+/* ── INIT ── */
+populateFloorSelects();
+loadReport();
+
+document.getElementById('reqModal').addEventListener('click', function(e){
+  if(e.target === this) closeRequisition();
+});
+</script>
+</body>
+</html>
