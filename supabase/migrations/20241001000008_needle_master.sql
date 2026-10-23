@@ -629,12 +629,12 @@ CROSS JOIN public.floors f
 WHERE f.active = true
 ON CONFLICT (needle_item_id, floor_id, needle_group) DO NOTHING;
 
--- Also seed baseline Ideal Needles across ALL active floors
+-- Only IN codes belong to Ideal Needle, across all active floors.
 INSERT INTO public.needle_floor_assignments (needle_item_id, floor_id, needle_group)
 SELECT n.id, f.id, 'ideal_needle'
 FROM public.needle_items n
 CROSS JOIN public.floors f
-WHERE f.active = true
+WHERE f.active = true AND upper(btrim(n.item_code)) LIKE 'IN%'
 ON CONFLICT (needle_item_id, floor_id, needle_group) DO NOTHING;
 
 -- Reload Supabase PostgREST schema cache

@@ -203,10 +203,10 @@ export interface NeedleItem {
   item_code: string
   tac_inventory_item_code: string | null
   needle_type: string
-  size_dia: string
+  size_dia: string | null
   brand: string
-  unit_price_bdt: number
-  unit_price_usd: number
+  unit_price_bdt: number | null
+  unit_price_usd: number | null
   active: boolean
   created_at: string
   updated_at: string
@@ -216,7 +216,6 @@ export interface NeedleFloorAssignment {
   id: string
   needle_item_id: string
   floor_id: string
-  needle_group: NeedleGroup
   created_at: string
   updated_at: string
 }
@@ -230,8 +229,8 @@ export interface NeedleRowItem {
   needle_type: string
   size_dia: string
   brand: string
-  unit_price_bdt: number
-  unit_price_usd: number
+  unit_price_bdt: number | null
+  unit_price_usd: number | null
   active: boolean
   floor_ids: string[] // Array of assigned floor IDs (multiple floor selection)
   floor_id?: string | null // For single floor backwards compatibility

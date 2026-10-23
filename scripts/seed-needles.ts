@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * GMS ERP - Seed Needle Master Items from Excel/initial-needles.json
+ * GMS ERP - Reseed both separate catalogs from source-derived JSON (does not delete extra items)
  *
  * Usage:
  *   npx tsx scripts/seed-needles.ts
@@ -31,108 +31,51 @@ try {
 } catch {}
 
 async function main() {
-  console.log('\n=========================================')
-  console.log('  GMS ERP - Seed Needle Master Data')
-  console.log('=========================================\n')
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceKey) {
-    console.error('ERROR: Required environment variables missing:')
-    console.error('  NEXT_PUBLIC_SUPABASE_URL')
-    console.error('  SUPABASE_SERVICE_ROLE_KEY')
-    process.exit(1)
-  }
-
-  const supabase = createClient(supabaseUrl, serviceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
-
-  // Load JSON items
-  const jsonPath = path.resolve(process.cwd(), 'src/lib/data/initial-needles.json')
-  if (!fs.existsSync(jsonPath)) {
-    console.error('ERROR: src/lib/data/initial-needles.json not found.')
-    process.exit(1)
-  }
-
-  const items = JSON.parse(fs.readFileSync(jsonPath, 'utf8'))
-  console.log(`Loaded ${items.length} needle items from ${jsonPath}`)
-
-  // Check if table exists
-  const { error: testErr } = await supabase.from('needle_items').select('id').limit(1)
-  if (testErr) {
-    console.error('\nERROR: needle_items table does not exist in Supabase yet.')
-    console.error('Please run the migration in Supabase SQL Editor:')
-    console.error('  supabase/migrations/20241001000008_needle_master.sql')
-    process.exit(1)
-  }
-
-  console.log('\nSeeding needle items into needle_items...')
-  const batchSize = 50
-  let inserted = 0
-
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize)
-    const { error } = await supabase.from('needle_items').upsert(batch, {
-      onConflict: 'item_code',
-    })
-
-    if (error) {
-      console.error(`Error inserting batch ${i} - ${i + batch.length}:`, error.message)
-    } else {
-      inserted += batch.length
-      process.stdout.write(`  Seeded ${inserted}/${items.length} items...\r`)
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) throw new Error('Supabase URL and service role key are required.')
+  const db = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
+  const catalogs = [
+    { kind: 'normal', prefix: 'SN' },
+    { kind: 'idle', prefix: 'IN' },
+  ].map(catalog => ({
+    ...catalog,
+    items: JSON.parse(fs.readFileSync(path.resolve(`src/lib/data/${catalog.kind}-needle-seed.json`), 'utf8')) as Record<string, unknown>[],
+  }))
+  // Validate both catalogs before any writes. This command requires the reset migration.
+  for (const catalog of catalogs) {
+    if (catalog.items.some(item => !String(item.item_code).startsWith(catalog.prefix))) {
+      throw new Error(`Invalid codes in ${catalog.kind} seed data.`)
+    }
+    for (const table of [`${catalog.kind}_needle_items`, `${catalog.kind}_needle_floor_assignments`]) {
+      const { error } = await db.from(table).select('id').limit(1)
+      if (error) throw new Error(`Cannot access ${table}. Run 20261023000002_reset_separate_needle_catalogs.sql first. ${error.message}`)
     }
   }
-
-  console.log(`\n✅ Successfully seeded ${inserted} needle master items!`)
-
-  // Assign ALL active floors to every needle item for 'needle' and 'ideal_needle' groups
-  const { data: floors } = await supabase
-    .from('floors')
-    .select('id, code, name')
-    .eq('active', true)
-    .order('sort_order', { ascending: true })
-
-  if (floors && floors.length > 0) {
-    console.log(`\nAssigning baseline needles to ALL ${floors.length} active floors...`)
-
-    const { data: allItems } = await supabase.from('needle_items').select('id, item_code')
-    if (allItems && allItems.length > 0) {
-      const assignments: { needle_item_id: string; floor_id: string; needle_group: string }[] = []
-
-      for (const item of allItems) {
-        for (const floor of floors) {
-          assignments.push({
-            needle_item_id: item.id,
-            floor_id: floor.id,
-            needle_group: 'needle',
-          })
-          assignments.push({
-            needle_item_id: item.id,
-            floor_id: floor.id,
-            needle_group: 'ideal_needle',
-          })
-        }
-      }
-
-      console.log(`Inserting ${assignments.length} floor assignments in batches...`)
-      for (let i = 0; i < assignments.length; i += 200) {
-        const batch = assignments.slice(i, i + 200)
-        await supabase.from('needle_floor_assignments').upsert(batch, {
-          onConflict: 'needle_item_id,floor_id,needle_group',
-        })
-      }
-
-      console.log('✅ Baseline floor assignments established for ALL floors!')
-    }
+  const floors: { id: string }[] = []
+  while (true) {
+    const { data, error } = await db.from('floors').select('id').eq('active', true)
+      .order('id').range(floors.length, floors.length + 999)
+    if (error) throw error
+    if (!data.length) break
+    floors.push(...data)
   }
-
-  console.log('\nDone!\n')
+  if (!floors.length) throw new Error('Create or enable floors before seeding needles.')
+  for (const catalog of catalogs) {
+    for (let offset = 0; offset < catalog.items.length; offset += 50) {
+      const batch = catalog.items.slice(offset, offset + 50)
+      const { data, error } = await db.from(`${catalog.kind}_needle_items`)
+        .upsert(batch, { onConflict: 'item_code' }).select('id')
+      if (error) throw error
+      if (data.length !== batch.length) throw new Error('Incomplete seed response; floor assignments were not confirmed.')
+      const links = data.flatMap(item => floors.map(floor => ({ needle_item_id: item.id, floor_id: floor.id })))
+      for (let i = 0; i < links.length; i += 200) {
+        const { error } = await db.from(`${catalog.kind}_needle_floor_assignments`)
+          .upsert(links.slice(i, i + 200), { onConflict: 'needle_item_id,floor_id' })
+        if (error) throw error
+      }
+    }
+    console.log(`Seeded ${catalog.items.length} ${catalog.kind} needles; selected all ${floors.length} active floors.`)
+  }
 }
-
-main().catch((err) => {
-  console.error('Fatal error:', err)
-  process.exit(1)
-})
+main().catch(error => { console.error(error.message); process.exitCode = 1 })

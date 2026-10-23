@@ -141,6 +141,12 @@ If using hosted Supabase, execute the SQL files in `supabase/migrations/` sequen
 4. `20241001000004_tokens.sql`
 5. `20241001000005_audit.sql`
 6. `20241001000006_profile_floor_ids.sql`
+7. `20241001000007_floor_locations.sql`
+8. `20241001000008_needle_master.sql`
+9. `20261022000000_needle_master_select_all_floors.sql`
+10. `20261023000000_idle_needle_master.sql`
+11. `20261023000001_ideal_needle_in_codes_only.sql`
+12. `20261023000002_reset_separate_needle_catalogs.sql`
 
 Then run `supabase/seed.sql` to populate initial master data and permissions.
 
@@ -149,6 +155,36 @@ column, run only `supabase/migrations/20241001000006_profile_floor_ids.sql` in S
 Editor. It preserves existing floor assignments and can be rerun safely. Do not
 rerun `combined_migration.sql` on an initialized database; that file includes
 initial triggers, policies, and Site Admin creation.
+
+For the existing database, run **only**
+`supabase/migrations/20261023000002_reset_separate_needle_catalogs.sql` in Supabase
+SQL Editor. This is the complete needle reset and seed script. It intentionally
+removes old needle master records and floor assignments, drops the shared tables,
+and rebuilds two independent catalogs in the same Supabase project:
+
+| Workbook | Catalog table | Page | Seed count |
+| --- | --- | --- | --- |
+| `Excel/unitPrice.xlsx` | `normal_needle_items` | Needle | 358 SN codes |
+| `Excel/IdleNeedleUnitPrice.xlsx` | `idle_needle_items` | Ideal Needle | 41 IN codes |
+
+Each catalog has its own floor-assignment table. Every currently active floor is
+selected for each imported item. Database constraints reject codes in the wrong
+catalog. Users, floors, locations, and audit records are retained. The reset is
+transactional; missing active floors or unexpected dependent tables abort it.
+**Rerunning the reset removes subsequent needle edits again.** The full
+`combined_migration.sql` includes this reset for fresh installations only.
+
+The workbooks omit 59 normal prices and two sizes; these remain NULL rather than
+invented zero prices. BDT values retain six decimal places and USD eight.
+Pages read only their catalog and never substitute a bundled fallback dataset.
+
+Regenerate the reset SQL and both JSON seed datasets from the workbooks with
+`python scripts/generate-separate-needle-migration.py` (requires `openpyxl`). If the
+SQL changes, update its matching section in `combined_migration.sql` too.
+After the reset migration, `npm run seed:needles` upserts both source datasets and
+selects all active floors again. This reseed does not delete extra items; use the
+reset SQL when a full replacement is intended. Historical shared-table import
+migrations must not be rerun after the reset.
 
 ### Step 5: Bootstrap the First Site Admin
 Initialize the primary Site Admin account:

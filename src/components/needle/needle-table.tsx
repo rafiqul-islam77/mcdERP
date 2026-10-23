@@ -52,15 +52,24 @@ export function NeedleTable({
   const [dbReady, setDbReady] = React.useState(true)
   const [loading, setLoading] = React.useState(true)
 
+  // Scroll tracking for floating status indicator
+  const [isScrolled, setIsScrolled] = React.useState(false)
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 60)
+    }
+
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
   // Filter states
   const [search, setSearch] = React.useState('')
   const [floorFilter, setFloorFilter] = React.useState('')
   const [brandFilter, setBrandFilter] = React.useState('')
   const [needleTypeFilter, setNeedleTypeFilter] = React.useState('')
-
-  // Pagination states
-  const [currentPage, setCurrentPage] = React.useState(1)
-  const [pageSize, setPageSize] = React.useState(25)
 
   // Save states
   const [saveStatus, setSaveStatus] = React.useState<SaveStatus>('idle')
@@ -97,9 +106,13 @@ export function NeedleTable({
         setDistinctNeedleTypes(res.data.distinctNeedleTypes)
         setDbReady(res.data.dbReady)
       } else {
+        setItems([])
+        setDbReady(false)
         toast(res.error || 'Failed to load needles.', 'error')
       }
     } catch (err: any) {
+      setItems([])
+      setDbReady(false)
       toast(err.message || 'Error loading needle records.', 'error')
     } finally {
       setLoading(false)
@@ -109,11 +122,6 @@ export function NeedleTable({
   React.useEffect(() => {
     fetchData()
   }, [fetchData])
-
-  // Reset page when filters change
-  React.useEffect(() => {
-    setCurrentPage(1)
-  }, [search, floorFilter, brandFilter, needleTypeFilter])
 
   // Handle cell edit for text/numbers with smooth debounced auto-save
   const handleCellChange = (
@@ -372,10 +380,8 @@ export function NeedleTable({
     }
   }
 
-  // Filtered rows & pagination
+  // Filtered rows
   const totalItems = items.length
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
-  const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   const isFiltered = Boolean(search || floorFilter || brandFilter || needleTypeFilter)
 
@@ -388,6 +394,32 @@ export function NeedleTable({
 
   return (
     <div className="space-y-4">
+      {/* Floating Sticky Save Status & Refresh on Scroll (§User Image 1 & 2) */}
+      <div
+        className={`fixed top-[56px] right-4 lg:right-8 z-40 transition-all duration-300 ease-out ${
+          isScrolled
+            ? 'opacity-100 translate-y-0 pointer-events-auto'
+            : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+      >
+        <div className="flex items-center gap-2 px-2.5 py-1.5 bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-md rounded-full">
+          <SaveStatusIndicator
+            status={saveStatus}
+            lastSavedAt={lastSavedAt}
+            errorMessage={saveError}
+          />
+          <button
+            type="button"
+            onClick={fetchData}
+            disabled={loading}
+            title="Refresh needle data"
+            className="p-1 rounded-full text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-surface-border">
         <div>
@@ -428,7 +460,7 @@ export function NeedleTable({
               variant="primary"
               size="sm"
               onClick={handleAddNewNeedle}
-              disabled={Boolean(draftRow)}
+              disabled={Boolean(draftRow) || loading || !dbReady}
               className="gap-1.5"
             >
               <Plus className="w-4 h-4" />
@@ -443,10 +475,8 @@ export function NeedleTable({
         <div className="flex items-start gap-3 p-3 text-xs bg-amber-50 border border-amber-200 rounded-erp text-amber-900">
           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1">
-            <span className="font-semibold">Supabase Tables Migration Notice: </span>
-            The remote database tables (`needle_items`, `needle_floor_assignments`) are pending execution.
-            Currently rendering the master catalog from <code className="font-mono bg-amber-100 px-1 py-0.5 rounded">unitPrice.xlsx</code>.
-            Execute <code className="font-mono bg-amber-100 px-1 py-0.5 rounded">supabase/migrations/20241001000008_needle_master.sql</code> in your Supabase SQL Editor to enable full multi-tenant persistence.
+            <span className="font-semibold">Needle catalog unavailable. </span>
+            Ask your administrator to complete the catalog setup or restore the database connection.
           </div>
         </div>
       )}
@@ -576,7 +606,7 @@ export function NeedleTable({
                   <td className="py-2 px-2">
                     <input
                       type="text"
-                      placeholder="e.g. SN-500"
+                      placeholder={needleGroup === 'ideal_needle' ? 'e.g. IN-042' : 'e.g. SN-500'}
                       value={draftRow.item_code}
                       onChange={(e) =>
                         setDraftRow({ ...draftRow, item_code: e.target.value.toUpperCase() })
@@ -629,12 +659,12 @@ export function NeedleTable({
                   <td className="py-2 px-2">
                     <input
                       type="number"
-                      step="0.0001"
-                      value={draftRow.unit_price_bdt}
+                      step="0.000001"
+                      value={draftRow.unit_price_bdt ?? ''}
                       onChange={(e) =>
                         setDraftRow({
                           ...draftRow,
-                          unit_price_bdt: parseFloat(e.target.value) || 0,
+                          unit_price_bdt: e.target.value === '' ? null : Number(e.target.value),
                         })
                       }
                       className="w-full px-2 py-1 text-xs text-right bg-white border border-blue-300 rounded focus:ring-1 focus:ring-brand focus:outline-none"
@@ -643,12 +673,12 @@ export function NeedleTable({
                   <td className="py-2 px-2">
                     <input
                       type="number"
-                      step="0.000001"
-                      value={draftRow.unit_price_usd}
+                      step="0.00000001"
+                      value={draftRow.unit_price_usd ?? ''}
                       onChange={(e) =>
                         setDraftRow({
                           ...draftRow,
-                          unit_price_usd: parseFloat(e.target.value) || 0,
+                          unit_price_usd: e.target.value === '' ? null : Number(e.target.value),
                         })
                       }
                       className="w-full px-2 py-1 text-xs text-right bg-white border border-blue-300 rounded focus:ring-1 focus:ring-brand focus:outline-none"
@@ -751,7 +781,7 @@ export function NeedleTable({
                     Loading needle master records...
                   </td>
                 </tr>
-              ) : paginatedItems.length === 0 ? (
+              ) : items.length === 0 ? (
                 <tr>
                   <td
                     colSpan={canDelete ? 12 : 11}
@@ -761,8 +791,8 @@ export function NeedleTable({
                   </td>
                 </tr>
               ) : (
-                paginatedItems.map((item, index) => {
-                  const sl = (currentPage - 1) * pageSize + index + 1
+                items.map((item, index) => {
+                  const sl = index + 1
                   return (
                     <tr
                       key={item.id}
@@ -885,16 +915,16 @@ export function NeedleTable({
                         {canEdit ? (
                           <input
                             type="number"
-                            step="0.0001"
-                            value={item.unit_price_bdt}
+                            step="0.000001"
+                            value={item.unit_price_bdt ?? ''}
                             onChange={(e) =>
-                              handleCellChange(item.id, 'unit_price_bdt', parseFloat(e.target.value) || 0)
+                              handleCellChange(item.id, 'unit_price_bdt', e.target.value === '' ? null : Number(e.target.value))
                             }
                             className="w-full px-2 py-1 text-xs text-right font-mono bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-brand rounded focus:ring-1 focus:ring-brand focus:outline-none text-slate-800"
                           />
                         ) : (
                           <span className="text-right block font-mono text-slate-800">
-                            {item.unit_price_bdt.toFixed(4)}
+                            {item.unit_price_bdt?.toFixed(6) ?? '-'}
                           </span>
                         )}
                       </td>
@@ -904,16 +934,16 @@ export function NeedleTable({
                         {canEdit ? (
                           <input
                             type="number"
-                            step="0.000001"
-                            value={item.unit_price_usd}
+                            step="0.00000001"
+                            value={item.unit_price_usd ?? ''}
                             onChange={(e) =>
-                              handleCellChange(item.id, 'unit_price_usd', parseFloat(e.target.value) || 0)
+                              handleCellChange(item.id, 'unit_price_usd', e.target.value === '' ? null : Number(e.target.value))
                             }
                             className="w-full px-2 py-1 text-xs text-right font-mono bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-brand rounded focus:ring-1 focus:ring-brand focus:outline-none text-slate-800"
                           />
                         ) : (
                           <span className="text-right block font-mono text-slate-800">
-                            {item.unit_price_usd.toFixed(6)}
+                            {item.unit_price_usd?.toFixed(8) ?? '-'}
                           </span>
                         )}
                       </td>
@@ -1031,56 +1061,19 @@ export function NeedleTable({
           </table>
         </div>
 
-        {/* Table Footer: Pagination & Counts */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-slate-50/70 border-t border-surface-border text-xs text-slate-600">
+        {/* Table Footer: Item Count Summary */}
+        <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50/80 border-t border-surface-border text-xs text-slate-600 font-medium">
           <div className="flex items-center gap-2">
             <span>
-              Showing {totalItems > 0 ? (currentPage - 1) * pageSize + 1 : 0} to{' '}
-              {Math.min(currentPage * pageSize, totalItems)} of {totalItems} needles
+              Total: <strong className="text-slate-800 font-semibold">{totalItems}</strong> needle{totalItems === 1 ? '' : 's'} listed
             </span>
-            <span className="text-slate-300">|</span>
-            <div className="flex items-center gap-1.5">
-              <span>Rows per page:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value))
-                  setCurrentPage(1)
-                }}
-                className="bg-white border border-surface-border rounded px-1.5 py-0.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand"
-              >
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
+            {isFiltered && (
+              <span className="text-slate-400 text-[11px]">(filtered)</span>
+            )}
           </div>
-
-          <div className="flex items-center gap-1">
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="h-7 px-2.5 text-xs"
-            >
-              Previous
-            </Button>
-
-            <span className="px-2 text-slate-500 font-medium">
-              Page {currentPage} of {totalPages}
-            </span>
-
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={currentPage >= totalPages}
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="h-7 px-2.5 text-xs"
-            >
-              Next
-            </Button>
-          </div>
+          <span className="text-slate-400 text-[11px]">
+            Displaying all records
+          </span>
         </div>
       </div>
 
