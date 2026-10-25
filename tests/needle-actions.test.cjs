@@ -28,7 +28,7 @@ function setup({cap=100,missing=false,empty=false,fail=false,denied=false}={}) {
       const q={select(){return q},eq(k,v){filters.push([k,v]);return q},order(){return q},range(a,b){start=a;end=b;return q},
         maybeSingle(){single=true;return q},single(){single=true;return q},
         insert(p){op='insert';payload=p;return q},update(p){op='update';payload=p;return q},delete(){op='delete';return q},
-        upsert(p,options){assert.equal(options.onConflict,'needle_item_id,floor_id');assert.ok(!('needle_group' in p));op='insert';payload=p;return q},
+        upsert(p,options){assert.ok(options.onConflict.includes('needle_item_id,floor_id'));assert.ok(!('needle_group' in p));op='insert';payload=p;return q},
         then(resolve,reject){
           if(missing && table!=='floors') return Promise.resolve({data:null,error:{code:'PGRST205'}}).then(resolve,reject)
           if(fail && table!=='floors' && (op!=='read'||start>0)) return Promise.resolve({data:null,error:{message:'Database unavailable'}}).then(resolve,reject)

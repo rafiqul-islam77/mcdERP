@@ -24,7 +24,7 @@ const MODULE_GROUPS = [
     label: 'NEEDLE MANAGEMENT (MASTER DATA)',
     pages: [
       { pageKey: 'needle', label: 'Needle Master', actions: ['view', 'create', 'edit', 'delete'] },
-      { pageKey: 'ideal_needle', label: 'Ideal Needle Master', actions: ['view', 'create', 'edit', 'delete'] },
+      { pageKey: 'ideal_needle', label: 'Idle Needle Master', actions: ['view', 'create', 'edit', 'delete'] },
     ],
   },
   {

@@ -111,13 +111,30 @@ export async function getNeedleMasterDataAction(params: {
     }
 
     if (dbReady) {
-      const { data: assignData, error: assignError } = await fetchAllNeedleRows((from, to) => admin
+      const selectCols = params.needleGroup === 'needle'
+        ? 'needle_item_id, floor_id, entry_type'
+        : 'needle_item_id, floor_id'
+
+      let { data: assignData, error: assignError } = await fetchAllNeedleRows((from, to) => admin
         .from(catalog.assignments)
-        .select('needle_item_id, floor_id')
+        .select(selectCols)
         .order('needle_item_id', { ascending: true })
         .order('floor_id', { ascending: true })
         .range(from, to)
       )
+
+      // Fallback if entry_type column does not exist on remote DB yet
+      if (assignError && (assignError.code === '42703' || assignError.message?.includes('entry_type'))) {
+        const fallback = await fetchAllNeedleRows((from, to) => admin
+          .from(catalog.assignments)
+          .select('needle_item_id, floor_id')
+          .order('needle_item_id', { ascending: true })
+          .order('floor_id', { ascending: true })
+          .range(from, to)
+        )
+        assignData = fallback.data
+        assignError = fallback.error
+      }
 
       if (assignError) {
         if (['42P01', 'PGRST205'].includes(assignError.code)) {
@@ -140,16 +157,47 @@ export async function getNeedleMasterDataAction(params: {
   }
 
   // Build Assignment lookup: needle_item_id -> floor_id[]
+  // For Normal Needle, separate into newAssignmentMap and runningAssignmentMap
   const assignmentMap = new Map<string, string[]>()
+  const newAssignmentMap = new Map<string, string[]>()
+  const runningAssignmentMap = new Map<string, string[]>()
+
   for (const a of rawAssignments) {
     const list = assignmentMap.get(a.needle_item_id) || []
-    list.push(a.floor_id)
+    if (!list.includes(a.floor_id)) list.push(a.floor_id)
     assignmentMap.set(a.needle_item_id, list)
+
+    if (params.needleGroup === 'needle') {
+      if (a.entry_type === 'running') {
+        const rList = runningAssignmentMap.get(a.needle_item_id) || []
+        if (!rList.includes(a.floor_id)) rList.push(a.floor_id)
+        runningAssignmentMap.set(a.needle_item_id, rList)
+      } else if (a.entry_type === 'new') {
+        const nList = newAssignmentMap.get(a.needle_item_id) || []
+        if (!nList.includes(a.floor_id)) nList.push(a.floor_id)
+        newAssignmentMap.set(a.needle_item_id, nList)
+      } else {
+        // If entry_type not populated, associate to both
+        const nList = newAssignmentMap.get(a.needle_item_id) || []
+        if (!nList.includes(a.floor_id)) nList.push(a.floor_id)
+        newAssignmentMap.set(a.needle_item_id, nList)
+
+        const rList = runningAssignmentMap.get(a.needle_item_id) || []
+        if (!rList.includes(a.floor_id)) rList.push(a.floor_id)
+        runningAssignmentMap.set(a.needle_item_id, rList)
+      }
+    }
   }
 
   const allRows: NeedleRowItem[] = []
   for (const item of rawItems) {
     const assignedFloorIds = assignmentMap.get(item.id) || []
+    const newFloorIds = params.needleGroup === 'needle'
+      ? (newAssignmentMap.get(item.id) || [])
+      : assignedFloorIds
+    const runningFloorIds = params.needleGroup === 'needle'
+      ? (runningAssignmentMap.get(item.id) || [])
+      : assignedFloorIds
 
     allRows.push({
       id: item.id,
@@ -164,6 +212,8 @@ export async function getNeedleMasterDataAction(params: {
       unit_price_usd: item.unit_price_usd == null ? null : Number(item.unit_price_usd),
       active: item.active ?? true,
       floor_ids: assignedFloorIds,
+      new_floor_ids: newFloorIds,
+      running_floor_ids: runningFloorIds,
       floor_id: assignedFloorIds[0] || null,
       needle_group: params.needleGroup,
     })
@@ -191,9 +241,19 @@ export async function getNeedleMasterDataAction(params: {
 
   if (params.floorId) {
     if (params.floorId === 'unassigned') {
-      filtered = filtered.filter((r) => r.floor_ids.length === 0)
+      filtered = filtered.filter(
+        (r) =>
+          r.floor_ids.length === 0 &&
+          (!r.new_floor_ids || r.new_floor_ids.length === 0) &&
+          (!r.running_floor_ids || r.running_floor_ids.length === 0)
+      )
     } else {
-      filtered = filtered.filter((r) => r.floor_ids.includes(params.floorId!))
+      filtered = filtered.filter(
+        (r) =>
+          r.floor_ids.includes(params.floorId!) ||
+          r.new_floor_ids?.includes(params.floorId!) ||
+          r.running_floor_ids?.includes(params.floorId!)
+      )
     }
   }
 
@@ -227,7 +287,8 @@ export async function toggleNeedleFloorAction(params: {
   floor_id: string
   checked: boolean
   needle_group: NeedleGroup
-}): Promise<ActionResult<{ floor_ids: string[] }>> {
+  entry_type?: 'new' | 'running'
+}): Promise<ActionResult<{ floor_ids: string[]; entry_type?: 'new' | 'running' }>> {
   const actor = await requireActiveAccount()
   const permKey =
     params.needle_group === 'ideal_needle'
@@ -248,60 +309,93 @@ export async function toggleNeedleFloorAction(params: {
 
   const catalog = getNeedleCatalog(params.needle_group)
   const admin = getAdminClient()
-  const { item_id, floor_id, checked, needle_group } = params
+  const { item_id, floor_id, checked, needle_group, entry_type = 'new' } = params
 
   try {
-    if (checked) {
-      const { error } = await admin.from(catalog.assignments).upsert(
-        {
-          needle_item_id: item_id,
-          floor_id,
-        },
-        { onConflict: 'needle_item_id,floor_id' }
-      )
-      if (error) throw error
-
-      await createAuditLog({
-        actorUserId: actor.profile.id,
-        eventType:
-          needle_group === 'ideal_needle'
-            ? 'IDEAL_NEEDLE_FLOOR_ASSIGNED'
-            : 'NEEDLE_FLOOR_ASSIGNED',
-        entityType: catalog.assignments,
-        entityId: `${item_id}:${floor_id}`,
-        newData: { needle_item_id: item_id, floor_id, needle_group },
-      })
+    if (needle_group === 'needle') {
+      if (checked) {
+        let { error } = await admin.from(catalog.assignments).upsert(
+          {
+            needle_item_id: item_id,
+            floor_id,
+            entry_type,
+          },
+          { onConflict: 'needle_item_id,floor_id,entry_type' }
+        )
+        if (error && (error.code === '42703' || error.message?.includes('entry_type'))) {
+          // Fallback if entry_type column does not exist on remote DB yet
+          const fb = await admin.from(catalog.assignments).upsert(
+            { needle_item_id: item_id, floor_id },
+            { onConflict: 'needle_item_id,floor_id' }
+          )
+          error = fb.error
+        }
+        if (error) throw error
+      } else {
+        const delQuery = admin.from(catalog.assignments).delete().eq('needle_item_id', item_id).eq('floor_id', floor_id)
+        const { error: delErr } = await delQuery.eq('entry_type', entry_type)
+        if (delErr) {
+          if (delErr.code === '42703' || delErr.message?.includes('entry_type')) {
+            const { error: fbErr } = await admin.from(catalog.assignments).delete().eq('needle_item_id', item_id).eq('floor_id', floor_id)
+            if (fbErr) throw fbErr
+          } else {
+            throw delErr
+          }
+        }
+      }
     } else {
-      const { error } = await admin
-        .from(catalog.assignments)
-        .delete()
-        .eq('needle_item_id', item_id)
-        .eq('floor_id', floor_id)
-      if (error) throw error
-
-      await createAuditLog({
-        actorUserId: actor.profile.id,
-        eventType:
-          needle_group === 'ideal_needle'
-            ? 'IDEAL_NEEDLE_FLOOR_REMOVED'
-            : 'NEEDLE_FLOOR_REMOVED',
-        entityType: catalog.assignments,
-        entityId: `${item_id}:${floor_id}`,
-        oldData: { needle_item_id: item_id, floor_id, needle_group },
-      })
+      if (checked) {
+        const { error } = await admin.from(catalog.assignments).upsert(
+          { needle_item_id: item_id, floor_id },
+          { onConflict: 'needle_item_id,floor_id' }
+        )
+        if (error) throw error
+      } else {
+        const { error } = await admin
+          .from(catalog.assignments)
+          .delete()
+          .eq('needle_item_id', item_id)
+          .eq('floor_id', floor_id)
+        if (error) throw error
+      }
     }
 
-    const { data: updatedAssignments, error: readError } = await admin
+    await createAuditLog({
+      actorUserId: actor.profile.id,
+      eventType:
+        needle_group === 'ideal_needle'
+          ? (checked ? 'IDEAL_NEEDLE_FLOOR_ASSIGNED' : 'IDEAL_NEEDLE_FLOOR_REMOVED')
+          : (checked ? 'NEEDLE_FLOOR_ASSIGNED' : 'NEEDLE_FLOOR_REMOVED'),
+      entityType: catalog.assignments,
+      entityId: `${item_id}:${floor_id}`,
+      newData: checked ? { needle_item_id: item_id, floor_id, needle_group, entry_type } : null,
+      oldData: !checked ? { needle_item_id: item_id, floor_id, needle_group, entry_type } : null,
+    })
+
+    // Fetch updated floor assignments for this item and entry_type
+    const query = admin.from(catalog.assignments).select('floor_id').eq('needle_item_id', item_id)
+    if (needle_group === 'needle') {
+      try {
+        const { data: typedData, error: typedErr } = await query.eq('entry_type', entry_type)
+        if (!typedErr && typedData) {
+          return {
+            success: true,
+            data: { floor_ids: typedData.map((a: any) => a.floor_id), entry_type },
+          }
+        }
+      } catch {}
+    }
+
+    const { data: updatedAssignments } = await admin
       .from(catalog.assignments)
       .select('floor_id')
       .eq('needle_item_id', item_id)
 
-    if (readError) throw readError
     const floorIds = (updatedAssignments || []).map((a: any) => a.floor_id)
 
     return {
       success: true,
-      data: { floor_ids: floorIds },
+      data: { floor_ids: floorIds, entry_type },
     }
   } catch (err: any) {
     console.error('Error toggling needle floor:', err)
@@ -319,7 +413,8 @@ export async function bulkSetNeedleFloorsAction(params: {
   item_id: string
   floor_ids: string[]
   needle_group: NeedleGroup
-}): Promise<ActionResult<{ floor_ids: string[] }>> {
+  entry_type?: 'new' | 'running'
+}): Promise<ActionResult<{ floor_ids: string[]; entry_type?: 'new' | 'running' }>> {
   const actor = await requireActiveAccount()
   const permKey =
     params.needle_group === 'ideal_needle'
@@ -340,14 +435,61 @@ export async function bulkSetNeedleFloorsAction(params: {
 
   const catalog = getNeedleCatalog(params.needle_group)
   const admin = getAdminClient()
-  const { item_id, floor_ids, needle_group } = params
+  const { item_id, floor_ids, needle_group, entry_type = 'new' } = params
+  const distinctIds = Array.from(new Set(floor_ids))
 
   try {
-    const { error } = await admin.rpc(catalog.setFloorsRpc, {
-      p_item_id: item_id,
-      p_floor_ids: Array.from(new Set(floor_ids)),
-    })
-    if (error) throw error
+    if (needle_group === 'needle') {
+      let rpcSucceeded = false
+      try {
+        const { error: rpcErr } = await admin.rpc(catalog.setFloorsRpc, {
+          p_item_id: item_id,
+          p_floor_ids: distinctIds,
+          p_entry_type: entry_type,
+        })
+        if (!rpcErr) rpcSucceeded = true
+      } catch {}
+
+      if (!rpcSucceeded) {
+        // Direct transactional update
+        const { error: delErr } = await admin
+          .from(catalog.assignments)
+          .delete()
+          .eq('needle_item_id', item_id)
+          .eq('entry_type', entry_type)
+
+        if (delErr) {
+          if (delErr.code === '42703' || delErr.message?.includes('entry_type')) {
+            const { error: fbDelErr } = await admin.from(catalog.assignments).delete().eq('needle_item_id', item_id)
+            if (fbDelErr) throw fbDelErr
+          } else {
+            throw delErr
+          }
+        }
+
+        if (distinctIds.length > 0) {
+          const toInsert = distinctIds.map((fId) => ({
+            needle_item_id: item_id,
+            floor_id: fId,
+            entry_type,
+          }))
+          const { error: insErr } = await admin.from(catalog.assignments).insert(toInsert)
+          if (insErr && (insErr.code === '42703' || insErr.message?.includes('entry_type'))) {
+            // Fallback without entry_type
+            await admin.from(catalog.assignments).delete().eq('needle_item_id', item_id)
+            await admin.from(catalog.assignments).insert(
+              distinctIds.map((fId) => ({ needle_item_id: item_id, floor_id: fId }))
+            )
+          }
+        }
+      }
+    } else {
+      const { error } = await admin.rpc(catalog.setFloorsRpc, {
+        p_item_id: item_id,
+        p_floor_ids: distinctIds,
+      })
+      if (error) throw error
+    }
 
     await createAuditLog({
       actorUserId: actor.profile.id,
@@ -357,12 +499,12 @@ export async function bulkSetNeedleFloorsAction(params: {
           : 'NEEDLE_FLOOR_ASSIGNED',
       entityType: catalog.assignments,
       entityId: item_id,
-      newData: { needle_item_id: item_id, floor_ids, needle_group },
+      newData: { needle_item_id: item_id, floor_ids: distinctIds, needle_group, entry_type },
     })
 
     return {
       success: true,
-      data: { floor_ids: Array.from(new Set(floor_ids)) },
+      data: { floor_ids: distinctIds, entry_type },
     }
   } catch (err: any) {
     console.error('Error updating needle floors:', err)
@@ -496,6 +638,8 @@ export async function createNeedleAction(payload: {
   unit_price_bdt: number | null
   unit_price_usd: number | null
   floor_ids?: string[]
+  new_floor_ids?: string[]
+  running_floor_ids?: string[]
   needle_group: NeedleGroup
   active?: boolean
 }): Promise<ActionResult<NeedleRowItem>> {
@@ -536,6 +680,8 @@ export async function createNeedleAction(payload: {
     unit_price_bdt,
     unit_price_usd,
     floor_ids = [],
+    new_floor_ids = [],
+    running_floor_ids = [],
     needle_group,
     active,
   } = parsed.data
@@ -567,12 +713,33 @@ export async function createNeedleAction(payload: {
     if (insErr || !newItem) throw insErr || new Error('Failed to create needle master item')
     const itemId = newItem.id
 
-    if (floor_ids.length > 0) {
-      const { error } = await admin.rpc(catalog.setFloorsRpc, { p_item_id: itemId, p_floor_ids: floor_ids })
-      if (error) {
-        const { error: cleanupError } = await admin.from(catalog.items).delete().eq('id', itemId)
-        if (cleanupError) throw new Error('Needle created, but floor assignment failed. Reload and assign its floors.')
-        throw error
+    if (needle_group === 'needle') {
+      const distinctNew = Array.from(new Set(new_floor_ids.length > 0 ? new_floor_ids : floor_ids))
+      const distinctRunning = Array.from(new Set(running_floor_ids.length > 0 ? running_floor_ids : floor_ids))
+
+      const toInsert: any[] = []
+      distinctNew.forEach((fId) => toInsert.push({ needle_item_id: itemId, floor_id: fId, entry_type: 'new' }))
+      distinctRunning.forEach((fId) => toInsert.push({ needle_item_id: itemId, floor_id: fId, entry_type: 'running' }))
+
+      if (toInsert.length > 0) {
+        const { error: assignErr } = await admin.from(catalog.assignments).insert(toInsert)
+        if (assignErr && (assignErr.code === '42703' || assignErr.message?.includes('entry_type'))) {
+          // Fallback if entry_type column does not exist
+          const fallbackIns = Array.from(new Set([...distinctNew, ...distinctRunning])).map((fId) => ({
+            needle_item_id: itemId,
+            floor_id: fId,
+          }))
+          await admin.from(catalog.assignments).insert(fallbackIns)
+        }
+      }
+    } else {
+      if (floor_ids.length > 0) {
+        const { error } = await admin.rpc(catalog.setFloorsRpc, { p_item_id: itemId, p_floor_ids: floor_ids })
+        if (error) {
+          const { error: cleanupError } = await admin.from(catalog.items).delete().eq('id', itemId)
+          if (cleanupError) throw new Error('Needle created, but floor assignment failed. Reload and assign its floors.')
+          throw error
+        }
       }
     }
 
@@ -588,6 +755,8 @@ export async function createNeedleAction(payload: {
         size_dia,
         brand,
         floor_ids,
+        new_floor_ids,
+        running_floor_ids,
         needle_group,
       },
     })
@@ -604,13 +773,15 @@ export async function createNeedleAction(payload: {
       unit_price_bdt,
       unit_price_usd,
       active: active ?? true,
-      floor_ids,
+      floor_ids: Array.from(new Set([...new_floor_ids, ...running_floor_ids, ...floor_ids])),
+      new_floor_ids,
+      running_floor_ids,
       needle_group,
     }
 
     revalidatePath(
       needle_group === 'ideal_needle'
-        ? '/needle-management/ideal-needle'
+        ? '/needle-management/idle-needle'
         : '/needle-management/needle'
     )
 
@@ -672,7 +843,7 @@ export async function deleteNeedleAction(params: {
 
     revalidatePath(
       needle_group === 'ideal_needle'
-        ? '/needle-management/ideal-needle'
+        ? '/needle-management/idle-needle'
         : '/needle-management/needle'
     )
 

@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import {
   LayoutDashboard,
   Package,
@@ -44,11 +44,33 @@ export function Sidebar({
   onClose: () => void
 }) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const currentCategory = searchParams.get('category')?.toUpperCase()
   const [navigatingTo, setNavigatingTo] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     setNavigatingTo(null)
-  }, [pathname])
+  }, [pathname, currentCategory])
+
+  const isLinkActive = React.useCallback(
+    (targetHref: string) => {
+      const [targetPath, targetQuery] = targetHref.split('?')
+      if (pathname !== targetPath) {
+        return false
+      }
+      if (targetQuery) {
+        const targetParams = new URLSearchParams(targetQuery)
+        const targetCat = targetParams.get('category')?.toUpperCase()
+        if (targetCat) {
+          return (currentCategory || 'RUNNING') === targetCat
+        }
+      } else if (targetPath === '/needle/daily-entry') {
+        return !currentCategory || currentCategory === 'RUNNING'
+      }
+      return true
+    },
+    [pathname, currentCategory]
+  )
 
   const [openSections, setOpenSections] = React.useState<Record<string, boolean>>({
     needleManagement: true,
@@ -101,8 +123,8 @@ export function Sidebar({
             permission: 'needle_management.needle.view',
           },
           {
-            label: 'Ideal Needle',
-            href: '/needle-management/ideal-needle',
+            label: 'Idle Needle',
+            href: '/needle-management/idle-needle',
             permission: 'needle_management.ideal_needle.view',
           },
         ],
@@ -111,24 +133,24 @@ export function Sidebar({
     {
       key: 'needle',
       item: {
-        label: 'Needle',
+        label: 'Running Needle',
         icon: Package,
         children: [
-          { label: 'Daily Entry', href: '/needle/daily-entry', permission: 'needle.daily_entry.view' },
-          { label: 'Daily Report', href: '/needle/daily-report', permission: 'needle.daily_report.view' },
-          { label: 'Monthly Report', href: '/needle/monthly-report', permission: 'needle.monthly_report.view' },
+          { label: 'Daily Entry', href: '/needle/daily-entry?category=RUNNING', permission: 'needle.daily_entry.view' },
+          { label: 'Daily Report', href: '/running-needle/daily-report', permission: 'needle.daily_report.view' },
+          { label: 'Monthly Report', href: '/running-needle/monthly-report', permission: 'needle.monthly_report.view' },
         ],
       },
     },
     {
       key: 'broken',
       item: {
-        label: 'Broken Needle',
+        label: 'New Needle',
         icon: AlertTriangle,
         children: [
-          { label: 'Broken Daily Entry', href: '/broken-needle/daily-entry', permission: 'broken.daily_entry.view' },
-          { label: 'Broken Daily Report', href: '/broken-needle/daily-report', permission: 'broken.daily_report.view' },
-          { label: 'Broken Monthly Report', href: '/broken-needle/monthly-report', permission: 'broken.monthly_report.view' },
+          { label: 'Daily Entry', href: '/needle/daily-entry?category=NEW', permission: 'broken.daily_entry.view' },
+          { label: 'Daily Report', href: '/new-needle/daily-report', permission: 'broken.daily_report.view' },
+          { label: 'Monthly Report', href: '/new-needle/monthly-report', permission: 'broken.monthly_report.view' },
         ],
       },
     },
@@ -138,9 +160,9 @@ export function Sidebar({
         label: 'Idle Needle',
         icon: Clock,
         children: [
-          { label: 'Idle Daily Entry', href: '/idle-needle/daily-entry', permission: 'idle.daily_entry.view' },
-          { label: 'Idle Daily Report', href: '/idle-needle/daily-report', permission: 'idle.daily_report.view' },
-          { label: 'Idle Monthly Report', href: '/idle-needle/monthly-report', permission: 'idle.monthly_report.view' },
+          { label: 'Daily Entry', href: '/needle/daily-entry?category=IDLE', permission: 'idle.daily_entry.view' },
+          { label: 'Daily Report', href: '/idle-needle/daily-report', permission: 'idle.daily_report.view' },
+          { label: 'Monthly Report', href: '/idle-needle/monthly-report', permission: 'idle.monthly_report.view' },
         ],
       },
     },
@@ -258,7 +280,13 @@ export function Sidebar({
               const visibleChildren = item.children.filter((c) => has(c.permission))
               if (visibleChildren.length === 0) return null
 
-              const isChildActive = visibleChildren.some((c) => pathname.startsWith(c.href))
+              const isChildActive = visibleChildren.some((c) => {
+                const [cPath] = c.href.split('?')
+                if (cPath === '/needle/daily-entry') {
+                  return isLinkActive(c.href)
+                }
+                return pathname === cPath || pathname.startsWith(cPath + '/')
+              })
               const isExpanded = openSections[key] ?? isChildActive
 
               return (
@@ -285,7 +313,7 @@ export function Sidebar({
                   {isExpanded && (
                     <div className="pl-9 pr-1 py-0.5 space-y-1">
                       {visibleChildren.map((child) => {
-                        const active = pathname === child.href
+                        const active = isLinkActive(child.href)
                         return (
                           <Link
                             key={child.href}

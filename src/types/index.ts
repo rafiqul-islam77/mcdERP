@@ -212,10 +212,14 @@ export interface NeedleItem {
   updated_at: string
 }
 
+export type NeedleEntryType = 'new' | 'running'
+
 export interface NeedleFloorAssignment {
   id: string
   needle_item_id: string
   floor_id: string
+  needle_group?: NeedleGroup
+  entry_type?: NeedleEntryType
   created_at: string
   updated_at: string
 }
@@ -232,7 +236,9 @@ export interface NeedleRowItem {
   unit_price_bdt: number | null
   unit_price_usd: number | null
   active: boolean
-  floor_ids: string[] // Array of assigned floor IDs (multiple floor selection)
+  floor_ids: string[] // Array of assigned floor IDs (multiple floor selection, used by Idle Needle)
+  new_floor_ids?: string[] // Floors assigned for NEW needle entries (Normal Needle)
+  running_floor_ids?: string[] // Floors assigned for RUNNING needle entries (Normal Needle)
   floor_id?: string | null // For single floor backwards compatibility
   floor_name?: string | null
   floor_code?: string | null
@@ -279,3 +285,115 @@ export type AuditEventType =
   | 'IDEAL_NEEDLE_DELETED'
   | 'IDEAL_NEEDLE_FLOOR_ASSIGNED'
   | 'IDEAL_NEEDLE_FLOOR_REMOVED'
+  | 'NEEDLE_DAILY_RECEIVE_SAVED'
+  | 'NEEDLE_DAILY_ISSUE_SAVED'
+  | 'NEEDLE_DAILY_BNR_SAVED'
+  | 'NEEDLE_DAILY_TRANSFER_EXECUTED'
+  | 'NEEDLE_DAILY_SHEET_CREATED'
+
+// ─── Daily Entry Types (Phase 2.1) ──────────────────────────────────────────
+
+export type DailyEntryCategory = 'NEW' | 'RUNNING' | 'IDLE'
+
+export type DailyTransactionType =
+  | 'OPENING'
+  | 'RECEIVE'
+  | 'ISSUE'
+  | 'TRANSFER_IN'
+  | 'TRANSFER_OUT'
+  | 'ADJUSTMENT_IN'
+  | 'ADJUSTMENT_OUT'
+
+export interface DailySheet {
+  id: string
+  entry_date: string
+  floor_id: string
+  category: DailyEntryCategory
+  status: 'draft' | 'posted' | 'closed'
+  req_no?: string | null
+  created_by: string | null
+  updated_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface NeedleTransaction {
+  id: string
+  transaction_date: string
+  floor_id: string
+  needle_item_id: string
+  transaction_type: DailyTransactionType
+  quantity: number
+  req_no: string | null
+  daily_sheet_id: string | null
+  notes: string | null
+  client_operation_id?: string | null
+  created_by: string | null
+  updated_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface NeedleBNRRecord {
+  id: string
+  record_date: string
+  daily_sheet_id: string | null
+  floor_id: string
+  needle_item_id: string
+  category: DailyEntryCategory
+  quantity: number
+  client_operation_id?: string | null
+  created_by: string | null
+  updated_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface DailyEntryRowItem {
+  needle_item_id: string
+  item_code: string
+  needle_type: string
+  size_dia: string | null
+  brand: string
+  previous: number
+  received: number
+  delivery: number
+  present: number
+  bnr: number
+  req_no: string | null
+  transfer_in: number
+  transfer_out: number
+  last_transfer_note?: string | null
+}
+
+
+
+export interface PendingSyncOperation {
+  id: string
+  client_operation_id: string
+  sheet_key: string
+  user_id: string
+  entry_date: string
+  floor_id: string
+  category: DailyEntryCategory
+  needle_item_id: string
+  field: 'received' | 'delivery' | 'bnr'
+  value: number
+  req_no?: string | null
+  status: 'pending' | 'syncing' | 'failed' | 'conflict'
+  retry_count: number
+  error?: string | null
+  created_at: number
+  updated_at: number
+  last_attempt_at?: number | null
+}
+
+export interface LocalDailySheetDraft {
+  sheet_key: string
+  user_id: string
+  entry_date: string
+  floor_id: string
+  category: DailyEntryCategory
+  cells: Record<string, { received?: number; delivery?: number; bnr?: number; req_no?: string | null }>
+  updated_at: number
+}

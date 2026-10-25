@@ -15,6 +15,9 @@ export const PERMISSIONS = {
       DELETE: 'needle.daily_entry.delete',
       EXPORT: 'needle.daily_entry.export',
       PRINT: 'needle.daily_entry.print',
+      RUNNING: 'needle.daily_entry.running',
+      NEW: 'needle.daily_entry.new',
+      IDLE: 'needle.daily_entry.idle',
     },
     DAILY_REPORT: {
       VIEW: 'needle.daily_report.view',
@@ -78,6 +81,12 @@ export const PERMISSIONS = {
       DELETE: 'needle_management.needle.delete',
     },
     IDEAL_NEEDLE: {
+      VIEW: 'needle_management.ideal_needle.view',
+      CREATE: 'needle_management.ideal_needle.create',
+      EDIT: 'needle_management.ideal_needle.edit',
+      DELETE: 'needle_management.ideal_needle.delete',
+    },
+    IDLE_NEEDLE: {
       VIEW: 'needle_management.ideal_needle.view',
       CREATE: 'needle_management.ideal_needle.create',
       EDIT: 'needle_management.ideal_needle.edit',

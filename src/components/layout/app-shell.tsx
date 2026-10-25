@@ -21,11 +21,13 @@ export function AppShell({
       <PresenceProvider user={user}>
         <div className="min-h-screen bg-surface flex">
           {/* Dynamic Sidebar */}
-          <Sidebar
-            user={user}
-            isOpen={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
-          />
+          <React.Suspense fallback={null}>
+            <Sidebar
+              user={user}
+              isOpen={sidebarOpen}
+              onClose={() => setSidebarOpen(false)}
+            />
+          </React.Suspense>
 
           {/* Main Content Area */}
           <div className="flex-1 lg:ml-60 flex flex-col min-h-screen min-w-0">

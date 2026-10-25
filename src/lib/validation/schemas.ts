@@ -101,6 +101,8 @@ export const NeedleItemSchema = z.object({
   unit_price_usd: z.coerce.number().min(0, 'Unit Price USD must be non-negative').nullable().default(null),
   floor_id: z.string().uuid().optional().nullable(),
   floor_ids: z.array(z.string().uuid()).optional().default([]),
+  new_floor_ids: z.array(z.string().uuid()).optional().default([]),
+  running_floor_ids: z.array(z.string().uuid()).optional().default([]),
   needle_group: z.enum(['needle', 'ideal_needle']).default('needle'),
   active: z.boolean().default(true),
 })
@@ -108,6 +110,8 @@ export const NeedleItemSchema = z.object({
 export const NeedleInlineUpdateSchema = NeedleItemSchema.partial().extend({
   item_id: z.string().uuid(),
   floor_ids: z.array(z.string().uuid()).optional(),
+  new_floor_ids: z.array(z.string().uuid()).optional(),
+  running_floor_ids: z.array(z.string().uuid()).optional(),
   needle_group: z.enum(['needle', 'ideal_needle']),
 })
 

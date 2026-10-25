@@ -177,23 +177,42 @@ export function NeedleTable({
     }, 500)
   }
 
-  // Handle Floor Checkbox Toggle (Multiple Floor Selection)
+  // Handle cell edit for floors (multi-floor toggle, supporting NEW & RUNNING for normal needles)
   const handleToggleFloor = async (
     itemId: string,
     floorId: string,
-    checked: boolean
+    checked: boolean,
+    entryType?: 'new' | 'running'
   ) => {
     if (!canEdit) return
+    const isNormal = needleGroup === 'needle'
+    const eType = entryType || 'new'
 
     // Optimistically update local state
     setItems((prev) =>
       prev.map((item) => {
         if (item.id === itemId) {
-          const currentIds = item.floor_ids || []
-          const nextIds = checked
-            ? Array.from(new Set([...currentIds, floorId]))
-            : currentIds.filter((id) => id !== floorId)
-          return { ...item, floor_ids: nextIds }
+          if (isNormal) {
+            if (eType === 'new') {
+              const current = item.new_floor_ids || []
+              const next = checked
+                ? Array.from(new Set([...current, floorId]))
+                : current.filter((id) => id !== floorId)
+              return { ...item, new_floor_ids: next }
+            } else {
+              const current = item.running_floor_ids || []
+              const next = checked
+                ? Array.from(new Set([...current, floorId]))
+                : current.filter((id) => id !== floorId)
+              return { ...item, running_floor_ids: next }
+            }
+          } else {
+            const currentIds = item.floor_ids || []
+            const nextIds = checked
+              ? Array.from(new Set([...currentIds, floorId]))
+              : currentIds.filter((id) => id !== floorId)
+            return { ...item, floor_ids: nextIds }
+          }
         }
         return item
       })
@@ -208,6 +227,7 @@ export function NeedleTable({
         floor_id: floorId,
         checked,
         needle_group: needleGroup,
+        entry_type: isNormal ? eType : undefined,
       })
 
       if (res.success) {
@@ -215,16 +235,24 @@ export function NeedleTable({
         setLastSavedAt(new Date())
         if (res.data?.floor_ids) {
           setItems((prev) =>
-            prev.map((item) =>
-              item.id === itemId ? { ...item, floor_ids: res.data!.floor_ids } : item
-            )
+            prev.map((item) => {
+              if (item.id === itemId) {
+                if (isNormal) {
+                  return eType === 'new'
+                    ? { ...item, new_floor_ids: res.data!.floor_ids }
+                    : { ...item, running_floor_ids: res.data!.floor_ids }
+                } else {
+                  return { ...item, floor_ids: res.data!.floor_ids }
+                }
+              }
+              return item
+            })
           )
         }
       } else {
         setSaveStatus('error')
         setSaveError(res.error || 'Floor update failed')
         toast(res.error || 'Failed to update floor assignment.', 'error')
-        // Revert on error
         fetchData()
       }
     } catch (err: any) {
@@ -234,15 +262,27 @@ export function NeedleTable({
     }
   }
 
-  // Handle Check All / Clear All Floors for a Needle
-  const handleBulkSetFloors = async (itemId: string, newFloorIds: string[]) => {
+  // Handle Check All / Clear All Floors for a Needle (supporting NEW & RUNNING)
+  const handleBulkSetFloors = async (
+    itemId: string,
+    newFloorIds: string[],
+    entryType?: 'new' | 'running'
+  ) => {
     if (!canEdit) return
+    const isNormal = needleGroup === 'needle'
+    const eType = entryType || 'new'
 
     // Optimistically update local state
     setItems((prev) =>
       prev.map((item) => {
         if (item.id === itemId) {
-          return { ...item, floor_ids: newFloorIds }
+          if (isNormal) {
+            return eType === 'new'
+              ? { ...item, new_floor_ids: newFloorIds }
+              : { ...item, running_floor_ids: newFloorIds }
+          } else {
+            return { ...item, floor_ids: newFloorIds }
+          }
         }
         return item
       })
@@ -256,6 +296,7 @@ export function NeedleTable({
         item_id: itemId,
         floor_ids: newFloorIds,
         needle_group: needleGroup,
+        entry_type: isNormal ? eType : undefined,
       })
 
       if (res.success) {
@@ -291,6 +332,8 @@ export function NeedleTable({
       unit_price_usd: 0,
       active: true,
       floor_ids: [],
+      new_floor_ids: [],
+      running_floor_ids: [],
       needle_group: needleGroup,
       is_draft: true,
     })
@@ -334,6 +377,8 @@ export function NeedleTable({
         unit_price_bdt: draftRow.unit_price_bdt,
         unit_price_usd: draftRow.unit_price_usd,
         floor_ids: draftRow.floor_ids,
+        new_floor_ids: draftRow.new_floor_ids,
+        running_floor_ids: draftRow.running_floor_ids,
         needle_group: needleGroup,
         active: draftRow.active,
       })
@@ -430,7 +475,7 @@ export function NeedleTable({
             </Badge>
             {needleGroup === 'ideal_needle' && (
               <Badge variant="info" className="text-xs">
-                Ideal Spec
+                Idle Spec
               </Badge>
             )}
           </div>
@@ -575,13 +620,26 @@ export function NeedleTable({
                 <th className="py-2.5 px-3 min-w-[110px]">Brand</th>
                 <th className="py-2.5 px-3 w-28 text-right">Unit Price BDT</th>
                 <th className="py-2.5 px-3 w-32 text-right">Unit Price USD</th>
-                {/* Floor Column with Multi-Floor Selection Header */}
-                <th className="py-2.5 px-3 min-w-[210px]">
+                {/* Floor Column with Multi-Floor Selection Header (NEW & RUNNING for normal needles) */}
+                <th className={`py-2.5 px-3 ${needleGroup === 'needle' ? 'min-w-[460px]' : 'min-w-[210px]'}`}>
                   <div className="flex items-center justify-between">
-                    <span>Floor</span>
-                    <span className="text-[9px] lowercase font-normal text-slate-400">
-                      (multi-select)
+                    <span className="font-semibold text-slate-800">
+                      {needleGroup === 'needle' ? 'Floor Allocation (NEW & RUNNING)' : 'Floor'}
                     </span>
+                    {needleGroup === 'needle' ? (
+                      <div className="flex items-center gap-1.5 text-[9px] font-bold">
+                        <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wide">
+                          NEW Issue
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wide">
+                          RUNNING Issue
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-[9px] lowercase font-normal text-slate-400">
+                        (multi-select)
+                      </span>
+                    )}
                   </div>
                 </th>
                 <th className="py-2.5 px-3 w-20 text-center">Status</th>
@@ -686,59 +744,201 @@ export function NeedleTable({
                   </td>
                   {/* Draft Floor Checkbox Grid */}
                   <td className="py-2 px-2">
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1 px-0.5">
-                      <span className="font-mono text-[9px] uppercase tracking-wider">
-                        {draftRow.floor_ids.length}/{floors.length} selected
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setDraftRow({ ...draftRow, floor_ids: floors.map((f) => f.id) })
-                          }
-                          className="text-brand hover:underline font-semibold"
-                        >
-                          All
-                        </button>
-                        <span>·</span>
-                        <button
-                          type="button"
-                          onClick={() => setDraftRow({ ...draftRow, floor_ids: [] })}
-                          className="text-slate-500 hover:text-rose-600 hover:underline"
-                        >
-                          None
-                        </button>
+                    {needleGroup === 'needle' ? (
+                      <div className="flex items-start gap-4">
+                        {/* NEW floors */}
+                        <div className="flex-1 bg-emerald-50/40 p-2 rounded border border-emerald-200/60">
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1 px-0.5 pb-1 border-b border-emerald-200/50">
+                            <div className="flex items-center gap-1.5">
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 uppercase">
+                                NEW
+                              </span>
+                              <span className="font-mono text-[9px] text-slate-400">
+                                {(draftRow.new_floor_ids || []).length}/{floors.length}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 text-[10px]">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDraftRow({
+                                    ...draftRow,
+                                    new_floor_ids: floors.map((f) => f.id),
+                                  })
+                                }
+                                className="text-emerald-700 hover:underline font-semibold"
+                              >
+                                All
+                              </button>
+                              <span>·</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDraftRow({ ...draftRow, new_floor_ids: [] })
+                                }
+                                className="text-slate-400 hover:text-rose-600 hover:underline"
+                              >
+                                None
+                              </button>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-1 w-max">
+                            {floors.map((f) => {
+                              const isChecked = (draftRow.new_floor_ids || []).includes(f.id)
+                              const code = f.code || f.name
+                              return (
+                                <label
+                                  key={f.id}
+                                  className={`inline-flex items-center gap-1.5 cursor-pointer select-none px-1.5 py-0.5 rounded text-[11px] whitespace-nowrap transition-all ${
+                                    isChecked
+                                      ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold'
+                                      : 'text-slate-600 hover:bg-white border border-transparent font-medium'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      const current = draftRow.new_floor_ids || []
+                                      const next = e.target.checked
+                                        ? [...current, f.id]
+                                        : current.filter((id) => id !== f.id)
+                                      setDraftRow({ ...draftRow, new_floor_ids: next })
+                                    }}
+                                    className="w-3.5 h-3.5 text-emerald-600 rounded border-slate-300 focus:ring-0 cursor-pointer"
+                                  />
+                                  <span>{code}</span>
+                                </label>
+                              )
+                            })}
+                          </div>
+                        </div>
+
+                        {/* RUNNING floors */}
+                        <div className="flex-1 bg-blue-50/40 p-2 rounded border border-blue-200/60">
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1 px-0.5 pb-1 border-b border-blue-200/50">
+                            <div className="flex items-center gap-1.5">
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-800 uppercase">
+                                RUNNING
+                              </span>
+                              <span className="font-mono text-[9px] text-slate-400">
+                                {(draftRow.running_floor_ids || []).length}/{floors.length}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 text-[10px]">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDraftRow({
+                                    ...draftRow,
+                                    running_floor_ids: floors.map((f) => f.id),
+                                  })
+                                }
+                                className="text-blue-700 hover:underline font-semibold"
+                              >
+                                All
+                              </button>
+                              <span>·</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDraftRow({ ...draftRow, running_floor_ids: [] })
+                                }
+                                className="text-slate-400 hover:text-rose-600 hover:underline"
+                              >
+                                None
+                              </button>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-1 w-max">
+                            {floors.map((f) => {
+                              const isChecked = (draftRow.running_floor_ids || []).includes(f.id)
+                              const code = f.code || f.name
+                              return (
+                                <label
+                                  key={f.id}
+                                  className={`inline-flex items-center gap-1.5 cursor-pointer select-none px-1.5 py-0.5 rounded text-[11px] whitespace-nowrap transition-all ${
+                                    isChecked
+                                      ? 'bg-blue-100 text-blue-900 border border-blue-300 font-bold'
+                                      : 'text-slate-600 hover:bg-white border border-transparent font-medium'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      const current = draftRow.running_floor_ids || []
+                                      const next = e.target.checked
+                                        ? [...current, f.id]
+                                        : current.filter((id) => id !== f.id)
+                                      setDraftRow({ ...draftRow, running_floor_ids: next })
+                                    }}
+                                    className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-0 cursor-pointer"
+                                  />
+                                  <span>{code}</span>
+                                </label>
+                              )
+                            })}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-x-2.5 gap-y-1 w-max">
-                      {floors.map((f) => {
-                        const isChecked = draftRow.floor_ids.includes(f.id)
-                        const code = f.code || f.name
-                        return (
-                          <label
-                            key={f.id}
-                            className={`inline-flex items-center gap-1.5 cursor-pointer select-none px-2 py-0.5 rounded text-[11px] whitespace-nowrap transition-all ${
-                              isChecked
-                                ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs font-bold'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent font-medium'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={(e) => {
-                                const next = e.target.checked
-                                  ? [...draftRow.floor_ids, f.id]
-                                  : draftRow.floor_ids.filter((id) => id !== f.id)
-                                setDraftRow({ ...draftRow, floor_ids: next })
-                              }}
-                              className="w-3.5 h-3.5 text-brand rounded border-slate-300 focus:ring-0 cursor-pointer"
-                            />
-                            <span>{code}</span>
-                          </label>
-                        )
-                      })}
-                    </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1 px-0.5">
+                          <span className="font-mono text-[9px] uppercase tracking-wider">
+                            {draftRow.floor_ids.length}/{floors.length} selected
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDraftRow({ ...draftRow, floor_ids: floors.map((f) => f.id) })
+                              }
+                              className="text-brand hover:underline font-semibold"
+                            >
+                              All
+                            </button>
+                            <span>·</span>
+                            <button
+                              type="button"
+                              onClick={() => setDraftRow({ ...draftRow, floor_ids: [] })}
+                              className="text-slate-500 hover:text-rose-600 hover:underline"
+                            >
+                              None
+                            </button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-2.5 gap-y-1 w-max">
+                          {floors.map((f) => {
+                            const isChecked = draftRow.floor_ids.includes(f.id)
+                            const code = f.code || f.name
+                            return (
+                              <label
+                                key={f.id}
+                                className={`inline-flex items-center gap-1.5 cursor-pointer select-none px-2 py-0.5 rounded text-[11px] whitespace-nowrap transition-all ${
+                                  isChecked
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs font-bold'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent font-medium'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    const next = e.target.checked
+                                      ? [...draftRow.floor_ids, f.id]
+                                      : draftRow.floor_ids.filter((id) => id !== f.id)
+                                    setDraftRow({ ...draftRow, floor_ids: next })
+                                  }}
+                                  className="w-3.5 h-3.5 text-brand rounded border-slate-300 focus:ring-0 cursor-pointer"
+                                />
+                                <span>{code}</span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </>
+                    )}
                   </td>
                   <td className="py-2 px-2 text-center">
                     <Badge variant="success" className="text-[10px]">
@@ -948,68 +1148,206 @@ export function NeedleTable({
                         )}
                       </td>
 
-                      {/* Floor Column: 2-Column Checkbox Matrix with Check All at once */}
+                      {/* Floor Column: NEW and RUNNING independent matrices for Normal Needle, or single for Idle */}
                       <td className="py-2 px-2">
-                        {/* Check all at once quick action header */}
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1 px-0.5">
-                          <span className="font-mono text-[9px] uppercase tracking-wider">
-                            {(item.floor_ids || []).length}/{floors.length} selected
-                          </span>
-                          {canEdit && (
-                            <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleBulkSetFloors(item.id, floors.map((f) => f.id))
-                                }
-                                className="text-brand hover:underline font-semibold"
-                                title="Check all floors at once"
-                              >
-                                All
-                              </button>
-                              <span>·</span>
-                              <button
-                                type="button"
-                                onClick={() => handleBulkSetFloors(item.id, [])}
-                                className="text-slate-400 hover:text-rose-600 hover:underline"
-                                title="Clear all floors"
-                              >
-                                None
-                              </button>
+                        {needleGroup === 'needle' ? (
+                          <div className="flex items-start gap-3">
+                            {/* NEW Floor Assignment Panel */}
+                            <div className="flex-1 bg-emerald-50/30 p-2 rounded-erp border border-emerald-200/50">
+                              <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1.5 px-0.5 pb-1 border-b border-emerald-200/50">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 uppercase tracking-wide">
+                                    NEW
+                                  </span>
+                                  <span className="font-mono text-[9px] text-slate-500 font-semibold">
+                                    {(item.new_floor_ids || []).length}/{floors.length}
+                                  </span>
+                                </div>
+                                {canEdit && (
+                                  <div className="flex items-center gap-1 text-[10px] opacity-70 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleBulkSetFloors(item.id, floors.map((f) => f.id), 'new')
+                                      }
+                                      className="text-emerald-700 hover:underline font-bold"
+                                      title="Select all floors for NEW entry sheet"
+                                    >
+                                      All
+                                    </button>
+                                    <span>·</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleBulkSetFloors(item.id, [], 'new')}
+                                      className="text-slate-400 hover:text-rose-600 hover:underline font-medium"
+                                      title="Deselect all floors for NEW entry sheet"
+                                    >
+                                      None
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-2 gap-x-2 gap-y-1 w-max">
+                                {floors.map((f) => {
+                                  const isChecked = (item.new_floor_ids || []).includes(f.id)
+                                  const code = f.code || f.name
+
+                                  return (
+                                    <label
+                                      key={f.id}
+                                      className={`inline-flex items-center gap-1.5 cursor-pointer select-none px-1.5 py-0.5 rounded text-[11px] whitespace-nowrap transition-all ${
+                                        isChecked
+                                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold'
+                                          : 'text-slate-600 hover:bg-white border border-transparent font-medium'
+                                      } ${!canEdit ? 'opacity-80 cursor-default' : ''}`}
+                                      title={`NEW Issue: ${f.name}${f.location_name ? ` (${f.location_name})` : ''}`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        disabled={!canEdit}
+                                        onChange={() =>
+                                          handleToggleFloor(item.id, f.id, !isChecked, 'new')
+                                        }
+                                        className="w-3.5 h-3.5 text-emerald-600 rounded border-slate-300 focus:ring-0 cursor-pointer disabled:cursor-default"
+                                      />
+                                      <span className="leading-tight">{code}</span>
+                                    </label>
+                                  )
+                                })}
+                              </div>
                             </div>
-                          )}
-                        </div>
 
-                        {/* Checkbox Grid (Matching Image 2: 2 columns of checkboxes with floor codes) */}
-                        <div className="grid grid-cols-2 gap-x-2.5 gap-y-1 w-max">
-                          {floors.map((f) => {
-                            const isChecked = (item.floor_ids || []).includes(f.id)
-                            const code = f.code || f.name
+                            {/* RUNNING Floor Assignment Panel */}
+                            <div className="flex-1 bg-blue-50/30 p-2 rounded-erp border border-blue-200/50">
+                              <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1.5 px-0.5 pb-1 border-b border-blue-200/50">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-800 uppercase tracking-wide">
+                                    RUNNING
+                                  </span>
+                                  <span className="font-mono text-[9px] text-slate-500 font-semibold">
+                                    {(item.running_floor_ids || []).length}/{floors.length}
+                                  </span>
+                                </div>
+                                {canEdit && (
+                                  <div className="flex items-center gap-1 text-[10px] opacity-70 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleBulkSetFloors(item.id, floors.map((f) => f.id), 'running')
+                                      }
+                                      className="text-blue-700 hover:underline font-bold"
+                                      title="Select all floors for RUNNING entry sheet"
+                                    >
+                                      All
+                                    </button>
+                                    <span>·</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleBulkSetFloors(item.id, [], 'running')}
+                                      className="text-slate-400 hover:text-rose-600 hover:underline font-medium"
+                                      title="Deselect all floors for RUNNING entry sheet"
+                                    >
+                                      None
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-2 gap-x-2 gap-y-1 w-max">
+                                {floors.map((f) => {
+                                  const isChecked = (item.running_floor_ids || []).includes(f.id)
+                                  const code = f.code || f.name
 
-                            return (
-                              <label
-                                key={f.id}
-                                className={`inline-flex items-center gap-1.5 cursor-pointer select-none px-2 py-0.5 rounded text-[11px] whitespace-nowrap transition-all ${
-                                  isChecked
-                                    ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs font-bold'
-                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent font-medium'
-                                } ${!canEdit ? 'opacity-80 cursor-default' : ''}`}
-                                title={`${f.name}${f.location_name ? ` (${f.location_name})` : ''} - Click to toggle`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  disabled={!canEdit}
-                                  onChange={() =>
-                                    handleToggleFloor(item.id, f.id, !isChecked)
-                                  }
-                                  className="w-3.5 h-3.5 text-brand rounded border-slate-300 focus:ring-0 cursor-pointer disabled:cursor-default"
-                                />
-                                <span className="leading-tight">{code}</span>
-                              </label>
-                            )
-                          })}
-                        </div>
+                                  return (
+                                    <label
+                                      key={f.id}
+                                      className={`inline-flex items-center gap-1.5 cursor-pointer select-none px-1.5 py-0.5 rounded text-[11px] whitespace-nowrap transition-all ${
+                                        isChecked
+                                          ? 'bg-blue-100 text-blue-900 border border-blue-300 font-bold'
+                                          : 'text-slate-600 hover:bg-white border border-transparent font-medium'
+                                      } ${!canEdit ? 'opacity-80 cursor-default' : ''}`}
+                                      title={`RUNNING Issue: ${f.name}${f.location_name ? ` (${f.location_name})` : ''}`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        disabled={!canEdit}
+                                        onChange={() =>
+                                          handleToggleFloor(item.id, f.id, !isChecked, 'running')
+                                        }
+                                        className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-0 cursor-pointer disabled:cursor-default"
+                                      />
+                                      <span className="leading-tight">{code}</span>
+                                    </label>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {/* Check all at once quick action header */}
+                            <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1 px-0.5">
+                              <span className="font-mono text-[9px] uppercase tracking-wider">
+                                {(item.floor_ids || []).length}/{floors.length} selected
+                              </span>
+                              {canEdit && (
+                                <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleBulkSetFloors(item.id, floors.map((f) => f.id))
+                                    }
+                                    className="text-brand hover:underline font-semibold"
+                                    title="Check all floors at once"
+                                  >
+                                    All
+                                  </button>
+                                  <span>·</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleBulkSetFloors(item.id, [])}
+                                    className="text-slate-400 hover:text-rose-600 hover:underline"
+                                    title="Clear all floors"
+                                  >
+                                    None
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Checkbox Grid (Matching Image 2: 2 columns of checkboxes with floor codes) */}
+                            <div className="grid grid-cols-2 gap-x-2.5 gap-y-1 w-max">
+                              {floors.map((f) => {
+                                const isChecked = (item.floor_ids || []).includes(f.id)
+                                const code = f.code || f.name
+
+                                return (
+                                  <label
+                                    key={f.id}
+                                    className={`inline-flex items-center gap-1.5 cursor-pointer select-none px-2 py-0.5 rounded text-[11px] whitespace-nowrap transition-all ${
+                                      isChecked
+                                        ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs font-bold'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent font-medium'
+                                    } ${!canEdit ? 'opacity-80 cursor-default' : ''}`}
+                                    title={`${f.name}${f.location_name ? ` (${f.location_name})` : ''} - Click to toggle`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      disabled={!canEdit}
+                                      onChange={() =>
+                                        handleToggleFloor(item.id, f.id, !isChecked)
+                                      }
+                                      className="w-3.5 h-3.5 text-brand rounded border-slate-300 focus:ring-0 cursor-pointer disabled:cursor-default"
+                                    />
+                                    <span className="leading-tight">{code}</span>
+                                  </label>
+                                )
+                              })}
+                            </div>
+                          </>
+                        )}
                       </td>
 
                       {/* Status */}

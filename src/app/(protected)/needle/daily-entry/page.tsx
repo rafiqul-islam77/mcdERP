@@ -1,17 +1,28 @@
+import { DailyEntryShell } from '@/components/needle/daily-entry/daily-entry-shell'
 import { requireActiveAccount } from '@/lib/auth'
-import { requirePermission } from '@/lib/permissions'
-import { ModulePlaceholder } from '@/components/layout/module-placeholder'
+import { Metadata } from 'next'
+import type { DailyEntryCategory } from '@/types'
 
-export default async function NeedleDailyEntryPage() {
+export const metadata: Metadata = {
+  title: 'Daily Entry | GMS ERP',
+  description: 'Daily needle receipts, issues, broken records, and floor balances.',
+}
+
+interface PageProps {
+  searchParams?: Promise<{ category?: string }>
+}
+
+export default async function NeedleDailyEntryPage({ searchParams }: PageProps) {
   const user = await requireActiveAccount()
-  await requirePermission(user.profile.id, 'needle.daily_entry.view')
+  const resolvedParams = searchParams ? await searchParams : undefined
+  const rawCat = resolvedParams?.category?.toUpperCase()
 
-  return (
-    <ModulePlaceholder
-      moduleName="Needle Management"
-      pageName="Daily Needle Entry"
-      permissionKey="needle.daily_entry.view"
-      description="Daily needle issue, return, receipt, and floor transfer operations will be implemented in Phase 2."
-    />
-  )
+  let defaultCategory: DailyEntryCategory = 'RUNNING'
+  if (rawCat === 'NEW') {
+    defaultCategory = 'NEW'
+  } else if (rawCat === 'IDLE') {
+    defaultCategory = 'IDLE'
+  }
+
+  return <DailyEntryShell defaultCategory={defaultCategory} user={user} />
 }

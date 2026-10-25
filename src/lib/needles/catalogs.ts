@@ -17,7 +17,7 @@ export function getNeedleCatalog(group: NeedleGroup) {
       assignments: 'idle_needle_floor_assignments',
       setFloorsRpc: 'set_idle_needle_floors',
       prefix: 'IN',
-      label: 'Ideal Needle',
+      label: 'Idle Needle',
     } as const
   }
   throw new Error('Invalid needle catalog.')
