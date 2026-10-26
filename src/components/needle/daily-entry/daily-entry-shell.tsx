@@ -15,12 +15,21 @@ import {
   markOperationConflict,
   clearSyncedDraftIfClean,
   generateSheetKey,
+  getCachedNeedleSheet,
+  getCachedMasterMeta,
+  saveAuthorizedMasterCatalogToCache,
+  saveSheetSnapshotToCache,
+  saveOfflineStockHistoryToCache,
+  cleanExpiredStockCache,
+  getAllStockCacheCoverage,
+  getOfflineRollingWindow,
 } from '@/lib/offline/daily-entry-db'
 import {
   batchSyncDailyEntryAction,
   getAuthorizedContextAction,
+  getAuthorizedNeedleMasterCacheAction,
   getDailyEntrySheetAction,
-  saveDailyEntryCellAction,
+  getOfflineStockHistorySyncAction,
   transferFloorStockAction,
   updateSheetRequisitionNoAction,
   updateRowRequisitionNoAction,
@@ -75,6 +84,9 @@ export function DailyEntryShell({
 
   // Sheet data
   const [rows, setRows] = React.useState<DailyEntryRowItem[]>([])
+  const [offlineNoCache, setOfflineNoCache] = React.useState<boolean>(false)
+  const [coverageIncomplete, setCoverageIncomplete] = React.useState<boolean>(false)
+  const [coverageError, setCoverageError] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [dbReady, setDbReady] = React.useState(true)
   const [searchTerm, setSearchTerm] = React.useState('')
@@ -125,6 +137,29 @@ export function DailyEntryShell({
   React.useEffect(() => {
     let isMounted = true
     async function initContext() {
+      // 1. Immediate local cache fallback if available
+      try {
+        const cachedMeta = await getCachedMasterMeta(user?.profile?.id)
+        if (isMounted && cachedMeta && cachedMeta.floors && cachedMeta.floors.length > 0) {
+          setAuthorizedFloors(cachedMeta.floors)
+          setAllowedCategories(cachedMeta.allowed_categories || [])
+          setAllActiveFloors(cachedMeta.all_active_floors || cachedMeta.floors)
+          setFloorId((prev) => prev || cachedMeta.floors[0].id)
+          if (
+            cachedMeta.allowed_categories &&
+            cachedMeta.allowed_categories.length > 0 &&
+            !cachedMeta.allowed_categories.includes(defaultCategory)
+          ) {
+            setCategory(cachedMeta.allowed_categories[0])
+          }
+        }
+      } catch {}
+
+      // 2. Fetch fresh context online if network is available
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        return
+      }
+
       try {
         const res = await getAuthorizedContextAction()
         if (!isMounted) return
@@ -143,19 +178,40 @@ export function DailyEntryShell({
           if (ctxData.allowedCategories.length > 0 && !ctxData.allowedCategories.includes(defaultCategory)) {
             setCategory(ctxData.allowedCategories[0])
           }
+
+          // In background, populate the broader authorized master catalog cache and 1-month stock history
+          getAuthorizedNeedleMasterCacheAction()
+            .then((masterRes) => {
+              if (masterRes.success && masterRes.data) {
+                saveAuthorizedMasterCatalogToCache(masterRes.data).catch(() => {})
+              }
+            })
+            .catch(() => {})
+
+          triggerBackgroundStockSync()
         } else {
-          toast(res.error || 'Failed to load user permissions.', 'error')
+          setAuthorizedFloors((prev) => {
+            if (prev.length === 0) {
+              toast(res.error || 'Failed to load user permissions.', 'error')
+            }
+            return prev
+          })
         }
       } catch (err: any) {
         if (!isMounted) return
-        toast(err.message || 'Error loading permissions.', 'error')
+        setAuthorizedFloors((prev) => {
+          if (prev.length === 0) {
+            toast(err.message || 'Error loading permissions.', 'error')
+          }
+          return prev
+        })
       }
     }
     initContext()
     return () => {
       isMounted = false
     }
-  }, [defaultCategory, toast])
+  }, [defaultCategory, toast, user?.profile?.id])
 
   // Helper to refresh queue counts
   const refreshQueueCounts = React.useCallback(async () => {
@@ -238,9 +294,23 @@ export function DailyEntryShell({
           await removeConfirmedOperations(confirmedIds)
         }
 
-        // Apply server recalculated rows
+        // Apply server recalculated requisition number and rows
+        if (res.data.requisitionNo) {
+          setSheetReqNo(res.data.requisitionNo)
+        }
+
         if (res.data.rows && res.data.rows.length > 0) {
           setRows(res.data.rows)
+          if (user?.profile?.id) {
+            saveSheetSnapshotToCache({
+              userId: user.profile.id,
+              date,
+              floorId,
+              category,
+              rows: res.data.rows,
+              requisitionNo: res.data.requisitionNo || sheetReqNoRef.current || null,
+            }).catch(() => {})
+          }
         }
 
         setLastSavedAt(new Date())
@@ -276,39 +346,131 @@ export function DailyEntryShell({
     }
   }, [currentSheetKey, date, floorId, category])
 
-  // Connectivity detection & multi-tab recovery
-  React.useEffect(() => {
-    const handleOnline = () => {
-      drainPendingQueue()
-    }
-    const handleOffline = () => {
-      setSaveStatus('offline')
-    }
+  const isStockSyncingRef = React.useRef(false)
+  const loadSheetDataRef = React.useRef<() => Promise<void>>(async () => {})
 
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
+  const triggerBackgroundStockSync = React.useCallback(
+    async (opts?: { floorIds?: string[]; categories?: DailyEntryCategory[]; forceFull?: boolean }) => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return
+      if (!user?.profile?.id) return
+      if (isStockSyncingRef.current) return
 
-    // Unload warning if changes are pending
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (pendingCount > 0) {
-        e.preventDefault()
-        e.returnValue = ''
+      isStockSyncingRef.current = true
+      try {
+        let since: number | undefined
+        if (!opts?.forceFull) {
+          const allCoverage = await getAllStockCacheCoverage(user.profile.id)
+          const { windowStartDate } = getOfflineRollingWindow()
+          const relevantCoverage = opts?.floorIds && opts.floorIds.length > 0
+            ? allCoverage.filter((c) => opts.floorIds!.includes(c.floor_id))
+            : allCoverage
+
+          const isWindowCurrent =
+            relevantCoverage.length > 0 &&
+            relevantCoverage.every(
+              (c) =>
+                c.sync_status === 'complete' &&
+                c.coverage_start <= windowStartDate
+            )
+          if (isWindowCurrent) {
+            const timestamps = relevantCoverage.map((c) => c.last_successful_sync_at)
+            if (timestamps.length > 0) {
+              since = Math.min(...timestamps)
+            }
+          }
+        }
+
+        const res = await getOfflineStockHistorySyncAction({
+          floorIds: opts?.floorIds,
+          categories: opts?.categories,
+          since,
+        })
+
+        if (res.success && res.data) {
+          await saveOfflineStockHistoryToCache(res.data)
+          await cleanExpiredStockCache()
+
+          // Immediately refresh/recalculate visible PREV/PRESENT from updated cache (Section 21)
+          await loadSheetDataRef.current()
+        }
+      } catch (err) {
+        console.warn('[triggerBackgroundStockSync] error:', err)
+      } finally {
+        isStockSyncingRef.current = false
       }
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload)
+    },
+    [user?.profile?.id]
+  )
 
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-      window.removeEventListener('beforeunload', handleBeforeUnload)
-    }
-  }, [drainPendingQueue, pendingCount])
 
   // 2. Fetch sheet rows and recover unsynced local drafts
   const loadSheetData = React.useCallback(async () => {
     if (!floorId || !category || !date) return
     setLoading(true)
     setSaveError(null)
+    setRows([]) // Reset state when date/floor/category changes to avoid stale carryover (Section 20)
+    setSheetReqNo(null)
+    setCoverageIncomplete(false)
+    setCoverageError(null)
+
+    let hasLocalCache = false
+    if (user?.profile?.id && floorId && category && date) {
+      try {
+        const cached = await getCachedNeedleSheet({
+          userId: user.profile.id,
+          date,
+          floorId,
+          category,
+        })
+
+        if (cached.status === 'coverage_incomplete') {
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            setRows(cached.rows)
+            setSheetReqNo(null)
+            setCoverageIncomplete(true)
+            setCoverageError(cached.coverageError || 'Connect to network to load stock data for this date.')
+            setOfflineNoCache(cached.rows.length === 0)
+            setLoading(false)
+            return
+          }
+        } else if (cached.status === 'cached' && cached.rows.length > 0) {
+          setRows(cached.rows)
+          setSheetReqNo(cached.requisitionNo || null)
+          setCoverageIncomplete(false)
+          setCoverageError(null)
+          setOfflineNoCache(false)
+          setLoading(false)
+          hasLocalCache = true
+        } else if (cached.status === 'empty_assignment') {
+          setRows([])
+          setCoverageIncomplete(false)
+          setCoverageError(null)
+          setOfflineNoCache(false)
+          setLoading(false)
+          hasLocalCache = true
+        } else if (cached.status === 'not_cached') {
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            setRows([])
+            setCoverageIncomplete(true)
+            setCoverageError('Connect to network to load stock data for this date.')
+            setOfflineNoCache(true)
+            setLoading(false)
+            return
+          }
+        }
+      } catch (cacheErr) {
+        console.warn('[loadSheetData] local cache read error:', cacheErr)
+      }
+    }
+
+    // Refresh queue counts
+    await refreshQueueCounts()
+
+    // If offline, stop here: we already rendered local cache or set offlineNoCache
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setLoading(false)
+      return
+    }
 
     try {
       const res = await getDailyEntrySheetAction({
@@ -366,27 +528,134 @@ export function DailyEntryShell({
         }
 
         setRows(finalRows)
+        setSheetReqNo(res.data.requisitionNo || finalRows.find((r) => r.req_no)?.req_no || null)
+        setCoverageIncomplete(false)
+        setCoverageError(null)
+        setOfflineNoCache(false)
         setDbReady(res.data.dbReady)
+
+        // Cache the authoritative sheet snapshot and row specifications
+        if (user?.profile?.id) {
+          saveSheetSnapshotToCache({
+            userId: user.profile.id,
+            date,
+            floorId,
+            category,
+            rows: finalRows,
+            requisitionNo: res.data.requisitionNo,
+          }).catch(() => {})
+
+          // Development parity validation (Section 22)
+          if (process.env.NODE_ENV === 'development') {
+            getCachedNeedleSheet({
+              userId: user.profile.id,
+              date,
+              floorId,
+              category,
+            }).then((cachedCheck) => {
+              if (cachedCheck.status === 'cached' && cachedCheck.rows.length > 0) {
+                const mismatch = cachedCheck.rows.some((cRow) => {
+                  const sRow = finalRows.find((r) => r.needle_item_id === cRow.needle_item_id)
+                  return sRow && (sRow.previous !== cRow.previous || sRow.present !== cRow.present)
+                })
+                if (mismatch) {
+                  console.warn('[Offline Parity Check] Discrepancy detected between online sheet and local cache for:', {
+                    date,
+                    floorId,
+                    category,
+                  })
+                }
+              }
+            }).catch(() => {})
+          }
+        }
 
         // If online and pending items exist, trigger sync
         if (typeof navigator !== 'undefined' && navigator.onLine) {
           drainPendingQueue()
         }
       } else {
-        setRows([])
-        toast(res.error || 'Failed to load daily sheet.', 'error')
+        if (!hasLocalCache) {
+          setRows([])
+          toast(res.error || 'Failed to load daily sheet.', 'error')
+        } else {
+          setSaveStatus('offline')
+        }
       }
     } catch (err: any) {
-      setRows([])
-      toast(err.message || 'Error loading daily sheet data.', 'error')
+      if (!hasLocalCache) {
+        setRows([])
+        toast(err.message || 'Error loading daily sheet data.', 'error')
+      } else {
+        setSaveStatus('offline')
+      }
     } finally {
       setLoading(false)
     }
-  }, [date, floorId, category, currentSheetKey, drainPendingQueue, toast])
+  }, [date, floorId, category, currentSheetKey, drainPendingQueue, toast, user?.profile?.id, refreshQueueCounts])
+
+  React.useEffect(() => {
+    loadSheetDataRef.current = loadSheetData
+  }, [loadSheetData])
 
   React.useEffect(() => {
     loadSheetData()
   }, [loadSheetData])
+
+  const handleReload = React.useCallback(async () => {
+    await loadSheetData()
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      triggerBackgroundStockSync({ forceFull: false })
+    }
+  }, [loadSheetData, triggerBackgroundStockSync])
+
+  // Trigger background sync when floor or category changes
+  React.useEffect(() => {
+    if (floorId && category && typeof navigator !== 'undefined' && navigator.onLine) {
+      triggerBackgroundStockSync({ floorIds: [floorId], categories: [category] })
+    }
+  }, [floorId, category, triggerBackgroundStockSync])
+
+
+  // Connectivity detection & multi-tab recovery
+  React.useEffect(() => {
+    const handleOnline = () => {
+      drainPendingQueue()
+      loadSheetData()
+      if (user?.profile?.id) {
+        getAuthorizedNeedleMasterCacheAction()
+          .then((res) => {
+            if (res.success && res.data) {
+              saveAuthorizedMasterCatalogToCache(res.data).catch(() => {})
+            }
+          })
+          .catch(() => {})
+
+        triggerBackgroundStockSync({ forceFull: false })
+      }
+    }
+    const handleOffline = () => {
+      setSaveStatus('offline')
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    // Unload warning if changes are pending
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingCount > 0) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [drainPendingQueue, pendingCount, user?.profile?.id, loadSheetData])
 
   // 3. Handle cell changes: Instant React state -> Immediate IndexedDB draft -> Debounced sync
   const handleCellChange = React.useCallback(
@@ -400,6 +669,12 @@ export function DailyEntryShell({
           const newDvld = field === 'delivery' ? value : r.delivery
           const newBnr = field === 'bnr' ? value : r.bnr
           const newPresent = r.previous + newRcvd + r.transfer_in - newDvld - r.transfer_out
+          const newReqNo =
+            field === 'received'
+              ? newRcvd > 0
+                ? r.req_no || sheetReqNoRef.current || null
+                : null
+              : r.req_no
 
           return {
             ...r,
@@ -407,6 +682,7 @@ export function DailyEntryShell({
             delivery: newDvld,
             present: newPresent,
             bnr: newBnr,
+            req_no: newReqNo,
           }
         })
       )
@@ -422,6 +698,13 @@ export function DailyEntryShell({
 
       // 3. Save locally to IndexedDB IMMEDIATELY
       if (user?.profile?.id) {
+        const targetReqNo =
+          field === 'received'
+            ? value > 0
+              ? sheetReqNoRef.current || undefined
+              : null
+            : undefined
+
         saveCellDraftAndEnqueueOp({
           userId: user.profile.id,
           date,
@@ -430,7 +713,7 @@ export function DailyEntryShell({
           needleItemId,
           field,
           value,
-          reqNo: field === 'received' ? (sheetReqNoRef.current || undefined) : undefined,
+          reqNo: targetReqNo,
         })
           .then(() => {
             refreshQueueCounts()
@@ -477,6 +760,52 @@ export function DailyEntryShell({
     if (editingRowReqNo) {
       const rowItem = editingRowReqNo
       setEditingRowReqNo(null)
+
+      if (applyToAll) {
+        setSheetReqNo(enteredReqNo)
+        setRows((prev) =>
+          prev.map((r) => (r.received > 0 ? { ...r, req_no: enteredReqNo } : r))
+        )
+      } else {
+        setRows((prev) =>
+          prev.map((r) =>
+            r.needle_item_id === rowItem.needle_item_id
+              ? { ...r, req_no: enteredReqNo }
+              : r
+          )
+        )
+      }
+
+      if (user?.profile?.id) {
+        saveCellDraftAndEnqueueOp({
+          userId: user.profile.id,
+          date,
+          floorId,
+          category,
+          needleItemId: rowItem.needle_item_id,
+          field: 'received',
+          value: rowItem.received,
+          reqNo: enteredReqNo,
+        })
+          .then(() => refreshQueueCounts())
+          .catch(console.error)
+
+        saveSheetSnapshotToCache({
+          userId: user.profile.id,
+          date,
+          floorId,
+          category,
+          rows: rowsRef.current.map((r) =>
+            applyToAll
+              ? (r.received > 0 ? { ...r, req_no: enteredReqNo } : r)
+              : (r.needle_item_id === rowItem.needle_item_id ? { ...r, req_no: enteredReqNo } : r)
+          ),
+          requisitionNo: applyToAll ? enteredReqNo : (sheetReqNoRef.current || enteredReqNo),
+        }).catch(() => {})
+      }
+
+      toast(`Requisition number updated: ${enteredReqNo}`, 'success')
+
       try {
         const res = await updateRowRequisitionNoAction({
           date,
@@ -486,35 +815,38 @@ export function DailyEntryShell({
           reqNo: enteredReqNo,
           applyToAll,
         })
-        if (res.success) {
-          if (applyToAll) {
-            setSheetReqNo(enteredReqNo)
-            setRows((prev) =>
-              prev.map((r) => (r.received > 0 ? { ...r, req_no: enteredReqNo } : r))
-            )
-          } else {
-            setRows((prev) =>
-              prev.map((r) =>
-                r.needle_item_id === rowItem.needle_item_id
-                  ? { ...r, req_no: enteredReqNo }
-                  : r
-              )
-            )
-          }
-          toast(`Requisition number updated: ${enteredReqNo}`, 'success')
-        } else {
-          toast(res.error || 'Failed to update requisition number.', 'error')
+        if (!res.success) {
+          toast(res.error || 'Failed to sync requisition number online.', 'warning')
         }
       } catch (err: any) {
-        toast(err.message || 'Error updating row requisition number.', 'error')
+        toast(err.message || 'Error updating row requisition number.', 'warning')
       }
     } else if (requisitionPrompt) {
       const { item, value } = requisitionPrompt
       setRequisitionPrompt(null)
+      sheetReqNoRef.current = enteredReqNo
       setSheetReqNo(enteredReqNo)
-      setSaveStatus('saving')
-      try {
-        const res = await saveDailyEntryCellAction({
+
+      // 1. Immediately update React state with requisition number and recalculated row
+      setRows((prev) =>
+        prev.map((r) =>
+          r.needle_item_id === item.needle_item_id
+            ? {
+                ...r,
+                received: value,
+                present: r.previous + value + r.transfer_in - r.delivery - r.transfer_out,
+                req_no: enteredReqNo,
+              }
+            : r.received > 0 && applyToAll
+            ? { ...r, req_no: enteredReqNo }
+            : r
+        )
+      )
+
+      // 2. Persist to local IndexedDB draft and pending queue immediately
+      if (user?.profile?.id) {
+        saveCellDraftAndEnqueueOp({
+          userId: user.profile.id,
           date,
           floorId,
           category,
@@ -523,38 +855,59 @@ export function DailyEntryShell({
           value,
           reqNo: enteredReqNo,
         })
-        if (res.success && res.data) {
-          setSaveStatus('saved')
-          setLastSavedAt(new Date())
-          setRows((prev) =>
-            prev.map((r) =>
-              r.needle_item_id === item.needle_item_id
-                ? {
-                    ...r,
-                    previous: res.data!.previous,
-                    received: res.data!.received,
-                    delivery: res.data!.delivery,
-                    present: res.data!.present,
-                    bnr: res.data!.bnr,
-                    req_no: enteredReqNo,
-                  }
-                : r.received > 0 && applyToAll
-                ? { ...r, req_no: enteredReqNo }
-                : r
-            )
-          )
-          toast(`Requisition number set: ${enteredReqNo}`, 'success')
-        } else {
-          setSaveStatus('error')
-          toast(res.error || 'Failed to save receive with requisition number.', 'error')
-        }
-      } catch (err: any) {
-        setSaveStatus('error')
-        toast(err.message || 'Error saving receive.', 'error')
+          .then(() => refreshQueueCounts())
+          .catch(console.error)
+
+        saveSheetSnapshotToCache({
+          userId: user.profile.id,
+          date,
+          floorId,
+          category,
+          rows: rowsRef.current.map((r) =>
+            r.needle_item_id === item.needle_item_id
+              ? {
+                  ...r,
+                  received: value,
+                  present: r.previous + value + r.transfer_in - r.delivery - r.transfer_out,
+                  req_no: enteredReqNo,
+                }
+              : r.received > 0 && applyToAll
+              ? { ...r, req_no: enteredReqNo }
+              : r
+          ),
+          requisitionNo: enteredReqNo,
+        }).catch(() => {})
+      }
+
+      toast(`Requisition number set: ${enteredReqNo}`, 'success')
+
+      // 3. Trigger debounced sync to Supabase
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setSaveStatus('offline')
+      } else {
+        setSaveStatus('syncing')
+        if (syncDebounceTimer.current) clearTimeout(syncDebounceTimer.current)
+        syncDebounceTimer.current = setTimeout(() => {
+          drainPendingQueue()
+        }, 400)
       }
     } else if (manualReqModalOpen) {
       setManualReqModalOpen(false)
       setSheetReqNo(enteredReqNo)
+      setRows((prev) =>
+        prev.map((r) => (r.received > 0 ? { ...r, req_no: enteredReqNo } : r))
+      )
+      if (user?.profile?.id) {
+        saveSheetSnapshotToCache({
+          userId: user.profile.id,
+          date,
+          floorId,
+          category,
+          rows: rowsRef.current.map((r) => (r.received > 0 ? { ...r, req_no: enteredReqNo } : r)),
+          requisitionNo: enteredReqNo,
+        }).catch(() => {})
+      }
+      toast(`Requisition number updated: ${enteredReqNo}`, 'success')
       try {
         const res = await updateSheetRequisitionNoAction({
           date,
@@ -562,16 +915,11 @@ export function DailyEntryShell({
           category,
           reqNo: enteredReqNo,
         })
-        if (res.success) {
-          setRows((prev) =>
-            prev.map((r) => (r.received > 0 ? { ...r, req_no: enteredReqNo } : r))
-          )
-          toast(`Requisition number updated: ${enteredReqNo}`, 'success')
-        } else {
-          toast(res.error || 'Failed to update requisition number.', 'error')
+        if (!res.success) {
+          toast(res.error || 'Failed to sync requisition number online.', 'warning')
         }
       } catch (err: any) {
-        toast(err.message || 'Error updating requisition number.', 'error')
+        toast(err.message || 'Error updating requisition number.', 'warning')
       }
     }
   }
@@ -693,7 +1041,7 @@ export function DailyEntryShell({
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         user={user}
-        onReload={loadSheetData}
+        onReload={handleReload}
         disabled={loading}
       />
 
@@ -718,8 +1066,13 @@ export function DailyEntryShell({
 
       {/* Full in-view Spreadsheet Table (Image 2) */}
       <DailyEntryTable
+        key={currentSheetKey}
+        sheetKey={currentSheetKey}
         rows={filteredRows}
         loading={loading}
+        offlineNoCache={offlineNoCache}
+        coverageIncomplete={coverageIncomplete}
+        coverageMessage={coverageError}
         onCellChange={handleCellChange}
         onOpenTransfer={setTransferItem}
         onEditReqNo={setEditingRowReqNo}

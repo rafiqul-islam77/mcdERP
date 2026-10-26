@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { ArrowRightLeft, Layers } from 'lucide-react'
+import { ArrowRightLeft, Layers, WifiOff } from 'lucide-react'
 import type { DailyEntryRowItem } from '@/types'
 
 const EDITABLE_FIELDS = ['received', 'delivery', 'bnr'] as const
@@ -10,6 +10,10 @@ type EditableField = typeof EDITABLE_FIELDS[number]
 interface DailyEntryTableProps {
   rows: DailyEntryRowItem[]
   loading: boolean
+  offlineNoCache?: boolean
+  coverageIncomplete?: boolean
+  coverageMessage?: string | null
+  sheetKey?: string
   onCellChange: (
     needleItemId: string,
     field: 'received' | 'delivery' | 'bnr',
@@ -22,6 +26,10 @@ interface DailyEntryTableProps {
 export function DailyEntryTable({
   rows,
   loading,
+  offlineNoCache = false,
+  coverageIncomplete = false,
+  coverageMessage,
+  sheetKey,
   onCellChange,
   onOpenTransfer,
   onEditReqNo,
@@ -31,15 +39,20 @@ export function DailyEntryTable({
     Record<string, { received?: string; delivery?: string; bnr?: string }>
   >({})
 
+  // Clear local typing state when date, floor, or category changes so inputs never carry over
+  React.useEffect(() => {
+    setLocalEdits({})
+  }, [sheetKey])
+
   // Compute column totals
   const totals = React.useMemo(() => {
     return rows.reduce(
       (acc, r) => {
-        acc.prev += r.previous
-        acc.rcvd += r.received
-        acc.dvld += r.delivery
-        acc.present += r.present
-        acc.bnr += r.bnr
+        acc.prev += r.previous ?? 0
+        acc.rcvd += r.received ?? 0
+        acc.dvld += r.delivery ?? 0
+        acc.present += r.present ?? 0
+        acc.bnr += r.bnr ?? 0
         return acc
       },
       { prev: 0, rcvd: 0, dvld: 0, present: 0, bnr: 0 }
@@ -97,6 +110,9 @@ export function DailyEntryTable({
         e.preventDefault()
         e.currentTarget.blur()
         setTimeout(() => {
+          if (document.querySelector('[role="dialog"]')) {
+            return
+          }
           const nextInput = document.querySelector<HTMLInputElement>(
             `input[data-field="${field}"][data-row-index="${nextIndex}"]`
           )
@@ -104,7 +120,7 @@ export function DailyEntryTable({
             nextInput.focus()
             nextInput.select()
           }
-        }, 30)
+        }, 50)
       }
     } else if (e.key === 'ArrowUp') {
       const prevIndex = rowIndex - 1
@@ -169,6 +185,20 @@ export function DailyEntryTable({
   }
 
   if (rows.length === 0) {
+    if (coverageIncomplete || offlineNoCache) {
+      return (
+        <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/40 rounded-erp p-8 text-center text-slate-500 space-y-2">
+          <WifiOff className="w-8 h-8 mx-auto text-amber-500" />
+          <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            Connect to network to load stock data for this date.
+          </p>
+          <p className="text-[11px] text-slate-400">
+            Stock history for this date is not completely available offline.
+          </p>
+        </div>
+      )
+    }
+
     return (
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-erp p-8 text-center text-slate-500 space-y-1.5">
         <Layers className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-700" />
@@ -183,7 +213,16 @@ export function DailyEntryTable({
   }
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded shadow-xs overflow-hidden w-full">
+    <div className="space-y-2 w-full">
+      {coverageIncomplete && (
+        <div className="p-2.5 px-3 rounded bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2">
+          <WifiOff className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span className="font-medium">
+            {coverageMessage || 'Connect to network to load stock data for this date.'}
+          </span>
+        </div>
+      )}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded shadow-xs overflow-hidden w-full">
       {/* 100% in-view table without horizontal scrolling/sliding */}
       <table className="w-full table-fixed border-collapse text-xs">
         {/* Compact Column Widths totaling 100% */}
@@ -307,7 +346,7 @@ export function DailyEntryTable({
 
                 {/* PREV (Read-only calculated) */}
                 <td className="py-0.5 px-0.5 text-center font-bold text-slate-700 dark:text-slate-300 bg-slate-50/70 dark:bg-slate-950/40 border-r border-slate-200 dark:border-slate-800 text-[10px] sm:text-xs">
-                  {row.previous}
+                  {coverageIncomplete || row.is_stock_known === false ? '—' : row.previous}
                 </td>
 
                 {/* RCVD (Editable input) */}
@@ -318,6 +357,7 @@ export function DailyEntryTable({
                     step="1"
                     inputMode="numeric"
                     placeholder="0"
+                    disabled={coverageIncomplete || row.is_stock_known === false}
                     data-field="received"
                     data-row-index={idx}
                     value={rcvdDisplay}
@@ -328,7 +368,7 @@ export function DailyEntryTable({
                       handleBlur(row.needle_item_id, 'received', row.received)
                     }
                     onKeyDown={(e) => handleKeyDown(e, idx, 'received')}
-                    className="w-full h-6 py-0 px-0.5 text-center rounded border border-emerald-300 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-950/20 text-emerald-950 dark:text-emerald-200 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500 text-[11px] sm:text-xs"
+                    className="w-full h-6 py-0 px-0.5 text-center rounded border border-emerald-300 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-950/20 text-emerald-950 dark:text-emerald-200 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500 text-[11px] sm:text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   {row.req_no && (
                     <button
@@ -350,6 +390,7 @@ export function DailyEntryTable({
                     step="1"
                     inputMode="numeric"
                     placeholder="0"
+                    disabled={coverageIncomplete || row.is_stock_known === false}
                     data-field="delivery"
                     data-row-index={idx}
                     value={dvldDisplay}
@@ -360,19 +401,19 @@ export function DailyEntryTable({
                       handleBlur(row.needle_item_id, 'delivery', row.delivery)
                     }
                     onKeyDown={(e) => handleKeyDown(e, idx, 'delivery')}
-                    className="w-full h-6 py-0 px-0.5 text-center rounded border border-blue-300 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20 text-blue-950 dark:text-blue-200 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 text-[11px] sm:text-xs"
+                    className="w-full h-6 py-0 px-0.5 text-center rounded border border-blue-300 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20 text-blue-950 dark:text-blue-200 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 text-[11px] sm:text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </td>
 
                 {/* PRESENT (Read-only calculated) */}
                 <td
                   className={`py-0.5 px-0.5 text-center font-extrabold border-r border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 text-[10.5px] sm:text-xs ${
-                    isNegative
+                    isNegative && !coverageIncomplete && row.is_stock_known !== false
                       ? 'text-danger bg-rose-50 dark:bg-rose-950/40'
                       : 'text-slate-900 dark:text-slate-100'
                   }`}
                 >
-                  <span>{row.present}</span>
+                  <span>{coverageIncomplete || row.is_stock_known === false ? '—' : row.present}</span>
                   {row.transfer_out > 0 && (
                     <span className="block text-[6.5px] sm:text-[7.5px] font-sans text-purple-600 dark:text-purple-400 font-bold truncate leading-none">
                       -T:{row.transfer_out}
@@ -393,6 +434,7 @@ export function DailyEntryTable({
                     step="1"
                     inputMode="numeric"
                     placeholder="0"
+                    disabled={coverageIncomplete || row.is_stock_known === false}
                     data-field="bnr"
                     data-row-index={idx}
                     value={bnrDisplay}
@@ -401,7 +443,7 @@ export function DailyEntryTable({
                     }
                     onBlur={() => handleBlur(row.needle_item_id, 'bnr', row.bnr)}
                     onKeyDown={(e) => handleKeyDown(e, idx, 'bnr')}
-                    className="w-full h-6 py-0 px-0.5 text-center rounded border border-purple-300 dark:border-purple-800 bg-purple-50/30 dark:bg-purple-950/20 text-purple-950 dark:text-purple-200 font-semibold focus:outline-none focus:ring-1 focus:ring-purple-500 text-[11px] sm:text-xs"
+                    className="w-full h-6 py-0 px-0.5 text-center rounded border border-purple-300 dark:border-purple-800 bg-purple-50/30 dark:bg-purple-950/20 text-purple-950 dark:text-purple-200 font-semibold focus:outline-none focus:ring-1 focus:ring-purple-500 text-[11px] sm:text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </td>
 
@@ -410,8 +452,9 @@ export function DailyEntryTable({
                   <button
                     type="button"
                     onClick={() => onOpenTransfer(row)}
-                    title="Floor Transfer"
-                    className="w-full h-6 py-0 px-0.5 bg-[#f59e0b] hover:bg-amber-500 text-black font-bold rounded shadow-xs transition-transform active:scale-95 flex items-center justify-center"
+                    disabled={coverageIncomplete || row.is_stock_known === false}
+                    title={coverageIncomplete ? 'Connect to network to load stock data for this date.' : 'Floor Transfer'}
+                    className="w-full h-6 py-0 px-0.5 bg-[#f59e0b] hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold rounded shadow-xs transition-transform active:scale-95 flex items-center justify-center"
                   >
                     <ArrowRightLeft className="w-3 h-3 shrink-0" />
                   </button>
@@ -431,7 +474,7 @@ export function DailyEntryTable({
               TOTAL ({rows.length})
             </td>
             <td className="py-1 px-0.5 text-center text-slate-200 border-r border-slate-700 bg-[#1e293b] text-[10px] sm:text-xs">
-              {totals.prev}
+              {coverageIncomplete ? '—' : totals.prev}
             </td>
             <td className="py-1 px-0.5 text-center text-emerald-300 font-bold border-r border-slate-700 bg-[#1e293b] text-[10px] sm:text-xs">
               {totals.rcvd}
@@ -440,7 +483,7 @@ export function DailyEntryTable({
               {totals.dvld}
             </td>
             <td className="py-1 px-0.5 text-center text-amber-300 font-extrabold border-r border-slate-700 bg-[#1e293b] text-[10px] sm:text-xs">
-              {totals.present}
+              {coverageIncomplete ? '—' : totals.present}
             </td>
             <td className="py-1 px-0.5 text-center text-purple-300 font-bold border-r border-slate-700 bg-[#1e293b] text-[10px] sm:text-xs">
               {totals.bnr}
@@ -449,6 +492,7 @@ export function DailyEntryTable({
           </tr>
         </tfoot>
       </table>
+    </div>
     </div>
   )
 }

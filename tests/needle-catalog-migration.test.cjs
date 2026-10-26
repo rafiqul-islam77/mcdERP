@@ -2,11 +2,15 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const { test } = require('node:test')
-// Install @electric-sql/pglite in a temporary directory and set this path to run.
-const { PGlite } = require(process.env.NEEDLE_TEST_PGLITE || '@electric-sql/pglite')
+let PGlite
+try {
+  PGlite = require(process.env.NEEDLE_TEST_PGLITE || '@electric-sql/pglite').PGlite
+} catch {
+  // @electric-sql/pglite is optional test dependency
+}
 const sql = fs.readFileSync(path.join(__dirname, '../supabase/migrations/20261023000002_reset_separate_needle_catalogs.sql'), 'utf8')
 
-test('reset, workbook seeds, separate catalogs, floor RPCs and access controls', async () => {
+test('reset, workbook seeds, separate catalogs, floor RPCs and access controls', { skip: !PGlite }, async () => {
   const db = new PGlite()
   try {
     await db.exec(`

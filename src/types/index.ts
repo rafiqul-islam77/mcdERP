@@ -364,6 +364,7 @@ export interface DailyEntryRowItem {
   transfer_in: number
   transfer_out: number
   last_transfer_note?: string | null
+  is_stock_known?: boolean
 }
 
 
@@ -397,3 +398,166 @@ export interface LocalDailySheetDraft {
   cells: Record<string, { received?: number; delivery?: number; bnr?: number; req_no?: string | null }>
   updated_at: number
 }
+
+export interface CachedMasterNeedleItem {
+  id: string
+  item_code: string
+  needle_type: string
+  size_dia: string
+  brand: string
+  active: boolean
+  updated_at: number
+}
+
+export interface CachedFloorAssignment {
+  id: string // `${floor_id}:${category}:${needle_item_id}`
+  floor_id: string
+  needle_item_id: string
+  category: DailyEntryCategory
+  active: boolean
+  updated_at: number
+}
+
+export interface CachedSheetSnapshot {
+  sheet_key: string // `${user_id}:${date}:${floor_id}:${category}`
+  user_id: string
+  entry_date: string
+  floor_id: string
+  category: DailyEntryCategory
+  rows: DailyEntryRowItem[]
+  requisition_no: string | null
+  updated_at: number
+}
+
+export interface CachedMasterMeta {
+  user_id: string
+  authorized_floor_ids: string[]
+  allowed_categories: DailyEntryCategory[]
+  floors: Floor[]
+  all_active_floors: Floor[]
+  cached_combinations: string[] // list of `${floor_id}:${category}`
+  cached_at: number
+  version: number
+}
+
+export interface AuthorizedMasterCatalogData {
+  userId: string
+  authorizedFloorIds: string[]
+  allowedCategories: DailyEntryCategory[]
+  floors: Floor[]
+  allActiveFloors: Floor[]
+  normalItems: {
+    id: string
+    item_code: string
+    needle_type: string
+    size_dia: string
+    brand: string
+    active: boolean
+  }[]
+  idleItems: {
+    id: string
+    item_code: string
+    needle_type: string
+    size_dia: string
+    brand: string
+    active: boolean
+  }[]
+  normalAssignments: {
+    floor_id: string
+    needle_item_id: string
+    entry_type: 'new' | 'running'
+  }[]
+  idleAssignments: {
+    floor_id: string
+    needle_item_id: string
+  }[]
+  cachedAt: number
+}
+
+export interface StockBaselineRecord {
+  id: string // `${floor_id}:${category}:${needle_item_id}`
+  floor_id: string
+  category: DailyEntryCategory
+  needle_item_id: string
+  baseline_date: string // ISO date string YYYY-MM-DD
+  balance: number
+  updated_at: number
+}
+
+export interface StockMovementRecord {
+  id: string // transaction UUID
+  transaction_date: string
+  floor_id: string
+  category: DailyEntryCategory
+  needle_item_id: string
+  transaction_type: DailyTransactionType
+  quantity: number
+  req_no?: string | null
+  updated_at: number
+}
+
+export interface CachedSheetHeader {
+  id: string // `${floor_id}:${category}:${entry_date}`
+  floor_id: string
+  category: DailyEntryCategory
+  entry_date: string
+  req_no: string | null
+  status: string
+  updated_at: number
+}
+
+export type CacheSyncStatus = 'syncing' | 'complete' | 'failed' | 'stale'
+
+export interface DailyStockSnapshotRecord {
+  id: string // `${floor_id}:${category}:${date}:${needle_item_id}`
+  date: string // YYYY-MM-DD
+  floor_id: string
+  category: DailyEntryCategory
+  needle_item_id: string
+  previous: number
+  received: number
+  delivery: number
+  transfer_in: number
+  transfer_out: number
+  adjustment_in: number
+  adjustment_out: number
+  present: number
+  bnr: number
+  req_no: string | null
+  last_transfer_note: string | null
+  server_updated_at: number
+  sync_batch_id: string
+}
+
+export interface StockCacheCoverageRecord {
+  id: string // `${user_id}:${floor_id}:${category}`
+  user_id: string
+  floor_id: string
+  category: DailyEntryCategory
+  coverage_start: string // YYYY-MM-DD
+  coverage_end: string // YYYY-MM-DD
+  sync_batch_id?: string
+  record_count?: number
+  needle_count?: number
+  last_successful_sync_at: number
+  sync_status: CacheSyncStatus
+}
+
+export interface OfflineStockHistorySyncData {
+  userId: string
+  syncBatchId?: string
+  windowStartDate: string
+  windowEndDate: string
+  targetFloorIds: string[]
+  categories: DailyEntryCategory[]
+  snapshots?: DailyStockSnapshotRecord[]
+  baselines: StockBaselineRecord[]
+  movements: StockMovementRecord[]
+  sheets: CachedSheetHeader[]
+  assignedNeedleCounts?: Record<string, number>
+  syncedAt: number
+  isIncremental?: boolean
+}
+
+
+

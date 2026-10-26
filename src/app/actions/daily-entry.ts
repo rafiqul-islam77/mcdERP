@@ -7,6 +7,12 @@ import { createAuditLog } from '@/lib/audit'
 import { revalidatePath } from 'next/cache'
 import type {
   ActionResult,
+  AuthorizedMasterCatalogData,
+  OfflineStockHistorySyncData,
+  DailyStockSnapshotRecord,
+  StockBaselineRecord,
+  StockMovementRecord,
+  CachedSheetHeader,
   DailyEntryCategory,
   DailyEntryRowItem,
   Floor,
@@ -138,6 +144,146 @@ export async function getAuthorizedContextAction(): Promise<
 /**
  * Load Daily Entry sheet rows and calculated stock balances.
  */
+/**
+ * Load the complete authorized needle master items and floor assignments
+ * for caching in IndexedDB so all authorized combinations are available offline.
+ */
+export async function getAuthorizedNeedleMasterCacheAction(): Promise<
+  ActionResult<AuthorizedMasterCatalogData>
+> {
+  const actor = await requireActiveAccount()
+  const admin = getAdminClient()
+
+  // 1. Fetch all active floors
+  const { data: allFloors, error: floorError } = await admin
+    .from('floors')
+    .select('id, code, name, description, active, sort_order')
+    .eq('active', true)
+    .order('sort_order', { ascending: true })
+
+  if (floorError || !allFloors) {
+    return { success: false, error: 'Failed to load floors' }
+  }
+
+  // 2. Determine authorized floors for current user
+  const authorizedFloors = actor.isSiteAdmin
+    ? allFloors
+    : allFloors.filter((f: Floor) => isUserAuthorizedForFloor(actor, f.id))
+
+  const authorizedFloorIds = authorizedFloors.map((f: Floor) => f.id)
+
+  // 3. Determine allowed categories
+  const allowedCategories: DailyEntryCategory[] = []
+  const hasRunning = await canAccessCategory(actor.profile.id, actor.isSiteAdmin, 'RUNNING')
+  if (hasRunning) allowedCategories.push('RUNNING')
+  const hasNew = await canAccessCategory(actor.profile.id, actor.isSiteAdmin, 'NEW')
+  if (hasNew) allowedCategories.push('NEW')
+  const hasIdle = await canAccessCategory(actor.profile.id, actor.isSiteAdmin, 'IDLE')
+  if (hasIdle) allowedCategories.push('IDLE')
+
+  if (authorizedFloorIds.length === 0 || allowedCategories.length === 0) {
+    return {
+      success: true,
+      data: {
+        userId: actor.profile.id,
+        authorizedFloorIds: [],
+        allowedCategories: [],
+        floors: [],
+        allActiveFloors: allFloors,
+        normalItems: [],
+        idleItems: [],
+        normalAssignments: [],
+        idleAssignments: [],
+        cachedAt: Date.now(),
+      },
+    }
+  }
+
+  try {
+    let normalItems: any[] = []
+    let normalAssignments: any[] = []
+    let idleItems: any[] = []
+    let idleAssignments: any[] = []
+
+    // 4. If authorized for NEW or RUNNING: fetch normal master items & assignments
+    if (hasRunning || hasNew) {
+      // Assignments
+      const { data: nAssign, error: nAssignErr } = await admin
+        .from('normal_needle_floor_assignments')
+        .select('needle_item_id, floor_id, entry_type')
+        .in('floor_id', authorizedFloorIds)
+
+      if (!nAssignErr && nAssign) {
+        normalAssignments = nAssign
+      } else if (nAssignErr && (nAssignErr.code === '42703' || nAssignErr.message?.includes('entry_type'))) {
+        // Fallback without entry_type: assign to both running and new
+        const fb = await admin
+          .from('normal_needle_floor_assignments')
+          .select('needle_item_id, floor_id')
+          .in('floor_id', authorizedFloorIds)
+        if (fb.data) {
+          normalAssignments = [
+            ...fb.data.map((a: any) => ({ ...a, entry_type: 'new' })),
+            ...fb.data.map((a: any) => ({ ...a, entry_type: 'running' })),
+          ]
+        }
+      }
+
+      // Normal items
+      const { data: nItems } = await admin
+        .from('normal_needle_items')
+        .select('id, item_code, needle_type, size_dia, brand, active')
+        .eq('active', true)
+        .order('item_code', { ascending: true })
+
+      if (nItems) {
+        normalItems = nItems
+      }
+    }
+
+    // 5. If authorized for IDLE: fetch idle master items & assignments
+    if (hasIdle) {
+      const { data: iAssign } = await admin
+        .from('idle_needle_floor_assignments')
+        .select('needle_item_id, floor_id')
+        .in('floor_id', authorizedFloorIds)
+
+      if (iAssign) {
+        idleAssignments = iAssign
+      }
+
+      const { data: iItems } = await admin
+        .from('idle_needle_items')
+        .select('id, item_code, needle_type, size_dia, brand, active')
+        .eq('active', true)
+        .order('item_code', { ascending: true })
+
+      if (iItems) {
+        idleItems = iItems
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        userId: actor.profile.id,
+        authorizedFloorIds,
+        allowedCategories,
+        floors: authorizedFloors,
+        allActiveFloors: allFloors,
+        normalItems,
+        idleItems,
+        normalAssignments,
+        idleAssignments,
+        cachedAt: Date.now(),
+      },
+    }
+  } catch (err: any) {
+    console.error('[getAuthorizedNeedleMasterCacheAction] error:', err)
+    return { success: false, error: err.message || 'Failed to load master cache.' }
+  }
+}
+
 export async function getDailyEntrySheetAction(params: {
   date: string
   floorId: string
@@ -444,7 +590,7 @@ export async function saveDailyEntryCellAction(params: {
     let sheetId: string | null = null
     const { data: existingSheet } = await admin
       .from('needle_daily_sheets')
-      .select('id, status')
+      .select('id, status, req_no')
       .eq('entry_date', params.date)
       .eq('floor_id', params.floorId)
       .eq('category', params.category)
@@ -576,7 +722,7 @@ export async function saveDailyEntryCellAction(params: {
       if (params.value > 0) {
         let reqNo: string | null = null
         if (targetType === 'RECEIVE') {
-          reqNo = params.reqNo?.trim() || existingTargetTx?.req_no || null
+          reqNo = params.reqNo?.trim() || existingSheet?.req_no || existingTargetTx?.req_no || null
           if (sheetId && reqNo) {
             try {
               await admin.from('needle_daily_sheets').update({ req_no: reqNo, updated_by: actor.profile.id }).eq('id', sheetId)
@@ -1022,6 +1168,8 @@ export async function batchSyncDailyEntryAction(params: {
   ActionResult<{
     results: BatchSyncOperationResult[]
     rows: DailyEntryRowItem[]
+    requisitionNo: string | null
+    sheetId: string | null
   }>
 > {
   const actor = await requireActiveAccount()
@@ -1045,6 +1193,8 @@ export async function batchSyncDailyEntryAction(params: {
       data: {
         results: [],
         rows: sheetRes.data?.rows || [],
+        requisitionNo: sheetRes.data?.requisitionNo || null,
+        sheetId: sheetRes.data?.sheetId || null,
       },
     }
   }
@@ -1094,6 +1244,13 @@ export async function batchSyncDailyEntryAction(params: {
     }
 
     const results: BatchSyncOperationResult[] = []
+
+    let currentSheetReqNo: string | null = existingSheet?.req_no || null
+    for (const op of params.operations) {
+      if (op.req_no && !currentSheetReqNo) {
+        currentSheetReqNo = op.req_no.trim()
+      }
+    }
 
     // 2. Process each operation sequentially with validation
     for (const op of params.operations) {
@@ -1226,10 +1383,19 @@ export async function batchSyncDailyEntryAction(params: {
         if (op.value > 0) {
           let reqNo: string | null = null
           if (targetType === 'RECEIVE') {
-            reqNo = op.req_no?.trim() || existingTargetTx?.req_no || null
+            reqNo = op.req_no?.trim() || currentSheetReqNo || existingTargetTx?.req_no || null
             if (sheetId && reqNo) {
+              currentSheetReqNo = reqNo
               try {
                 await admin.from('needle_daily_sheets').update({ req_no: reqNo, updated_by: actor.profile.id }).eq('id', sheetId)
+              } catch {}
+              try {
+                await admin
+                  .from(tables.transactions)
+                  .update({ req_no: reqNo, updated_by: actor.profile.id })
+                  .eq('daily_sheet_id', sheetId)
+                  .eq('transaction_type', 'RECEIVE')
+                  .is('req_no', null)
               } catch {}
             }
           }
@@ -1295,10 +1461,500 @@ export async function batchSyncDailyEntryAction(params: {
       data: {
         results,
         rows: updatedSheetRes.data?.rows || [],
+        requisitionNo: updatedSheetRes.data?.requisitionNo || null,
+        sheetId: updatedSheetRes.data?.sheetId || null,
       },
     }
   } catch (err: any) {
     console.error('[batchSyncDailyEntryAction] error:', err)
     return { success: false, error: err.message || 'Failed to sync daily entry batch.' }
+  }
+}
+
+/**
+ * Helper to fetch all rows paginated in chunks of 1000 to prevent silent PostgREST truncation.
+ */
+async function fetchAllRowsPaginated<T = any>(
+  buildQuery: () => any,
+  pageSize = 1000
+): Promise<T[]> {
+  const allRows: T[] = []
+  let from = 0
+  let hasMore = true
+
+  while (hasMore) {
+    const { data, error } = await buildQuery().range(from, from + pageSize - 1)
+    if (error) throw error
+    if (!data || data.length === 0) {
+      hasMore = false
+    } else {
+      allRows.push(...data)
+      if (data.length < pageSize) {
+        hasMore = false
+      } else {
+        from += pageSize
+      }
+    }
+  }
+
+  return allRows
+}
+
+/**
+ * Helper to compute date range YYYY-MM-DD
+ */
+function getDatesInRange(startDate: string, endDate: string): string[] {
+  const dates: string[] = []
+  const curr = new Date(`${startDate}T00:00:00`)
+  const end = new Date(`${endDate}T00:00:00`)
+  while (curr <= end) {
+    const yr = curr.getFullYear()
+    const mo = String(curr.getMonth() + 1).padStart(2, '0')
+    const dy = String(curr.getDate()).padStart(2, '0')
+    dates.push(`${yr}-${mo}-${dy}`)
+    curr.setDate(curr.getDate() + 1)
+  }
+  return dates
+}
+
+/**
+ * Load offline stock history (1 month past baseline, authoritative snapshots, and movements) for authorized floors.
+ */
+export async function getOfflineStockHistorySyncAction(params?: {
+  floorIds?: string[]
+  categories?: DailyEntryCategory[]
+  since?: number
+  windowStartDate?: string
+  windowEndDate?: string
+}): Promise<ActionResult<OfflineStockHistorySyncData>> {
+  const actor = await requireActiveAccount()
+  const admin = getAdminClient()
+
+  // 1. Determine authorized floors
+  const { data: allFloors } = await admin
+    .from('floors')
+    .select('id, code, name')
+    .eq('active', true)
+
+  const authorizedFloors = actor.isSiteAdmin
+    ? (allFloors || [])
+    : (allFloors || []).filter((f: any) => isUserAuthorizedForFloor(actor, f.id))
+
+  let targetFloorIds = authorizedFloors.map((f: any) => f.id)
+  if (params?.floorIds && params.floorIds.length > 0) {
+    targetFloorIds = targetFloorIds.filter((id: string) => params.floorIds!.includes(id))
+  }
+
+  // 2. Rolling window: Past 1 Calendar Month through Future 1 Calendar Month
+  const toYMD = (d: Date) => {
+    const yr = d.getFullYear()
+    const mo = String(d.getMonth() + 1).padStart(2, '0')
+    const dy = String(d.getDate()).padStart(2, '0')
+    return `${yr}-${mo}-${dy}`
+  }
+
+  const now = new Date()
+  const todayDate = toYMD(now)
+
+  let windowStartDate = params?.windowStartDate
+  let windowEndDate = params?.windowEndDate
+
+  if (!windowStartDate || !windowEndDate) {
+    const past = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29)
+    const future = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())
+    windowStartDate = toYMD(past)
+    windowEndDate = toYMD(future)
+  }
+
+  const syncBatchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
+
+  if (targetFloorIds.length === 0) {
+    return {
+      success: true,
+      data: {
+        userId: actor.profile.id,
+        syncBatchId,
+        windowStartDate,
+        windowEndDate,
+        targetFloorIds: [],
+        categories: [],
+        snapshots: [],
+        baselines: [],
+        movements: [],
+        sheets: [],
+        assignedNeedleCounts: {},
+        syncedAt: Date.now(),
+        isIncremental: !!params?.since,
+      },
+    }
+  }
+
+  // 3. Allowed categories
+  const allowedCategories: DailyEntryCategory[] = []
+  if (await canAccessCategory(actor.profile.id, actor.isSiteAdmin, 'RUNNING')) allowedCategories.push('RUNNING')
+  if (await canAccessCategory(actor.profile.id, actor.isSiteAdmin, 'NEW')) allowedCategories.push('NEW')
+  if (await canAccessCategory(actor.profile.id, actor.isSiteAdmin, 'IDLE')) allowedCategories.push('IDLE')
+
+  let targetCategories = allowedCategories
+  if (params?.categories && params.categories.length > 0) {
+    targetCategories = targetCategories.filter((c) => allowedCategories.includes(c))
+  }
+
+  const baselines: StockBaselineRecord[] = []
+  const movements: StockMovementRecord[] = []
+  const sheets: CachedSheetHeader[] = []
+  const snapshots: DailyStockSnapshotRecord[] = []
+  const assignedNeedleCounts: Record<string, number> = {}
+
+  try {
+    for (const cat of targetCategories) {
+      const tables = getCategoryTableNames(cat)
+
+      // Step A: Load assigned needles for target floors
+      const floorAssignedMap = new Map<string, string[]>()
+      if (cat === 'IDLE') {
+        const idleAssigns = await fetchAllRowsPaginated(() =>
+          admin
+            .from('needle_idle_floor_assignments')
+            .select('floor_id, needle_item_id')
+            .in('floor_id', targetFloorIds)
+            .eq('active', true)
+        )
+        for (const a of idleAssigns) {
+          if (!floorAssignedMap.has(a.floor_id)) floorAssignedMap.set(a.floor_id, [])
+          floorAssignedMap.get(a.floor_id)!.push(a.needle_item_id)
+        }
+      } else {
+        const entryType = cat === 'RUNNING' ? 'running' : 'new'
+        let normAssigns: any[] = []
+        try {
+          normAssigns = await fetchAllRowsPaginated(() =>
+            admin
+              .from('needle_floor_assignments')
+              .select('floor_id, needle_item_id')
+              .in('floor_id', targetFloorIds)
+              .eq('entry_type', entryType)
+              .eq('active', true)
+          )
+        } catch {
+          // Fallback if entry_type column not present
+          normAssigns = await fetchAllRowsPaginated(() =>
+            admin
+              .from('needle_floor_assignments')
+              .select('floor_id, needle_item_id')
+              .in('floor_id', targetFloorIds)
+              .eq('active', true)
+          )
+        }
+        for (const a of normAssigns) {
+          if (!floorAssignedMap.has(a.floor_id)) floorAssignedMap.set(a.floor_id, [])
+          floorAssignedMap.get(a.floor_id)!.push(a.needle_item_id)
+        }
+      }
+
+      for (const floorId of targetFloorIds) {
+        const count = (floorAssignedMap.get(floorId) || []).length
+        assignedNeedleCounts[`${floorId}:${cat}`] = count
+      }
+
+      // Step B: Baseline balances before windowStartDate (< windowStartDate) with pagination
+      const priorTxRows = await fetchAllRowsPaginated(() =>
+        admin
+          .from(tables.transactions)
+          .select('floor_id, needle_item_id, transaction_type, quantity')
+          .in('floor_id', targetFloorIds)
+          .lt('transaction_date', windowStartDate)
+      )
+
+      const balanceMap = new Map<string, number>()
+      for (const tx of priorTxRows) {
+        const key = `${tx.floor_id}:${tx.needle_item_id}`
+        const qty = Number(tx.quantity) || 0
+        let delta = 0
+        if (['OPENING', 'RECEIVE', 'TRANSFER_IN', 'ADJUSTMENT_IN'].includes(tx.transaction_type)) delta = qty
+        if (['ISSUE', 'TRANSFER_OUT', 'ADJUSTMENT_OUT'].includes(tx.transaction_type)) delta = -qty
+        balanceMap.set(key, (balanceMap.get(key) || 0) + delta)
+      }
+
+      // Guarantee baseline balance for every assigned needle (0 if no prior tx)
+      for (const floorId of targetFloorIds) {
+        const assignedIds = floorAssignedMap.get(floorId) || []
+        for (const needleId of assignedIds) {
+          const key = `${floorId}:${needleId}`
+          if (!balanceMap.has(key)) {
+            balanceMap.set(key, 0)
+          }
+          const bal = balanceMap.get(key)!
+          baselines.push({
+            id: `${floorId}:${cat}:${needleId}`,
+            floor_id: floorId,
+            category: cat,
+            needle_item_id: needleId,
+            baseline_date: windowStartDate,
+            balance: bal,
+            updated_at: Date.now(),
+          })
+        }
+      }
+
+      // Step C: All transactions in window [windowStartDate, windowEndDate] with pagination
+      const allTxInWindow = await fetchAllRowsPaginated(() =>
+        admin
+          .from(tables.transactions)
+          .select('id, transaction_date, floor_id, needle_item_id, transaction_type, quantity, req_no, notes, updated_at')
+          .in('floor_id', targetFloorIds)
+          .gte('transaction_date', windowStartDate)
+          .lte('transaction_date', windowEndDate)
+      )
+
+      // Step D: Sheet headers within the window
+      const allSheetsInWindow = await fetchAllRowsPaginated(() =>
+        admin
+          .from('needle_daily_sheets')
+          .select('id, entry_date, floor_id, category, req_no, status, updated_at')
+          .in('floor_id', targetFloorIds)
+          .eq('category', cat)
+          .gte('entry_date', windowStartDate)
+          .lte('entry_date', windowEndDate)
+      )
+
+      // Filter movements and sheet headers if incremental sync
+      const changedTxRows = params?.since
+        ? allTxInWindow.filter((tx: any) => new Date(tx.updated_at).getTime() > params.since!)
+        : allTxInWindow
+      const changedSheetRows = params?.since
+        ? allSheetsInWindow.filter((s: any) => new Date(s.updated_at).getTime() > params.since!)
+        : allSheetsInWindow
+
+      for (const tx of changedTxRows) {
+        movements.push({
+          id: tx.id,
+          transaction_date: tx.transaction_date,
+          floor_id: tx.floor_id,
+          category: cat,
+          needle_item_id: tx.needle_item_id,
+          transaction_type: tx.transaction_type,
+          quantity: Number(tx.quantity) || 0,
+          req_no: tx.req_no || null,
+          updated_at: Date.now(),
+        })
+      }
+
+      for (const s of changedSheetRows) {
+        sheets.push({
+          id: `${s.floor_id}:${s.category}:${s.entry_date}`,
+          floor_id: s.floor_id,
+          category: s.category,
+          entry_date: s.entry_date,
+          req_no: s.req_no || null,
+          status: s.status || 'draft',
+          updated_at: Date.now(),
+        })
+      }
+
+      // Step E: BNR records within the window
+      const bnrRows = await fetchAllRowsPaginated(() =>
+        admin
+          .from('needle_bnr_records')
+          .select('needle_item_id, record_date, floor_id, category, quantity')
+          .in('floor_id', targetFloorIds)
+          .eq('category', cat)
+          .gte('record_date', windowStartDate)
+          .lte('record_date', windowEndDate)
+      )
+
+      const bnrMap = new Map<string, number>()
+      for (const b of bnrRows) {
+        bnrMap.set(`${b.floor_id}:${b.category}:${b.record_date}:${b.needle_item_id}`, Number(b.quantity) || 0)
+      }
+
+      // Step F: Build Authoritative Daily Stock Snapshots
+      let datesToSnapshot: string[] = []
+      if (!params?.since) {
+        // Full initial sync: all dates in [windowStartDate, todayDate] + future dates with txs/sheets
+        const histDates = getDatesInRange(windowStartDate, todayDate)
+        const futureDatesSet = new Set<string>()
+        for (const tx of allTxInWindow) {
+          if (tx.transaction_date > todayDate && tx.transaction_date <= windowEndDate) {
+            futureDatesSet.add(tx.transaction_date)
+          }
+        }
+        for (const s of allSheetsInWindow) {
+          if (s.entry_date > todayDate && s.entry_date <= windowEndDate) {
+            futureDatesSet.add(s.entry_date)
+          }
+        }
+        datesToSnapshot = [...histDates, ...Array.from(futureDatesSet).sort()]
+      } else {
+        // Incremental sync: check if any transactions or sheets were updated since `since`
+        const changedDates: string[] = []
+        for (const tx of changedTxRows) {
+          changedDates.push(tx.transaction_date)
+        }
+        for (const s of changedSheetRows) {
+          changedDates.push(s.entry_date)
+        }
+
+        if (changedDates.length > 0) {
+          changedDates.sort()
+          const earliestDate = changedDates[0] >= windowStartDate ? changedDates[0] : windowStartDate
+          const maxDate = changedDates[changedDates.length - 1]
+          const relevantEnd = todayDate > maxDate ? todayDate : maxDate
+          datesToSnapshot = getDatesInRange(earliestDate, relevantEnd)
+        } else {
+          // If no transactions/sheets changed in the past, only sync today's date
+          datesToSnapshot = [todayDate]
+        }
+      }
+
+      // Index all transactions for this category by `${floor_id}:${needle_item_id}:${transaction_date}`
+      const txByDateMap = new Map<string, any[]>()
+      for (const tx of allTxInWindow) {
+        const k = `${tx.floor_id}:${tx.needle_item_id}:${tx.transaction_date}`
+        if (!txByDateMap.has(k)) txByDateMap.set(k, [])
+        txByDateMap.get(k)!.push(tx)
+      }
+
+      // Index sheet headers by `${floor_id}:${entry_date}`
+      const sheetByDateMap = new Map<string, string>()
+      for (const s of allSheetsInWindow) {
+        if (s.req_no) {
+          sheetByDateMap.set(`${s.floor_id}:${s.entry_date}`, s.req_no)
+        }
+      }
+
+      // If datesToSnapshot is not empty, compute authoritative snapshots
+      if (datesToSnapshot.length > 0) {
+        const snapshotStartDate = datesToSnapshot[0]
+
+        // Calculate starting balance for each needle prior to snapshotStartDate
+        // balanceMap contains balances < windowStartDate
+        // If snapshotStartDate > windowStartDate, add intermediate transactions from allTxInWindow
+        const startBalanceMap = new Map<string, number>()
+        for (const floorId of targetFloorIds) {
+          const assignedIds = floorAssignedMap.get(floorId) || []
+          for (const needleId of assignedIds) {
+            const key = `${floorId}:${needleId}`
+            let bal = balanceMap.get(key) || 0
+
+            if (snapshotStartDate > windowStartDate) {
+              for (const tx of allTxInWindow) {
+                if (
+                  tx.floor_id === floorId &&
+                  tx.needle_item_id === needleId &&
+                  tx.transaction_date >= windowStartDate &&
+                  tx.transaction_date < snapshotStartDate
+                ) {
+                  const qty = Number(tx.quantity) || 0
+                  if (['OPENING', 'RECEIVE', 'TRANSFER_IN', 'ADJUSTMENT_IN'].includes(tx.transaction_type)) bal += qty
+                  if (['ISSUE', 'TRANSFER_OUT', 'ADJUSTMENT_OUT'].includes(tx.transaction_type)) bal -= qty
+                }
+              }
+            }
+            startBalanceMap.set(key, bal)
+          }
+        }
+
+        for (const floorId of targetFloorIds) {
+          const assignedIds = floorAssignedMap.get(floorId) || []
+          for (const needleId of assignedIds) {
+            let runningBalance = startBalanceMap.get(`${floorId}:${needleId}`) || 0
+
+            for (const d of datesToSnapshot) {
+              const dayTxs = txByDateMap.get(`${floorId}:${needleId}:${d}`) || []
+              let rcvd = 0
+              let dvld = 0
+              let trfIn = 0
+              let trfOut = 0
+              let adjIn = 0
+              let adjOut = 0
+              let reqNo: string | null = null
+              let note: string | null = null
+
+              for (const tx of dayTxs) {
+                const qty = Number(tx.quantity) || 0
+                if (tx.req_no) reqNo = tx.req_no
+                if (tx.notes) note = tx.notes
+
+                switch (tx.transaction_type) {
+                  case 'RECEIVE':
+                    rcvd += qty
+                    break
+                  case 'ISSUE':
+                    dvld += qty
+                    break
+                  case 'TRANSFER_IN':
+                    trfIn += qty
+                    break
+                  case 'TRANSFER_OUT':
+                    trfOut += qty
+                    break
+                  case 'ADJUSTMENT_IN':
+                    adjIn += qty
+                    break
+                  case 'ADJUSTMENT_OUT':
+                    adjOut += qty
+                    break
+                }
+              }
+
+              if (!reqNo) {
+                reqNo = sheetByDateMap.get(`${floorId}:${d}`) || null
+              }
+
+              const previous = runningBalance
+              const delta = rcvd + trfIn + adjIn - dvld - trfOut - adjOut
+              const present = previous + delta
+              const bnr = bnrMap.get(`${floorId}:${cat}:${d}:${needleId}`) || 0
+
+              snapshots.push({
+                id: `${floorId}:${cat}:${d}:${needleId}`,
+                date: d,
+                floor_id: floorId,
+                category: cat,
+                needle_item_id: needleId,
+                previous,
+                received: rcvd,
+                delivery: dvld,
+                transfer_in: trfIn,
+                transfer_out: trfOut,
+                adjustment_in: adjIn,
+                adjustment_out: adjOut,
+                present,
+                bnr,
+                req_no: reqNo,
+                last_transfer_note: note,
+                server_updated_at: Date.now(),
+                sync_batch_id: syncBatchId,
+              })
+
+              runningBalance = present
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        userId: actor.profile.id,
+        syncBatchId,
+        windowStartDate,
+        windowEndDate,
+        targetFloorIds,
+        categories: targetCategories,
+        snapshots,
+        baselines,
+        movements,
+        sheets,
+        assignedNeedleCounts,
+        syncedAt: Date.now(),
+        isIncremental: !!params?.since,
+      },
+    }
+  } catch (err: any) {
+    console.error('[getOfflineStockHistorySyncAction] error:', err)
+    return { success: false, error: err.message || 'Failed to sync offline stock history.' }
   }
 }
