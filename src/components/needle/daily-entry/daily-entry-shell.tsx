@@ -23,6 +23,7 @@ import {
   cleanExpiredStockCache,
   getAllStockCacheCoverage,
   getOfflineRollingWindow,
+  isWholeUserOfflineReady,
 } from '@/lib/offline/daily-entry-db'
 import {
   batchSyncDailyEntryAction,
@@ -81,6 +82,20 @@ export function DailyEntryShell({
   const [authorizedFloors, setAuthorizedFloors] = React.useState<Floor[]>([])
   const [allowedCategories, setAllowedCategories] = React.useState<DailyEntryCategory[]>([])
   const [allActiveFloors, setAllActiveFloors] = React.useState<Floor[]>([])
+
+  const authorizedFloorsRef = React.useRef<Floor[]>([])
+  const allowedCategoriesRef = React.useRef<DailyEntryCategory[]>([])
+
+  React.useEffect(() => {
+    authorizedFloorsRef.current = authorizedFloors
+  }, [authorizedFloors])
+
+  React.useEffect(() => {
+    allowedCategoriesRef.current = allowedCategories
+  }, [allowedCategories])
+
+  // Offline Ready state (Section 8)
+  const [offlineReadiness, setOfflineReadiness] = React.useState<'idle' | 'preparing' | 'ready'>('idle')
 
   // Sheet data
   const [rows, setRows] = React.useState<DailyEntryRowItem[]>([])
@@ -157,6 +172,19 @@ export function DailyEntryShell({
 
       // 2. Fetch fresh context online if network is available
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        if (user?.profile?.id) {
+          getCachedMasterMeta(user.profile.id).then((meta) => {
+            if (meta && meta.floors && meta.allowed_categories) {
+              isWholeUserOfflineReady({
+                userId: user.profile.id,
+                authorizedFloorIds: meta.floors.map((f: any) => f.id),
+                allowedCategories: meta.allowed_categories,
+              }).then((ready) => {
+                if (isMounted) setOfflineReadiness(ready ? 'ready' : 'idle')
+              })
+            }
+          })
+        }
         return
       }
 
@@ -187,6 +215,15 @@ export function DailyEntryShell({
               }
             })
             .catch(() => {})
+
+          // Pre-check readiness
+          isWholeUserOfflineReady({
+            userId: user.profile.id,
+            authorizedFloorIds: ctxData.floors.map((f) => f.id),
+            allowedCategories: ctxData.allowedCategories,
+          }).then((ready) => {
+            if (isMounted) setOfflineReadiness(ready ? 'ready' : 'idle')
+          })
 
           triggerBackgroundStockSync()
         } else {
@@ -356,6 +393,7 @@ export function DailyEntryShell({
       if (isStockSyncingRef.current) return
 
       isStockSyncingRef.current = true
+      setOfflineReadiness('preparing')
       try {
         let since: number | undefined
         if (!opts?.forceFull) {
@@ -392,9 +430,33 @@ export function DailyEntryShell({
 
           // Immediately refresh/recalculate visible PREV/PRESENT from updated cache (Section 21)
           await loadSheetDataRef.current()
+
+          // Check whole user offline readiness (Section 11)
+          const allFloorIds = authorizedFloorsRef.current.map((f) => f.id)
+          const isReady = await isWholeUserOfflineReady({
+            userId: user.profile.id,
+            authorizedFloorIds: allFloorIds.length > 0 ? allFloorIds : res.data.targetFloorIds,
+            allowedCategories: allowedCategoriesRef.current.length > 0 ? allowedCategoriesRef.current : res.data.categories,
+          })
+          setOfflineReadiness(isReady ? 'ready' : 'idle')
+        } else {
+          const allFloorIds = authorizedFloorsRef.current.map((f) => f.id)
+          const isReady = await isWholeUserOfflineReady({
+            userId: user.profile.id,
+            authorizedFloorIds: allFloorIds,
+            allowedCategories: allowedCategoriesRef.current,
+          })
+          setOfflineReadiness(isReady ? 'ready' : 'idle')
         }
       } catch (err) {
         console.warn('[triggerBackgroundStockSync] error:', err)
+        const allFloorIds = authorizedFloorsRef.current.map((f) => f.id)
+        const isReady = await isWholeUserOfflineReady({
+          userId: user.profile.id,
+          authorizedFloorIds: allFloorIds,
+          allowedCategories: allowedCategoriesRef.current,
+        })
+        setOfflineReadiness(isReady ? 'ready' : 'idle')
       } finally {
         isStockSyncingRef.current = false
       }
@@ -619,9 +681,9 @@ export function DailyEntryShell({
 
   // Connectivity detection & multi-tab recovery
   React.useEffect(() => {
-    const handleOnline = () => {
-      drainPendingQueue()
-      loadSheetData()
+    const handleOnline = async () => {
+      await drainPendingQueue()
+      await loadSheetDataRef.current()
       if (user?.profile?.id) {
         getAuthorizedNeedleMasterCacheAction()
           .then((res) => {
@@ -636,6 +698,15 @@ export function DailyEntryShell({
     }
     const handleOffline = () => {
       setSaveStatus('offline')
+      if (user?.profile?.id) {
+        isWholeUserOfflineReady({
+          userId: user.profile.id,
+          authorizedFloorIds: authorizedFloorsRef.current.map((f) => f.id),
+          allowedCategories: allowedCategoriesRef.current,
+        }).then((ready) => {
+          setOfflineReadiness(ready ? 'ready' : 'idle')
+        })
+      }
     }
 
     window.addEventListener('online', handleOnline)
@@ -1043,6 +1114,7 @@ export function DailyEntryShell({
         user={user}
         onReload={handleReload}
         disabled={loading}
+        offlineReadiness={offlineReadiness}
       />
 
       {/* Database Warning Banner (if tables awaiting migration) */}

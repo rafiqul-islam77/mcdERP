@@ -771,7 +771,7 @@ export async function getCachedMasterMeta(userId?: string): Promise<CachedMaster
 
 /**
  * Calculate the rolling offline window based on the application's current date.
- * Exactly rolling 30 calendar days: [Current Date - 29 Days] through [Current Date] (with future buffer)
+ * Current Date - 30 days through Current Date (e.g. 2026-10-26 - 30 days = 2026-09-26 through 2026-10-26)
  */
 export function getOfflineRollingWindow(currentDateStr?: string): {
   windowStartDate: string
@@ -779,9 +779,8 @@ export function getOfflineRollingWindow(currentDateStr?: string): {
 } {
   const base = currentDateStr ? new Date(currentDateStr + 'T00:00:00') : new Date()
 
-  // Previous 30 calendar days inclusive (e.g. 2026-10-26 - 29 days = 2026-09-27)
-  const past = new Date(base.getFullYear(), base.getMonth(), base.getDate() - 29)
-  const future = new Date(base.getFullYear(), base.getMonth() + 1, base.getDate())
+  // Previous 30 calendar days: Current Date - 30 days
+  const past = new Date(base.getFullYear(), base.getMonth(), base.getDate() - 30)
 
   const toYMD = (dt: Date) => {
     const yr = dt.getFullYear()
@@ -792,7 +791,7 @@ export function getOfflineRollingWindow(currentDateStr?: string): {
 
   return {
     windowStartDate: toYMD(past),
-    windowEndDate: toYMD(future),
+    windowEndDate: toYMD(base),
   }
 }
 
@@ -806,6 +805,40 @@ export function isDateWithinCoverage(
   if (!coverage) return false
   if (coverage.sync_status !== 'complete') return false
   return date >= coverage.coverage_start && date <= coverage.coverage_end
+}
+
+/**
+ * Check if ALL authorized floors and categories for a user have complete coverage for the rolling 30-day window.
+ */
+export async function isWholeUserOfflineReady(params: {
+  userId: string
+  authorizedFloorIds: string[]
+  allowedCategories: DailyEntryCategory[]
+  currentDateStr?: string
+}): Promise<boolean> {
+  if (!params.userId || params.authorizedFloorIds.length === 0 || params.allowedCategories.length === 0) {
+    return false
+  }
+
+  const { windowStartDate, windowEndDate } = getOfflineRollingWindow(params.currentDateStr)
+  const allCoverage = await getAllStockCacheCoverage(params.userId)
+
+  const covMap = new Map<string, StockCacheCoverageRecord>()
+  for (const c of allCoverage) {
+    covMap.set(`${c.floor_id}:${c.category}`, c)
+  }
+
+  for (const floorId of params.authorizedFloorIds) {
+    for (const cat of params.allowedCategories) {
+      const cov = covMap.get(`${floorId}:${cat}`)
+      if (!cov) return false
+      if (cov.sync_status !== 'complete') return false
+      if (cov.coverage_start > windowStartDate) return false
+      if (cov.coverage_end < windowEndDate) return false
+    }
+  }
+
+  return true
 }
 
 /**
@@ -1134,12 +1167,10 @@ export async function getCachedNeedleSheet(params: {
           const checkCoverageAndProceed = (
             covRecord: StockCacheCoverageRecord | null | undefined
           ) => {
-            const hasCompleteCoverage = isDateWithinCoverage(covRecord, params.date)
-
-            if (!hasCompleteCoverage) {
+            const showCoverageIncomplete = () => {
               // Stock history is incomplete for this date!
               // DO NOT calculate from partial cache or guess!
-              // Keep needle list visible with placeholders 'â€”' for PREV and PRESENT
+              // Keep needle list visible with placeholders '—' for PREV and PRESENT
               const placeholderRows: DailyEntryRowItem[] = matchedItems.map((item) => ({
                 needle_item_id: item.id,
                 item_code: item.item_code,
@@ -1164,6 +1195,32 @@ export async function getCachedNeedleSheet(params: {
                 requisitionNo: null,
                 coverageError: 'Connect to network to load stock data for this date.',
               })
+            }
+
+            const hasCompleteCoverage = isDateWithinCoverage(covRecord, params.date)
+
+            if (!hasCompleteCoverage) {
+              // Section 2: If user creates future-date data locally while offline, continue using existing local draft/stock-chain
+              if (
+                draftStore &&
+                covRecord &&
+                covRecord.sync_status === 'complete' &&
+                params.date > covRecord.coverage_end
+              ) {
+                const draftKey = generateSheetKey(params.userId, params.date, params.floorId, params.category)
+                const dReq = draftStore.get(draftKey)
+                dReq.onsuccess = () => {
+                  const draft = dReq.result as LocalDailySheetDraft | undefined
+                  if (draft && draft.cells && Object.keys(draft.cells).length > 0) {
+                    return gatherSupportingDataAndCalculate()
+                  }
+                  showCoverageIncomplete()
+                }
+                dReq.onerror = () => showCoverageIncomplete()
+                return
+              }
+
+              return showCoverageIncomplete()
             }
 
             // Coverage is complete: Proceed with forward stock calculation

@@ -173,19 +173,19 @@ function createMockIndexedDB() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TEST 1 — Clean browser: Open Daily Entry online, verify previous 30 days automatically download
+// TEST 1 — Clean browser: Full rolling 30-day download for new device (Section 1 & 15)
 // ─────────────────────────────────────────────────────────────────────────────
-test('Test 1 — Clean browser: Full rolling 30-day download for new device', async () => {
+test('Test 1 — Clean browser: Full rolling 30-day download for new device (Section 1 & 15)', async () => {
   const mockIDB = createMockIndexedDB()
   const dbModule = moduleFrom('src/lib/offline/daily-entry-db.ts', {}, {
     window: { indexedDB: mockIDB },
     crypto: { randomUUID: () => 'uuid-' + Math.random().toString(36).slice(2, 8) },
   })
 
-  // Verify rolling 30-day window formula for 2026-10-26
+  // Verify rolling 30-day window formula for 2026-10-26 (Section 1: 2026-09-26 through 2026-10-26)
   const windowRange = dbModule.getOfflineRollingWindow('2026-10-26')
-  assert.equal(windowRange.windowStartDate, '2026-09-27', 'Exact 30 calendar days: 2026-09-27')
-  assert.equal(windowRange.windowEndDate, '2026-11-26', 'Future buffer window')
+  assert.equal(windowRange.windowStartDate, '2026-09-26', 'Current Date - 30 days: 2026-09-26')
+  assert.equal(windowRange.windowEndDate, '2026-10-26', 'Current Date: 2026-10-26')
 
   const userId = 'usr-operator-1'
   const floorId = 'floor-a'
@@ -221,9 +221,9 @@ test('Test 1 — Clean browser: Full rolling 30-day download for new device', as
     cachedAt: Date.now(),
   })
 
-  // Simulate server sending full 30-day dataset (snapshots for all dates from 2026-09-27 to 2026-10-26)
+  // Simulate server sending full 30-day dataset (snapshots for all dates from 2026-09-26 to 2026-10-26)
   const dates = []
-  const curr = new Date('2026-09-27T00:00:00')
+  const curr = new Date('2026-09-26T00:00:00')
   const end = new Date('2026-10-26T00:00:00')
   while (curr <= end) {
     const yr = curr.getFullYear()
@@ -233,7 +233,7 @@ test('Test 1 — Clean browser: Full rolling 30-day download for new device', as
     curr.setDate(curr.getDate() + 1)
   }
 
-  assert.equal(dates.length, 30, 'Exactly 30 calendar dates generated')
+  assert.equal(dates.length, 31, 'Exactly 31 calendar dates from 2026-09-26 through 2026-10-26 inclusive')
 
   const snapshots = dates.map((d, idx) => ({
     id: `${floorId}:${category}:${d}:${needleId}`,
@@ -254,8 +254,8 @@ test('Test 1 — Clean browser: Full rolling 30-day download for new device', as
   await dbModule.saveOfflineStockHistoryToCache({
     userId,
     syncBatchId: 'batch_test_1',
-    windowStartDate: '2026-09-27',
-    windowEndDate: '2026-11-26',
+    windowStartDate: '2026-09-26',
+    windowEndDate: '2026-10-26',
     targetFloorIds: [floorId],
     categories: [category],
     baselines: [
@@ -264,7 +264,7 @@ test('Test 1 — Clean browser: Full rolling 30-day download for new device', as
         floor_id: floorId,
         category,
         needle_item_id: needleId,
-        baseline_date: '2026-09-27',
+        baseline_date: '2026-09-26',
         balance: 100,
         updated_at: Date.now(),
       },
@@ -280,9 +280,18 @@ test('Test 1 — Clean browser: Full rolling 30-day download for new device', as
   // Verify coverage record is complete
   const cov = await dbModule.getStockCacheCoverage(userId, floorId, category)
   assert.equal(cov.sync_status, 'complete')
-  assert.equal(cov.coverage_start, '2026-09-27')
-  assert.equal(cov.coverage_end, '2026-11-26')
-  assert.equal(cov.record_count, 30)
+  assert.equal(cov.coverage_start, '2026-09-26')
+  assert.equal(cov.coverage_end, '2026-10-26')
+  assert.equal(cov.record_count, 31)
+
+  // Verify Whole User Offline Ready state
+  const isReady = await dbModule.isWholeUserOfflineReady({
+    userId,
+    authorizedFloorIds: [floorId],
+    allowedCategories: [category],
+    currentDateStr: '2026-10-26',
+  })
+  assert.equal(isReady, true, 'Whole User Offline Ready must be true after complete sync')
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -328,9 +337,9 @@ test('Test 2 — No manual date opening: Offline stock data immediately availabl
     cachedAt: Date.now(),
   })
 
-  // Populate 30 days of data once online
+  // Populate 30 days of data once online: 2026-09-26 to 2026-10-26
   const dates = []
-  const curr = new Date('2026-09-27T00:00:00')
+  const curr = new Date('2026-09-26T00:00:00')
   const end = new Date('2026-10-26T00:00:00')
   while (curr <= end) {
     const yr = curr.getFullYear()
@@ -359,11 +368,11 @@ test('Test 2 — No manual date opening: Offline stock data immediately availabl
   await dbModule.saveOfflineStockHistoryToCache({
     userId,
     syncBatchId: 'batch_test_2',
-    windowStartDate: '2026-09-27',
-    windowEndDate: '2026-11-26',
+    windowStartDate: '2026-09-26',
+    windowEndDate: '2026-10-26',
     targetFloorIds: [floorId],
     categories: [category],
-    baselines: [{ id: `${floorId}:${category}:${needleId}`, floor_id: floorId, category, needle_item_id: needleId, baseline_date: '2026-09-27', balance: 200, updated_at: Date.now() }],
+    baselines: [{ id: `${floorId}:${category}:${needleId}`, floor_id: floorId, category, needle_item_id: needleId, baseline_date: '2026-09-26', balance: 200, updated_at: Date.now() }],
     movements: [],
     sheets: [],
     snapshots,
@@ -373,8 +382,8 @@ test('Test 2 — No manual date opening: Offline stock data immediately availabl
   })
 
   // Disconnect internet. Check arbitrary dates in previous 30 days without ever opening them before:
-  // 1. Day 1 (2026-09-27)
-  const day1 = await dbModule.getCachedNeedleSheet({ userId, date: '2026-09-27', floorId, category })
+  // 1. Day 1 (2026-09-26)
+  const day1 = await dbModule.getCachedNeedleSheet({ userId, date: '2026-09-26', floorId, category })
   assert.equal(day1.status, 'cached')
   assert.equal(day1.rows[0].previous, 200)
   assert.equal(day1.rows[0].present, 200)
@@ -385,11 +394,11 @@ test('Test 2 — No manual date opening: Offline stock data immediately availabl
   assert.equal(day15.rows[0].previous, 200)
   assert.equal(day15.rows[0].present, 200)
 
-  // 3. Day 30 (2026-10-26)
-  const day30 = await dbModule.getCachedNeedleSheet({ userId, date: '2026-10-26', floorId, category })
-  assert.equal(day30.status, 'cached')
-  assert.equal(day30.rows[0].previous, 200)
-  assert.equal(day30.rows[0].present, 200)
+  // 3. Day 31 (2026-10-26)
+  const day31 = await dbModule.getCachedNeedleSheet({ userId, date: '2026-10-26', floorId, category })
+  assert.equal(day31.status, 'cached')
+  assert.equal(day31.rows[0].previous, 200)
+  assert.equal(day31.rows[0].present, 200)
 
   // 4. Date outside window (2026-08-01) safely returns coverage_incomplete with placeholders
   const outsideDate = await dbModule.getCachedNeedleSheet({ userId, date: '2026-08-01', floorId, category })
@@ -404,7 +413,6 @@ test('Test 3 — Authorized Floors: Only authorized floors assigned to user are 
   const authorizedFloorIds = ['floor-a', 'floor-b']
   const unauthorizedFloorId = 'floor-c'
 
-  // Function filtering logic test
   const requestedFloors = ['floor-a', 'floor-b', unauthorizedFloorId]
   const targetFloorIds = requestedFloors.filter((fid) => authorizedFloorIds.includes(fid))
 
@@ -426,9 +434,9 @@ test('Test 4 — Authorized Categories: Only permitted categories are synchroniz
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TEST 5 — Incremental next day: Advance date, only missing/changed data synchronized
+// TEST 5 — Incremental next day: Advance date, only missing/changed data synchronized (Section 17)
 // ─────────────────────────────────────────────────────────────────────────────
-test('Test 5 — Incremental next day: Only missing new day is synchronized, avoiding 30-day re-download', async () => {
+test('Test 5 — Incremental next day: Rolling window advances by 1 day (26-Sep->26-Oct advances to 27-Sep->27-Oct)', async () => {
   const mockIDB = createMockIndexedDB()
   const dbModule = moduleFrom('src/lib/offline/daily-entry-db.ts', {}, {
     window: { indexedDB: mockIDB },
@@ -440,17 +448,17 @@ test('Test 5 — Incremental next day: Only missing new day is synchronized, avo
   const category = 'RUNNING'
   const needleId = 'needle-sn001'
 
-  const t1 = Date.now() - 86400000 // yesterday timestamp
+  const t1 = Date.now() - 86400000
 
-  // Initial full sync on 2026-10-26
+  // Initial full sync on 2026-10-26 (26-Sep to 26-Oct)
   await dbModule.saveOfflineStockHistoryToCache({
     userId,
     syncBatchId: 'batch_initial',
-    windowStartDate: '2026-09-27',
-    windowEndDate: '2026-11-26',
+    windowStartDate: '2026-09-26',
+    windowEndDate: '2026-10-26',
     targetFloorIds: [floorId],
     categories: [category],
-    baselines: [{ id: `${floorId}:${category}:${needleId}`, floor_id: floorId, category, needle_item_id: needleId, baseline_date: '2026-09-27', balance: 100, updated_at: t1 }],
+    baselines: [{ id: `${floorId}:${category}:${needleId}`, floor_id: floorId, category, needle_item_id: needleId, baseline_date: '2026-09-26', balance: 100, updated_at: t1 }],
     movements: [],
     sheets: [],
     snapshots: [
@@ -461,17 +469,21 @@ test('Test 5 — Incremental next day: Only missing new day is synchronized, avo
     isIncremental: false,
   })
 
-  // Advance to next day: 2026-10-27
+  // Advance to next day: 2026-10-27 (Section 17: 27-Sep -> 27-Oct)
+  const windowNextDay = dbModule.getOfflineRollingWindow('2026-10-27')
+  assert.equal(windowNextDay.windowStartDate, '2026-09-27')
+  assert.equal(windowNextDay.windowEndDate, '2026-10-27')
+
   // Incremental sync returns ONLY the snapshot for missing date 2026-10-27
   const t2 = Date.now()
   await dbModule.saveOfflineStockHistoryToCache({
     userId,
     syncBatchId: 'batch_incremental',
-    windowStartDate: '2026-09-28',
-    windowEndDate: '2026-11-27',
+    windowStartDate: '2026-09-27',
+    windowEndDate: '2026-10-27',
     targetFloorIds: [floorId],
     categories: [category],
-    baselines: [{ id: `${floorId}:${category}:${needleId}`, floor_id: floorId, category, needle_item_id: needleId, baseline_date: '2026-09-28', balance: 100, updated_at: t2 }],
+    baselines: [{ id: `${floorId}:${category}:${needleId}`, floor_id: floorId, category, needle_item_id: needleId, baseline_date: '2026-09-27', balance: 100, updated_at: t2 }],
     movements: [],
     sheets: [],
     snapshots: [
@@ -485,8 +497,8 @@ test('Test 5 — Incremental next day: Only missing new day is synchronized, avo
   // Check coverage is maintained and updated
   const cov = await dbModule.getStockCacheCoverage(userId, floorId, category)
   assert.equal(cov.sync_status, 'complete')
-  assert.equal(cov.coverage_start, '2026-09-27', 'Earliest coverage start preserved')
-  assert.equal(cov.coverage_end, '2026-11-27', 'Coverage extended to new future buffer')
+  assert.equal(cov.coverage_start, '2026-09-26', 'Earliest coverage start preserved')
+  assert.equal(cov.coverage_end, '2026-10-27', 'Coverage extended to 2026-10-27')
   assert.equal(cov.last_successful_sync_at, t2)
 })
 
@@ -510,11 +522,11 @@ test('Test 6 — Reconnect: Network reconnection triggers background check and u
   await dbModule.saveOfflineStockHistoryToCache({
     userId,
     syncBatchId: 'batch_pre_disconnect',
-    windowStartDate: '2026-09-27',
-    windowEndDate: '2026-11-26',
+    windowStartDate: '2026-09-26',
+    windowEndDate: '2026-10-26',
     targetFloorIds: [floorId],
     categories: [category],
-    baselines: [{ id: `${floorId}:${category}:${needleId}`, floor_id: floorId, category, needle_item_id: needleId, baseline_date: '2026-09-27', balance: 50, updated_at: t1 }],
+    baselines: [{ id: `${floorId}:${category}:${needleId}`, floor_id: floorId, category, needle_item_id: needleId, baseline_date: '2026-09-26', balance: 50, updated_at: t1 }],
     movements: [],
     sheets: [],
     snapshots: [],
@@ -528,11 +540,11 @@ test('Test 6 — Reconnect: Network reconnection triggers background check and u
   await dbModule.saveOfflineStockHistoryToCache({
     userId,
     syncBatchId: 'batch_post_reconnect',
-    windowStartDate: '2026-09-27',
-    windowEndDate: '2026-11-26',
+    windowStartDate: '2026-09-26',
+    windowEndDate: '2026-10-26',
     targetFloorIds: [floorId],
     categories: [category],
-    baselines: [{ id: `${floorId}:${category}:${needleId}`, floor_id: floorId, category, needle_item_id: needleId, baseline_date: '2026-09-27', balance: 50, updated_at: t2 }],
+    baselines: [{ id: `${floorId}:${category}:${needleId}`, floor_id: floorId, category, needle_item_id: needleId, baseline_date: '2026-09-26', balance: 50, updated_at: t2 }],
     movements: [],
     sheets: [],
     snapshots: [],
@@ -606,11 +618,11 @@ test('Test 7 — Pending local data: Offline user inputs are NEVER overwritten b
   await dbModule.saveOfflineStockHistoryToCache({
     userId,
     syncBatchId: 'batch_server_sync',
-    windowStartDate: '2026-09-27',
-    windowEndDate: '2026-11-26',
+    windowStartDate: '2026-09-26',
+    windowEndDate: '2026-10-26',
     targetFloorIds: [floorId],
     categories: [category],
-    baselines: [{ id: `${floorId}:${category}:${needleId}`, floor_id: floorId, category, needle_item_id: needleId, baseline_date: '2026-09-27', balance: 100, updated_at: Date.now() }],
+    baselines: [{ id: `${floorId}:${category}:${needleId}`, floor_id: floorId, category, needle_item_id: needleId, baseline_date: '2026-09-26', balance: 100, updated_at: Date.now() }],
     movements: [],
     sheets: [],
     snapshots: [
@@ -621,7 +633,7 @@ test('Test 7 — Pending local data: Offline user inputs are NEVER overwritten b
         category,
         needle_item_id: needleId,
         previous: 100,
-        received: 0, // Server does not know about user's local input yet!
+        received: 0,
         delivery: 0,
         present: 100,
         bnr: 0,
@@ -648,7 +660,6 @@ test('Test 7 — Pending local data: Offline user inputs are NEVER overwritten b
 // TEST 8 — Pagination: Verify all records download even across multiple pages (>1000 records)
 // ─────────────────────────────────────────────────────────────────────────────
 test('Test 8 — Pagination: Paginated fetch loop retrieves all records when dataset exceeds pageSize', async () => {
-  // Simulate paginated query helper with 2,500 records and pageSize = 1000
   const totalRecords = 2500
   const fakeDatabaseRecords = Array.from({ length: totalRecords }, (_, i) => ({
     id: `tx-${i + 1}`,
@@ -688,4 +699,81 @@ test('Test 8 — Pagination: Paginated fetch loop retrieves all records when dat
   }))
 
   assert.equal(result.length, 2500, 'All 2,500 records fetched across 3 query pages without truncation')
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEST 9 — Whole User Offline Ready & Partial Readiness (Section 11 & 12)
+// ─────────────────────────────────────────────────────────────────────────────
+test('Test 9 — Whole User Offline Ready & Partial Readiness: Global readiness requires all scopes complete', async () => {
+  const mockIDB = createMockIndexedDB()
+  const dbModule = moduleFrom('src/lib/offline/daily-entry-db.ts', {}, {
+    window: { indexedDB: mockIDB },
+    crypto: { randomUUID: () => 'uuid-' + Math.random().toString(36).slice(2, 8) },
+  })
+
+  const userId = 'usr-admin-multi'
+  const authorizedFloorIds = ['floor-a', 'floor-b']
+  const allowedCategories = ['RUNNING', 'NEW']
+  const currentDateStr = '2026-10-26'
+
+  // Initially: empty coverage
+  let isReady = await dbModule.isWholeUserOfflineReady({
+    userId,
+    authorizedFloorIds,
+    allowedCategories,
+    currentDateStr,
+  })
+  assert.equal(isReady, false, 'Initial state must not be offline ready')
+
+  // Partial readiness: Only Floor A / RUNNING is complete
+  await dbModule.saveOfflineStockHistoryToCache({
+    userId,
+    syncBatchId: 'batch_partial',
+    windowStartDate: '2026-09-26',
+    windowEndDate: '2026-10-26',
+    targetFloorIds: ['floor-a'],
+    categories: ['RUNNING'],
+    baselines: [],
+    movements: [],
+    sheets: [],
+    snapshots: [],
+    assignedNeedleCounts: {},
+    syncedAt: Date.now(),
+    isIncremental: false,
+  })
+
+  // Section 12: Partial readiness must NOT falsely show global Offline Ready
+  isReady = await dbModule.isWholeUserOfflineReady({
+    userId,
+    authorizedFloorIds,
+    allowedCategories,
+    currentDateStr,
+  })
+  assert.equal(isReady, false, 'Partial coverage must not report whole-user offline ready')
+
+  // Complete all required scopes: Floor A & B across RUNNING & NEW
+  await dbModule.saveOfflineStockHistoryToCache({
+    userId,
+    syncBatchId: 'batch_complete',
+    windowStartDate: '2026-09-26',
+    windowEndDate: '2026-10-26',
+    targetFloorIds: ['floor-a', 'floor-b'],
+    categories: ['RUNNING', 'NEW'],
+    baselines: [],
+    movements: [],
+    sheets: [],
+    snapshots: [],
+    assignedNeedleCounts: {},
+    syncedAt: Date.now(),
+    isIncremental: false,
+  })
+
+  // Section 11: All authorized scopes complete -> Offline Ready is TRUE
+  isReady = await dbModule.isWholeUserOfflineReady({
+    userId,
+    authorizedFloorIds,
+    allowedCategories,
+    currentDateStr,
+  })
+  assert.equal(isReady, true, 'Whole-user offline ready must be true once all scopes complete')
 })

@@ -169,18 +169,18 @@ function createMockIndexedDB() {
 // ─────────────────────────────────────────────────────────────────────────────
 // TEST 1: Rolling 30-Day Window Calculation
 // ─────────────────────────────────────────────────────────────────────────────
-test('Window Calc: Computes rolling window of previous 30 calendar days to Current Date + 1 Month', () => {
+test('Window Calc: Computes rolling window from Current Date - 30 days through Current Date', () => {
   const dbModule = moduleFrom('src/lib/offline/daily-entry-db.ts')
 
-  // Example from task: 26-Oct-2026 -> 27-Sep-2026 to 26-Nov-2026 (exact 30 calendar days)
+  // Example from task: 26-Oct-2026 -> 26-Sep-2026 through 26-Oct-2026
   const window1 = dbModule.getOfflineRollingWindow('2026-10-26')
-  assert.equal(window1.windowStartDate, '2026-09-27')
-  assert.equal(window1.windowEndDate, '2026-11-26')
+  assert.equal(window1.windowStartDate, '2026-09-26')
+  assert.equal(window1.windowEndDate, '2026-10-26')
 
-  // Example: 15-May-2026 -> 16-Apr-2026 to 15-Jun-2026
+  // Example: 15-May-2026 -> 15-Apr-2026 through 15-May-2026
   const window2 = dbModule.getOfflineRollingWindow('2026-05-15')
-  assert.equal(window2.windowStartDate, '2026-04-16')
-  assert.equal(window2.windowEndDate, '2026-06-15')
+  assert.equal(window2.windowStartDate, '2026-04-15')
+  assert.equal(window2.windowEndDate, '2026-05-15')
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -447,16 +447,16 @@ test('Cleanup: Safely prunes expired movements only after baseline exists, NEVER
   const category = 'RUNNING'
   const itemId = 'item-sn001'
 
-  // Suppose today is 2026-10-26 (Window: 2026-09-27 to 2026-11-26)
+  // Suppose today is 2026-10-26 (Window: 2026-09-26 to 2026-10-26)
   // Put historical movements from 2026-09-01 (older than 30 days)
-  // Put valid baseline at 2026-09-27
+  // Put valid baseline at 2026-09-26
   await dbModule.saveOfflineStockHistoryToCache({
     userId,
-    windowStartDate: '2026-09-27',
-    windowEndDate: '2026-11-26',
+    windowStartDate: '2026-09-26',
+    windowEndDate: '2026-10-26',
     targetFloorIds: [floorId],
     categories: ['RUNNING'],
-    baselines: [{ id: `${floorId}:${category}:${itemId}`, floor_id: floorId, category, needle_item_id: itemId, baseline_date: '2026-09-27', balance: 200, updated_at: Date.now() }],
+    baselines: [{ id: `${floorId}:${category}:${itemId}`, floor_id: floorId, category, needle_item_id: itemId, baseline_date: '2026-09-26', balance: 200, updated_at: Date.now() }],
     movements: [
       { id: 'm-old-safe', transaction_date: '2026-09-05', floor_id: floorId, category, needle_item_id: itemId, transaction_type: 'RECEIVE', quantity: 30, updated_at: Date.now() },
       { id: 'm-current', transaction_date: '2026-10-10', floor_id: floorId, category, needle_item_id: itemId, transaction_type: 'RECEIVE', quantity: 15, updated_at: Date.now() },

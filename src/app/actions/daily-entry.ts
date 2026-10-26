@@ -1560,10 +1560,9 @@ export async function getOfflineStockHistorySyncAction(params?: {
   let windowEndDate = params?.windowEndDate
 
   if (!windowStartDate || !windowEndDate) {
-    const past = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29)
-    const future = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())
+    const past = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30)
     windowStartDate = toYMD(past)
-    windowEndDate = toYMD(future)
+    windowEndDate = todayDate
   }
 
   const syncBatchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
@@ -1771,20 +1770,8 @@ export async function getOfflineStockHistorySyncAction(params?: {
       // Step F: Build Authoritative Daily Stock Snapshots
       let datesToSnapshot: string[] = []
       if (!params?.since) {
-        // Full initial sync: all dates in [windowStartDate, todayDate] + future dates with txs/sheets
-        const histDates = getDatesInRange(windowStartDate, todayDate)
-        const futureDatesSet = new Set<string>()
-        for (const tx of allTxInWindow) {
-          if (tx.transaction_date > todayDate && tx.transaction_date <= windowEndDate) {
-            futureDatesSet.add(tx.transaction_date)
-          }
-        }
-        for (const s of allSheetsInWindow) {
-          if (s.entry_date > todayDate && s.entry_date <= windowEndDate) {
-            futureDatesSet.add(s.entry_date)
-          }
-        }
-        datesToSnapshot = [...histDates, ...Array.from(futureDatesSet).sort()]
+        // Full initial sync: all dates in [windowStartDate, windowEndDate]
+        datesToSnapshot = getDatesInRange(windowStartDate, windowEndDate)
       } else {
         // Incremental sync: check if any transactions or sheets were updated since `since`
         const changedDates: string[] = []
@@ -1799,11 +1786,11 @@ export async function getOfflineStockHistorySyncAction(params?: {
           changedDates.sort()
           const earliestDate = changedDates[0] >= windowStartDate ? changedDates[0] : windowStartDate
           const maxDate = changedDates[changedDates.length - 1]
-          const relevantEnd = todayDate > maxDate ? todayDate : maxDate
+          const relevantEnd = windowEndDate > maxDate ? windowEndDate : maxDate
           datesToSnapshot = getDatesInRange(earliestDate, relevantEnd)
         } else {
-          // If no transactions/sheets changed in the past, only sync today's date
-          datesToSnapshot = [todayDate]
+          // If no transactions/sheets changed in the past, only sync windowEndDate
+          datesToSnapshot = [windowEndDate]
         }
       }
 
