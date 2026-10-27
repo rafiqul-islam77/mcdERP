@@ -1,6 +1,6 @@
 // server-only – never import in browser components or Client Components.
 // This module uses SUPABASE_SERVICE_ROLE_KEY which must never reach the client bundle.
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * Returns a singleton Supabase admin client backed by the service role key.
@@ -12,9 +12,9 @@ import { createClient } from '@supabase/supabase-js'
  *
  * Never pass this client instance to client-side code.
  */
-let _adminClient: any = null
+let _adminClient: SupabaseClient | null = null
 
-export function getAdminClient(): any {
+export function getAdminClient(): SupabaseClient {
   if (_adminClient) return _adminClient
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL

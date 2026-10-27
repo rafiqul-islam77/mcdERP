@@ -36,7 +36,7 @@ export default async function RoleMatrixPage({
 
   const initialPermissionKeys: string[] = []
   for (const rp of rolePermissions || []) {
-    const p = rp.permissions as { key: string } | null
+    const p = (rp.permissions as unknown) as { key: string } | null
     if (p && p.key) {
       initialPermissionKeys.push(p.key)
     }

@@ -5,6 +5,14 @@ import { DailyEntryHeader } from './daily-entry-header'
 import { DailyEntryTable } from './daily-entry-table'
 import { TransferModal } from './transfer-modal'
 import { RequisitionModal } from './requisition-modal'
+import { ConflictResolutionModal } from './conflict-resolution-modal'
+import {
+  useDailyEntryRealtime,
+  type RealtimeTransactionRecord,
+  type RealtimeBnrRecord,
+  type RealtimeSheetRecord,
+} from './use-daily-entry-realtime'
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 import { useToast } from '@/components/ui/toast'
 import {
   saveCellDraftAndEnqueueOp,
@@ -13,6 +21,8 @@ import {
   updateOperationsStatus,
   removeConfirmedOperations,
   markOperationConflict,
+  resolveConflictEdit,
+  discardConflictOperation,
   clearSyncedDraftIfClean,
   generateSheetKey,
   getCachedNeedleSheet,
@@ -116,6 +126,8 @@ export function DailyEntryShell({
   const [saveError, setSaveError] = React.useState<string | null>(null)
   const [pendingCount, setPendingCount] = React.useState<number>(0)
   const [conflictCount, setConflictCount] = React.useState<number>(0)
+  const [conflictModalOpen, setConflictModalOpen] = React.useState<boolean>(false)
+  const [conflictList, setConflictList] = React.useState<PendingSyncOperation[]>([])
 
   const isSyncingRef = React.useRef(false)
   const syncDebounceTimer = React.useRef<NodeJS.Timeout | null>(null)
@@ -259,12 +271,15 @@ export function DailyEntryShell({
       const conflicts = ops.filter((o: PendingSyncOperation) => o.status === 'conflict')
       setPendingCount(pending.length)
       setConflictCount(conflicts.length)
+      setConflictList(conflicts)
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
         setSaveStatus('offline')
       } else if (conflicts.length > 0) {
         setSaveStatus('conflict')
       } else if (pending.length > 0) {
         setSaveStatus('syncing')
+      } else {
+        setSaveStatus('saved')
       }
     } catch {}
   }, [currentSheetKey])
@@ -321,7 +336,7 @@ export function DailyEntryShell({
           if (r.success) {
             confirmedIds.push(r.id)
           } else if (r.isConflict) {
-            await markOperationConflict(r.id, r.error || 'Stock conflict detected.')
+            await markOperationConflict(r.id, r.error || 'Stock conflict detected.', r.availableStock)
           } else {
             await updateOperationsStatus([r.id], 'failed', r.error)
           }
@@ -337,14 +352,37 @@ export function DailyEntryShell({
         }
 
         if (res.data.rows && res.data.rows.length > 0) {
-          setRows(res.data.rows)
+          let updatedRows = res.data.rows
+          try {
+            const remainingOps = await getPendingOperations(currentSheetKey)
+            const activeOpMap = new Map<string, number>()
+            for (const op of remainingOps) {
+              if (op.status === 'pending' || op.status === 'failed' || op.status === 'conflict') {
+                activeOpMap.set(`${op.needle_item_id}-${op.field}`, op.value)
+              }
+            }
+            if (activeOpMap.size > 0) {
+              updatedRows = updatedRows.map((r) => {
+                const dvldKey = `${r.needle_item_id}-delivery`
+                const rcvdKey = `${r.needle_item_id}-received`
+                const bnrKey = `${r.needle_item_id}-bnr`
+                const dvld = activeOpMap.has(dvldKey) ? activeOpMap.get(dvldKey)! : r.delivery
+                const rcvd = activeOpMap.has(rcvdKey) ? activeOpMap.get(rcvdKey)! : r.received
+                const bnr = activeOpMap.has(bnrKey) ? activeOpMap.get(bnrKey)! : r.bnr
+                const present = r.previous + rcvd + r.transfer_in - dvld - r.transfer_out
+                return { ...r, delivery: dvld, received: rcvd, bnr, present }
+              })
+            }
+          } catch {}
+
+          setRows(updatedRows)
           if (user?.profile?.id) {
             saveSheetSnapshotToCache({
               userId: user.profile.id,
               date,
               floorId,
               category,
-              rows: res.data.rows,
+              rows: updatedRows,
               requisitionNo: res.data.requisitionNo || sheetReqNoRef.current || null,
             }).catch(() => {})
           }
@@ -359,6 +397,7 @@ export function DailyEntryShell({
 
         setPendingCount(activeUnconfirmed.length)
         setConflictCount(conflicts.length)
+        setConflictList(conflicts)
 
         if (conflicts.length > 0) {
           setSaveStatus('conflict')
@@ -679,6 +718,235 @@ export function DailyEntryShell({
   }, [floorId, category, triggerBackgroundStockSync])
 
 
+  // ─── Supabase Realtime Multi-Device Sync (Sections 1-30) ──────────────────
+  const handleRealtimeTransactionChange = React.useCallback(
+    async (payload: RealtimePostgresChangesPayload<RealtimeTransactionRecord>) => {
+      const record = (payload.eventType === 'DELETE' ? payload.old : payload.new) as RealtimeTransactionRecord
+      if (!record || !record.needle_item_id) return
+
+      const txDate = record.transaction_date
+      const txFloorId = record.floor_id
+      const needleItemId = record.needle_item_id
+      const txType = record.transaction_type
+      const txQty = payload.eventType === 'DELETE' ? 0 : Number(record.quantity) || 0
+
+      // Floor isolation
+      if (txFloorId && txFloorId !== floorId) return
+
+      // Current Date update (Section 6 & 11)
+      if (txDate === date) {
+        const field: 'received' | 'delivery' | null =
+          txType === 'RECEIVE' ? 'received' : txType === 'ISSUE' ? 'delivery' : null
+
+        // Check if current device has uncommitted local pending draft for this cell (Section 10)
+        let hasLocalPending = false
+        if (field && currentSheetKey) {
+          try {
+            const draft = await getSheetDraft(currentSheetKey)
+            const pendingOps = await getPendingOperations(currentSheetKey)
+            hasLocalPending = Boolean(
+              draft?.cells?.[needleItemId]?.[field] !== undefined ||
+              pendingOps.some(
+                (o) =>
+                  o.needle_item_id === needleItemId &&
+                  o.field === field &&
+                  (o.status === 'pending' || o.status === 'syncing' || o.status === 'failed')
+              )
+            )
+          } catch {}
+        }
+
+        setRows((prev) => {
+          const nextRows = prev.map((r) => {
+            if (r.needle_item_id !== needleItemId) return r
+
+            let rcvd = r.received
+            let dvld = r.delivery
+            let trfIn = r.transfer_in
+            let trfOut = r.transfer_out
+            let rowReqNo = r.req_no
+            const trfNote = r.last_transfer_note
+
+            if (txType === 'RECEIVE') {
+              if (!hasLocalPending) {
+                rcvd = txQty
+                if (record.req_no) rowReqNo = record.req_no
+              }
+            } else if (txType === 'ISSUE') {
+              if (!hasLocalPending) {
+                dvld = txQty
+              }
+            } else if (txType === 'TRANSFER_IN') {
+              trfIn = txQty
+            } else if (txType === 'TRANSFER_OUT') {
+              trfOut = txQty
+            }
+
+            const present = r.previous + rcvd + trfIn - dvld - trfOut
+            return {
+              ...r,
+              received: rcvd,
+              delivery: dvld,
+              transfer_in: trfIn,
+              transfer_out: trfOut,
+              present,
+              req_no: rowReqNo,
+              last_transfer_note: trfNote,
+            }
+          })
+
+          // Update local cache (Section 9)
+          if (user?.profile?.id) {
+            saveSheetSnapshotToCache({
+              userId: user.profile.id,
+              date,
+              floorId,
+              category,
+              rows: nextRows,
+              requisitionNo: record.req_no || sheetReqNoRef.current || null,
+            }).catch(() => {})
+          }
+
+          return nextRows
+        })
+
+        if (record.req_no && txType === 'RECEIVE' && !hasLocalPending) {
+          setSheetReqNo(record.req_no)
+        }
+      } else if (txDate && txDate < date) {
+        // Historical change on earlier date (Section 8)
+        let delta = 0
+        const isAddition = ['OPENING', 'RECEIVE', 'TRANSFER_IN', 'ADJUSTMENT_IN'].includes(txType || '')
+        const isSubtraction = ['ISSUE', 'TRANSFER_OUT', 'ADJUSTMENT_OUT'].includes(txType || '')
+
+        if (isAddition || isSubtraction) {
+          const mult = isAddition ? 1 : -1
+          if (payload.eventType === 'INSERT') {
+            delta = mult * txQty
+          } else if (payload.eventType === 'UPDATE') {
+            const oldQty = Number((payload.old as any)?.quantity) || 0
+            delta = mult * (txQty - oldQty)
+          } else if (payload.eventType === 'DELETE') {
+            const oldQty = Number((payload.old as any)?.quantity) || 0
+            delta = -mult * oldQty
+          }
+        }
+
+        if (delta !== 0) {
+          setRows((prev) => {
+            const nextRows = prev.map((r) => {
+              if (r.needle_item_id !== needleItemId) return r
+              const newPrev = Math.max(0, r.previous + delta)
+              const present = newPrev + r.received + r.transfer_in - r.delivery - r.transfer_out
+              return {
+                ...r,
+                previous: newPrev,
+                present,
+              }
+            })
+
+            if (user?.profile?.id) {
+              saveSheetSnapshotToCache({
+                userId: user.profile.id,
+                date,
+                floorId,
+                category,
+                rows: nextRows,
+                requisitionNo: sheetReqNoRef.current || null,
+              }).catch(() => {})
+            }
+
+            return nextRows
+          })
+        }
+      }
+    },
+    [date, floorId, currentSheetKey, user?.profile?.id]
+  )
+
+  const handleRealtimeBnrChange = React.useCallback(
+    async (payload: RealtimePostgresChangesPayload<RealtimeBnrRecord>) => {
+      const record = (payload.eventType === 'DELETE' ? payload.old : payload.new) as RealtimeBnrRecord
+      if (!record || !record.needle_item_id) return
+      if (record.floor_id && record.floor_id !== floorId) return
+      if (record.category && record.category !== category) return
+      if (record.record_date && record.record_date !== date) return
+
+      const needleItemId = record.needle_item_id
+      const bnrQty = payload.eventType === 'DELETE' ? 0 : Number(record.quantity) || 0
+
+      let hasBnrPending = false
+      if (currentSheetKey) {
+        try {
+          const draft = await getSheetDraft(currentSheetKey)
+          const pendingOps = await getPendingOperations(currentSheetKey)
+          hasBnrPending = Boolean(
+            draft?.cells?.[needleItemId]?.bnr !== undefined ||
+            pendingOps.some(
+              (o) =>
+                o.needle_item_id === needleItemId &&
+                o.field === 'bnr' &&
+                (o.status === 'pending' || o.status === 'syncing' || o.status === 'failed')
+            )
+          )
+        } catch {}
+      }
+
+      if (!hasBnrPending) {
+        setRows((prev) => {
+          const nextRows = prev.map((r) =>
+            r.needle_item_id === needleItemId ? { ...r, bnr: bnrQty } : r
+          )
+
+          if (user?.profile?.id) {
+            saveSheetSnapshotToCache({
+              userId: user.profile.id,
+              date,
+              floorId,
+              category,
+              rows: nextRows,
+              requisitionNo: sheetReqNoRef.current || null,
+            }).catch(() => {})
+          }
+
+          return nextRows
+        })
+      }
+    },
+    [date, floorId, category, currentSheetKey, user?.profile?.id]
+  )
+
+  const handleRealtimeSheetChange = React.useCallback(
+    (payload: RealtimePostgresChangesPayload<RealtimeSheetRecord>) => {
+      const record = payload.new as RealtimeSheetRecord
+      if (!record) return
+      if (record.floor_id && record.floor_id !== floorId) return
+      if (record.category && record.category !== category) return
+      if (record.entry_date && record.entry_date !== date) return
+
+      if (record.req_no) {
+        setSheetReqNo(record.req_no)
+      }
+    },
+    [date, floorId, category]
+  )
+
+  const handleRealtimeReconnect = React.useCallback(() => {
+    loadSheetDataRef.current()
+  }, [])
+
+  // Activate Supabase Realtime multi-device synchronization (Sections 3, 4, 14, 15, 16)
+  useDailyEntryRealtime({
+    date,
+    floorId,
+    category,
+    enabled: Boolean(user?.profile?.id && floorId && category && date),
+    onTransactionChange: handleRealtimeTransactionChange,
+    onBnrChange: handleRealtimeBnrChange,
+    onSheetChange: handleRealtimeSheetChange,
+    onReconnect: handleRealtimeReconnect,
+  })
+
   // Connectivity detection & multi-tab recovery
   React.useEffect(() => {
     const handleOnline = async () => {
@@ -731,6 +999,21 @@ export function DailyEntryShell({
   // 3. Handle cell changes: Instant React state -> Immediate IndexedDB draft -> Debounced sync
   const handleCellChange = React.useCallback(
     (needleItemId: string, field: 'received' | 'delivery' | 'bnr', value: number) => {
+      // 0. Stock validation for delivery: Delivery cannot exceed available stock
+      if (field === 'delivery') {
+        const targetRow = rowsRef.current.find((r) => r.needle_item_id === needleItemId)
+        if (targetRow) {
+          const availableStock = Math.max(
+            0,
+            (targetRow.previous || 0) + (targetRow.received || 0) + (targetRow.transfer_in || 0) - (targetRow.transfer_out || 0)
+          )
+          if (value > availableStock) {
+            toast(`Delivery cannot exceed available stock (${availableStock}).`, 'error')
+            return
+          }
+        }
+      }
+
       // 1. Immediate local row recalculation for snappy responsiveness
       setRows((prev) =>
         prev.map((r) => {
@@ -814,16 +1097,108 @@ export function DailyEntryShell({
     if (!currentSheetKey) return
     try {
       const ops = await getPendingOperations(currentSheetKey)
-      const retryable = ops.filter((o: PendingSyncOperation) => o.status === 'failed' || o.status === 'conflict')
+      const retryable = ops.filter((o: PendingSyncOperation) => o.status === 'failed')
+      const conflicts = ops.filter((o: PendingSyncOperation) => o.status === 'conflict')
+
       if (retryable.length > 0) {
         await updateOperationsStatus(retryable.map((o: PendingSyncOperation) => o.id), 'pending')
+        setSaveStatus('syncing')
+        drainPendingQueue()
+      } else if (conflicts.length > 0) {
+        setConflictList(conflicts)
+        setConflictModalOpen(true)
       }
-      setSaveStatus('syncing')
-      drainPendingQueue()
-    } catch (err: any) {
-      toast(err.message || 'Retry failed', 'error')
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        toast(err.message || 'Retry failed', 'error')
+      }
     }
   }, [currentSheetKey, drainPendingQueue, toast])
+
+  // Conflict Resolution Handlers
+  const handleResolveConflictEdit = React.useCallback(
+    async (operationId: string, newDvld: number) => {
+      try {
+        const res = await resolveConflictEdit({ operationId, newDvld })
+        if (!res.success) {
+          toast(res.error || 'Failed to resolve conflict.', 'error')
+          return
+        }
+
+        const ops = await getPendingOperations(currentSheetKey)
+        const op = ops.find((o) => o.id === operationId)
+        const needleItemId = op?.needle_item_id
+
+        if (needleItemId) {
+          setRows((prev) =>
+            prev.map((r) => {
+              if (r.needle_item_id === needleItemId) {
+                const present = r.previous + r.received + r.transfer_in - newDvld - r.transfer_out
+                return {
+                  ...r,
+                  delivery: newDvld,
+                  present,
+                }
+              }
+              return r
+            })
+          )
+
+          if (user?.profile?.id) {
+            saveSheetSnapshotToCache({
+              userId: user.profile.id,
+              date,
+              floorId,
+              category,
+              rows: rowsRef.current.map((r) =>
+                r.needle_item_id === needleItemId
+                  ? {
+                      ...r,
+                      delivery: newDvld,
+                      present: r.previous + r.received + r.transfer_in - newDvld - r.transfer_out,
+                    }
+                  : r
+              ),
+              requisitionNo: sheetReqNoRef.current || null,
+            }).catch(() => {})
+          }
+        }
+
+        toast(`Delivery quantity updated to ${newDvld}. Resyncing...`, 'success')
+        await refreshQueueCounts()
+
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          drainPendingQueue()
+        }
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          toast(err.message || 'Failed to resolve conflict', 'error')
+        }
+      }
+    },
+    [currentSheetKey, user?.profile?.id, date, floorId, category, refreshQueueCounts, drainPendingQueue, toast]
+  )
+
+  const handleDiscardConflict = React.useCallback(
+    async (operationId: string) => {
+      try {
+        const res = await discardConflictOperation({ operationId })
+        if (!res.success) {
+          toast(res.error || 'Failed to discard conflict.', 'error')
+          return
+        }
+
+        toast('Conflicted delivery change discarded.', 'info')
+        await refreshQueueCounts()
+        await loadSheetData()
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          toast(err.message || 'Failed to discard conflict', 'error')
+        }
+      }
+    },
+    [refreshQueueCounts, loadSheetData, toast]
+  )
 
 
   // 4. Handle Requisition Number Confirmation
@@ -1080,6 +1455,7 @@ export function DailyEntryShell({
             pendingCount={pendingCount}
             conflictCount={conflictCount}
             onRetry={handleManualRetry}
+            onOpenConflicts={() => setConflictModalOpen(true)}
           />
           <button
             type="button"
@@ -1109,6 +1485,7 @@ export function DailyEntryShell({
         pendingCount={pendingCount}
         conflictCount={conflictCount}
         onRetry={handleManualRetry}
+        onOpenConflicts={() => setConflictModalOpen(true)}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         user={user}
@@ -1169,6 +1546,17 @@ export function DailyEntryShell({
         currentFloor={currentFloorObj}
         activeFloors={allActiveFloors}
         onConfirm={handleTransferConfirm}
+      />
+
+      {/* Conflict Resolution Modal */}
+      <ConflictResolutionModal
+        isOpen={conflictModalOpen}
+        onClose={() => setConflictModalOpen(false)}
+        conflicts={conflictList}
+        onResolveEdit={handleResolveConflictEdit}
+        onDiscard={handleDiscardConflict}
+        authorizedFloors={authorizedFloors}
+        rows={rows}
       />
     </div>
   )

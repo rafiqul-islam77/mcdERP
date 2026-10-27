@@ -34,9 +34,9 @@ export async function getCurrentProfile(): Promise<ProfileWithRelations | null> 
 
   if (!profile) return null
 
-  const p = profile as any
+  const p = profile as unknown as ProfileWithRelations
   const floorIds: string[] = Array.isArray(p.floor_ids) && p.floor_ids.length > 0
-    ? p.floor_ids
+    ? (p.floor_ids as string[])
     : (p.floor_id ? [p.floor_id] : [])
 
   if (floorIds.length > 0) {
@@ -51,7 +51,7 @@ export async function getCurrentProfile(): Promise<ProfileWithRelations | null> 
     p.assigned_floors = []
   }
 
-  return p as ProfileWithRelations
+  return p
 }
 
 /**

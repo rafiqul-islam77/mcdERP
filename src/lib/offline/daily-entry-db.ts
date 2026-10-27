@@ -230,9 +230,9 @@ export async function saveCellDraftAndEnqueueOp(params: {
 
       cellQuery.onsuccess = () => {
         const matches: PendingSyncOperation[] = cellQuery.result || []
-        // Look for existing pending or failed entry
+        // Look for existing pending, failed or conflict entry
         const unconfirmed = matches.find(
-          (m) => m.status === 'pending' || m.status === 'failed' || m.status === 'syncing'
+          (m) => m.status === 'pending' || m.status === 'failed' || m.status === 'syncing' || m.status === 'conflict'
         )
 
         if (unconfirmed) {
@@ -394,7 +394,8 @@ export async function updateOperationsStatus(
  */
 export async function markOperationConflict(
   id: string,
-  conflictMessage: string
+  conflictMessage: string,
+  serverAvailableStock?: number
 ): Promise<void> {
   const db = await openDB()
   return new Promise((resolve, reject) => {
@@ -408,6 +409,15 @@ export async function markOperationConflict(
         item.status = 'conflict'
         item.error = conflictMessage
         item.updated_at = Date.now()
+        if (serverAvailableStock !== undefined) {
+          item.server_available_stock = serverAvailableStock
+        } else {
+          // Backward compatibility: parse available stock from conflict message if present
+          const match = conflictMessage.match(/available stock[^\d]*(\d+)/i)
+          if (match && match[1]) {
+            item.server_available_stock = parseInt(match[1], 10)
+          }
+        }
         store.put(item)
       }
     }
@@ -419,6 +429,169 @@ export async function markOperationConflict(
     tx.onerror = () => {
       db.close()
       reject(tx.error || new Error('Failed to mark operation conflict.'))
+    }
+  })
+}
+
+/**
+ * Retrieve conflict operations, normalizing server_available_stock for legacy conflict items.
+ */
+export async function getConflictOperations(
+  sheetKey?: string
+): Promise<PendingSyncOperation[]> {
+  const ops = await getPendingOperations(sheetKey)
+  return ops
+    .filter((o) => o.status === 'conflict')
+    .map((o) => {
+      if (o.server_available_stock === undefined || o.server_available_stock === null) {
+        const match = o.error?.match(/available stock[^\d]*(\d+)/i)
+        if (match && match[1]) {
+          return {
+            ...o,
+            server_available_stock: parseInt(match[1], 10),
+          }
+        }
+      }
+      return o
+    })
+}
+
+/**
+ * Resolve a conflicted operation by replacing the invalid delivery value with a valid quantity.
+ * Updates local draft, sets new client_operation_id for idempotency, resets status to 'pending', and clears error.
+ */
+export async function resolveConflictEdit(params: {
+  operationId: string
+  newDvld: number
+}): Promise<{ success: boolean; error?: string; operation?: PendingSyncOperation }> {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([STORE_DRAFTS, STORE_QUEUE], 'readwrite')
+    const queueStore = tx.objectStore(STORE_QUEUE)
+    const draftsStore = tx.objectStore(STORE_DRAFTS)
+
+    let updatedOp: PendingSyncOperation | undefined
+
+    const getReq = queueStore.get(params.operationId)
+    getReq.onsuccess = () => {
+      const op: PendingSyncOperation | undefined = getReq.result
+      if (!op) {
+        return resolve({ success: false, error: 'Conflict operation not found in queue.' })
+      }
+
+      // Check available stock
+      let availableStock = op.server_available_stock
+      if (availableStock === undefined || availableStock === null) {
+        const match = op.error?.match(/available stock[^\d]*(\d+)/i)
+        if (match && match[1]) {
+          availableStock = parseInt(match[1], 10)
+        }
+      }
+
+      if (params.newDvld < 0) {
+        return resolve({ success: false, error: 'Delivery quantity cannot be negative.' })
+      }
+
+      if (availableStock !== undefined && availableStock !== null && params.newDvld > availableStock) {
+        return resolve({
+          success: false,
+          error: `Delivery quantity (${params.newDvld}) exceeds available stock (${availableStock}).`,
+        })
+      }
+
+      const now = Date.now()
+
+      // 1. Update queue operation with fresh idempotency identity
+      op.value = params.newDvld
+      op.status = 'pending'
+      op.client_operation_id = getUUID()
+      op.error = null
+      op.retry_count = 0
+      op.updated_at = now
+      queueStore.put(op)
+      updatedOp = op
+
+      // 2. Update local draft store
+      const draftReq = draftsStore.get(op.sheet_key)
+      draftReq.onsuccess = () => {
+        const draft: LocalDailySheetDraft | undefined = draftReq.result
+        if (draft && draft.cells) {
+          const cell = draft.cells[op.needle_item_id] || {}
+          cell[op.field] = params.newDvld
+          draft.cells[op.needle_item_id] = cell
+          draft.updated_at = now
+          draftsStore.put(draft)
+        }
+      }
+    }
+
+    tx.oncomplete = () => {
+      db.close()
+      resolve({ success: true, operation: updatedOp })
+    }
+
+    tx.onerror = () => {
+      db.close()
+      reject(tx.error || new Error('Failed to resolve conflict edit.'))
+    }
+  })
+}
+
+/**
+ * Discard a conflicted operation:
+ * Removes operation from queue, clears the invalid cell field from draft,
+ * allowing authoritative server data to be restored without deleting server ledger transactions.
+ */
+export async function discardConflictOperation(params: {
+  operationId: string
+}): Promise<{ success: boolean; error?: string; discardedOp?: PendingSyncOperation }> {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([STORE_DRAFTS, STORE_QUEUE], 'readwrite')
+    const queueStore = tx.objectStore(STORE_QUEUE)
+    const draftsStore = tx.objectStore(STORE_DRAFTS)
+
+    let discardedOp: PendingSyncOperation | undefined
+
+    const getReq = queueStore.get(params.operationId)
+    getReq.onsuccess = () => {
+      discardedOp = getReq.result
+      if (!discardedOp) {
+        return resolve({ success: false, error: 'Conflict operation not found in queue.' })
+      }
+
+      // 1. Delete operation from queue
+      queueStore.delete(params.operationId)
+
+      // 2. Remove cell field from draft store
+      const draftReq = draftsStore.get(discardedOp.sheet_key)
+      draftReq.onsuccess = () => {
+        const draft: LocalDailySheetDraft | undefined = draftReq.result
+        if (draft && draft.cells && draft.cells[discardedOp!.needle_item_id]) {
+          delete draft.cells[discardedOp!.needle_item_id][discardedOp!.field]
+          const cell = draft.cells[discardedOp!.needle_item_id]
+          if (
+            cell.received === undefined &&
+            cell.delivery === undefined &&
+            cell.bnr === undefined &&
+            !cell.req_no
+          ) {
+            delete draft.cells[discardedOp!.needle_item_id]
+          }
+          draft.updated_at = Date.now()
+          draftsStore.put(draft)
+        }
+      }
+    }
+
+    tx.oncomplete = () => {
+      db.close()
+      resolve({ success: true, discardedOp })
+    }
+
+    tx.onerror = () => {
+      db.close()
+      reject(tx.error || new Error('Failed to discard conflict operation.'))
     }
   })
 }

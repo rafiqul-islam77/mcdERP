@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { ArrowRightLeft, Layers, WifiOff } from 'lucide-react'
+import { AlertCircle, ArrowRightLeft, Layers, WifiOff } from 'lucide-react'
 import type { DailyEntryRowItem } from '@/types'
 
 const EDITABLE_FIELDS = ['received', 'delivery', 'bnr'] as const
@@ -38,10 +38,38 @@ export function DailyEntryTable({
   const [localEdits, setLocalEdits] = React.useState<
     Record<string, { received?: string; delivery?: string; bnr?: string }>
   >({})
+  const [validationError, setValidationError] = React.useState<{
+    needleItemId: string
+    message: string
+  } | null>(null)
+  const validationTimerRef = React.useRef<NodeJS.Timeout | null>(null)
 
-  // Clear local typing state when date, floor, or category changes so inputs never carry over
+  const showValidationError = React.useCallback(
+    (needleItemId: string, message: string) => {
+      if (validationTimerRef.current) {
+        clearTimeout(validationTimerRef.current)
+      }
+      setValidationError({ needleItemId, message })
+      validationTimerRef.current = setTimeout(() => {
+        setValidationError(null)
+        validationTimerRef.current = null
+      }, 5000)
+    },
+    []
+  )
+
+  React.useEffect(() => {
+    return () => {
+      if (validationTimerRef.current) {
+        clearTimeout(validationTimerRef.current)
+      }
+    }
+  }, [])
+
+  // Clear local typing state & validation errors when date, floor, or category changes so inputs never carry over
   React.useEffect(() => {
     setLocalEdits({})
+    setValidationError(null)
   }, [sheetKey])
 
   // Compute column totals
@@ -59,11 +87,14 @@ export function DailyEntryTable({
     )
   }, [rows])
 
-    const handleInputChange = (
+  const handleInputChange = (
     needleItemId: string,
     field: EditableField,
     valStr: string
   ) => {
+    if (validationError?.needleItemId === needleItemId && field === 'delivery') {
+      setValidationError(null)
+    }
     // Only update local input state while typing so that multi-digit entries aren't interrupted
     setLocalEdits((prev) => ({
       ...prev,
@@ -83,6 +114,41 @@ export function DailyEntryTable({
     if (editStr !== undefined) {
       const valNum = editStr === '' ? 0 : Number(editStr)
       if (!isNaN(valNum) && valNum >= 0) {
+        // Validation check for delivery
+        if (field === 'delivery') {
+          const row = rows.find((r) => r.needle_item_id === needleItemId)
+          if (row) {
+            const effectiveRcvd =
+              localEdits[needleItemId]?.received !== undefined
+                ? (localEdits[needleItemId].received === '' ? 0 : Number(localEdits[needleItemId].received))
+                : (row.received || 0)
+            const availableStock = Math.max(
+              0,
+              (row.previous || 0) + (effectiveRcvd || 0) + (row.transfer_in || 0) - (row.transfer_out || 0)
+            )
+
+            if (valNum > availableStock) {
+              showValidationError(
+                needleItemId,
+                `Delivery cannot exceed available stock (${availableStock}).`
+              )
+              // Reset local edits back to last saved value
+              setLocalEdits((prev) => ({
+                ...prev,
+                [needleItemId]: {
+                  ...prev[needleItemId],
+                  delivery: currentSavedValue > 0 ? String(currentSavedValue) : '',
+                },
+              }))
+              return
+            }
+          }
+        }
+
+        if (validationError?.needleItemId === needleItemId) {
+          setValidationError(null)
+        }
+
         if (valNum !== currentSavedValue) {
           onCellChange(needleItemId, field, valNum)
         }
@@ -92,7 +158,7 @@ export function DailyEntryTable({
           ...prev,
           [needleItemId]: {
             ...prev[needleItemId],
-            [field]: String(currentSavedValue || ''),
+            [field]: currentSavedValue > 0 ? String(currentSavedValue) : '',
           },
         }))
       }
@@ -106,9 +172,9 @@ export function DailyEntryTable({
   ) => {
     if (e.key === 'Enter' || e.key === 'ArrowDown') {
       const nextIndex = rowIndex + 1
+      e.currentTarget.blur()
       if (nextIndex < rows.length) {
         e.preventDefault()
-        e.currentTarget.blur()
         setTimeout(() => {
           if (document.querySelector('[role="dialog"]')) {
             return
@@ -220,6 +286,22 @@ export function DailyEntryTable({
           <span className="font-medium">
             {coverageMessage || 'Connect to network to load stock data for this date.'}
           </span>
+        </div>
+      )}
+      {validationError && (
+        <div className="p-2 px-3 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+            <span className="font-medium">{validationError.message}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setValidationError(null)}
+            className="text-rose-500 hover:text-rose-700 dark:hover:text-rose-200 font-bold ml-2 text-sm leading-none cursor-pointer"
+            title="Dismiss"
+          >
+            ×
+          </button>
         </div>
       )}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded shadow-xs overflow-hidden w-full">
@@ -401,8 +483,20 @@ export function DailyEntryTable({
                       handleBlur(row.needle_item_id, 'delivery', row.delivery)
                     }
                     onKeyDown={(e) => handleKeyDown(e, idx, 'delivery')}
-                    className="w-full h-6 py-0 px-0.5 text-center rounded border border-blue-300 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20 text-blue-950 dark:text-blue-200 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 text-[11px] sm:text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`w-full h-6 py-0 px-0.5 text-center rounded border font-bold focus:outline-none focus:ring-1 text-[11px] sm:text-xs disabled:opacity-50 disabled:cursor-not-allowed ${
+                      validationError?.needleItemId === row.needle_item_id
+                        ? 'border-rose-500 dark:border-rose-600 bg-rose-50/50 dark:bg-rose-950/40 text-rose-950 dark:text-rose-200 focus:ring-rose-500 ring-1 ring-rose-500'
+                        : 'border-blue-300 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20 text-blue-950 dark:text-blue-200 focus:ring-blue-500'
+                    }`}
                   />
+                  {validationError?.needleItemId === row.needle_item_id && (
+                    <span
+                      className="mt-0.5 block w-full text-center text-[7.5px] sm:text-[8.5px] font-sans text-rose-600 dark:text-rose-400 font-bold truncate leading-tight"
+                      title={validationError.message}
+                    >
+                      Max: {Math.max(0, (row.previous || 0) + (row.received || 0) + (row.transfer_in || 0) - (row.transfer_out || 0))}
+                    </span>
+                  )}
                 </td>
 
                 {/* PRESENT (Read-only calculated) */}

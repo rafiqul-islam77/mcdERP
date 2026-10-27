@@ -110,10 +110,11 @@ export function NeedleTable({
         setDbReady(false)
         toast(res.error || 'Failed to load needles.', 'error')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setItems([])
       setDbReady(false)
-      toast(err.message || 'Error loading needle records.', 'error')
+      const message = err instanceof Error ? err.message : 'Error loading needle records.'
+      toast(message, 'error')
     } finally {
       setLoading(false)
     }
@@ -127,7 +128,7 @@ export function NeedleTable({
   const handleCellChange = (
     itemId: string,
     field: string,
-    value: any
+    value: string | number | boolean | null
   ) => {
     if (!canEdit) return
 
@@ -170,9 +171,10 @@ export function NeedleTable({
           setSaveError(res.error || 'Save failed')
           toast(res.error || 'Unable to save change.', 'error')
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         setSaveStatus('error')
-        setSaveError(err.message || 'Save failed')
+        const message = err instanceof Error ? err.message : 'Save failed'
+        setSaveError(message)
       }
     }, 500)
   }
@@ -255,9 +257,10 @@ export function NeedleTable({
         toast(res.error || 'Failed to update floor assignment.', 'error')
         fetchData()
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setSaveStatus('error')
-      setSaveError(err.message || 'Floor update failed')
+      const message = err instanceof Error ? err.message : 'Floor update failed'
+      setSaveError(message)
       fetchData()
     }
   }
@@ -308,9 +311,10 @@ export function NeedleTable({
         toast(res.error || 'Failed to update floors.', 'error')
         fetchData()
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setSaveStatus('error')
-      setSaveError(err.message || 'Floor update failed')
+      const message = err instanceof Error ? err.message : 'Floor update failed'
+      setSaveError(message)
       fetchData()
     }
   }
@@ -393,9 +397,10 @@ export function NeedleTable({
         setSaveStatus('error')
         toast(res.error || 'Failed to create needle item.', 'error')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setSaveStatus('error')
-      toast(err.message || 'Error creating needle item.', 'error')
+      const message = err instanceof Error ? err.message : 'Error creating needle item.'
+      toast(message, 'error')
     } finally {
       setIsSubmittingDraft(false)
     }
@@ -417,8 +422,9 @@ export function NeedleTable({
       } else {
         toast(res.error || 'Failed to delete needle.', 'error')
       }
-    } catch (err: any) {
-      toast(err.message || 'Error deleting needle.', 'error')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error deleting needle.'
+      toast(message, 'error')
     } finally {
       setIsDeleting(false)
       setItemToDelete(null)

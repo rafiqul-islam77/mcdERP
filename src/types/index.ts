@@ -384,6 +384,7 @@ export interface PendingSyncOperation {
   status: 'pending' | 'syncing' | 'failed' | 'conflict'
   retry_count: number
   error?: string | null
+  server_available_stock?: number | null
   created_at: number
   updated_at: number
   last_attempt_at?: number | null

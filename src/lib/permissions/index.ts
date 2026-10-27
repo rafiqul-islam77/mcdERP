@@ -30,7 +30,7 @@ export async function getUserPermissions(profileId: string): Promise<string[]> {
     const { data: allPerms } = await supabase
       .from('permissions')
       .select('key')
-    return (allPerms || []).map((p: any) => p.key)
+    return ((allPerms as Array<{ key: string }> | null) || []).map((p) => p.key)
   }
 
   // Otherwise, fetch role_permissions

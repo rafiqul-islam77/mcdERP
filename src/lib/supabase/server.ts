@@ -1,5 +1,6 @@
 // server-only – do not import in browser components or Client Components.
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 /**
@@ -10,7 +11,7 @@ import { cookies } from 'next/headers'
  *
  * Call this once per request; do NOT cache the return value across requests.
  */
-export async function createClient(): Promise<any> {
+export async function createClient(): Promise<SupabaseClient> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
@@ -27,7 +28,7 @@ export async function createClient(): Promise<any> {
       getAll() {
         return cookieStore.getAll()
       },
-      setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
+      setAll(cookiesToSet: Array<{ name: string; value: string; options?: CookieOptions }>) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
             cookieStore.set(name, value, options),

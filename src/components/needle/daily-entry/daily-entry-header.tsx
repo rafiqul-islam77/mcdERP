@@ -20,6 +20,7 @@ interface DailyEntryHeaderProps {
   pendingCount?: number
   conflictCount?: number
   onRetry?: () => void
+  onOpenConflicts?: () => void
   searchTerm: string
   onSearchChange: (term: string) => void
   user: CurrentUser
@@ -45,6 +46,7 @@ export function DailyEntryHeader({
   pendingCount = 0,
   conflictCount = 0,
   onRetry,
+  onOpenConflicts,
   searchTerm,
   onSearchChange,
   user,
@@ -114,6 +116,7 @@ export function DailyEntryHeader({
               pendingCount={pendingCount}
               conflictCount={conflictCount}
               onRetry={onRetry}
+              onOpenConflicts={onOpenConflicts}
             />
             <button
               type="button"

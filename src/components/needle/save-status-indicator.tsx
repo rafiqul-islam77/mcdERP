@@ -20,6 +20,7 @@ interface SaveStatusIndicatorProps {
   pendingCount?: number
   conflictCount?: number
   onRetry?: () => void
+  onOpenConflicts?: () => void
 }
 
 export function SaveStatusIndicator({
@@ -29,6 +30,7 @@ export function SaveStatusIndicator({
   pendingCount = 0,
   conflictCount = 0,
   onRetry,
+  onOpenConflicts,
 }: SaveStatusIndicatorProps) {
   if (status === 'offline') {
     return (
@@ -63,15 +65,19 @@ export function SaveStatusIndicator({
   if (status === 'conflict') {
     return (
       <div
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 select-none"
-        title={errorMessage || 'Stock validation conflict on sync. Server stock data changed.'}
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 select-none cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors"
+        title={errorMessage || 'Stock validation conflict on sync. Server stock data changed. Click to resolve.'}
+        onClick={onOpenConflicts}
       >
         <AlertTriangle className="w-3 h-3 text-amber-600" />
         <span>Conflict • {conflictCount || 1} items</span>
         {onRetry && (
           <button
             type="button"
-            onClick={onRetry}
+            onClick={(e) => {
+              e.stopPropagation()
+              onRetry()
+            }}
             className="underline hover:text-amber-950 ml-0.5 font-semibold text-[11px]"
           >
             Retry

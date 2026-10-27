@@ -104,15 +104,17 @@ export async function getAuthorizedContextAction(): Promise<
   const actor = await requireActiveAccount()
   const admin = getAdminClient()
 
-  const { data: allFloors, error: floorError } = await admin
+  const { data: rawFloors, error: floorError } = await admin
     .from('floors')
     .select('id, code, name, description, active, sort_order')
     .eq('active', true)
     .order('sort_order', { ascending: true })
 
-  if (floorError || !allFloors) {
+  if (floorError || !rawFloors) {
     return { success: false, error: 'Failed to load floors' }
   }
+
+  const allFloors = rawFloors as unknown as Floor[]
 
   // Filter authorized floors for current user
   const authorizedFloors = actor.isSiteAdmin
@@ -155,15 +157,17 @@ export async function getAuthorizedNeedleMasterCacheAction(): Promise<
   const admin = getAdminClient()
 
   // 1. Fetch all active floors
-  const { data: allFloors, error: floorError } = await admin
+  const { data: rawFloors, error: floorError } = await admin
     .from('floors')
     .select('id, code, name, description, active, sort_order')
     .eq('active', true)
     .order('sort_order', { ascending: true })
 
-  if (floorError || !allFloors) {
+  if (floorError || !rawFloors) {
     return { success: false, error: 'Failed to load floors' }
   }
+
+  const allFloors = rawFloors as unknown as Floor[]
 
   // 2. Determine authorized floors for current user
   const authorizedFloors = actor.isSiteAdmin
@@ -689,6 +693,8 @@ export async function saveDailyEntryCellAction(params: {
       let previous = 0
       let curReceived = 0
       let curTransferIn = 0
+      let curTransferOut = 0
+      let curAdjustment = 0
       let existingTargetTx: any = null
 
       for (const t of allTx || []) {
@@ -702,14 +708,16 @@ export async function saveDailyEntryCellAction(params: {
         } else if (isCurrent) {
           if (t.transaction_type === 'RECEIVE') curReceived += qty
           if (t.transaction_type === 'TRANSFER_IN') curTransferIn += qty
+          if (t.transaction_type === 'TRANSFER_OUT') curTransferOut += qty
+          if (t.transaction_type === 'ADJUSTMENT_IN') curAdjustment += qty
+          if (t.transaction_type === 'ADJUSTMENT_OUT') curAdjustment -= qty
           if (t.transaction_type === targetType) existingTargetTx = t
         }
       }
 
-      // Delivery validation: Delivery cannot exceed (previous + received + transfer_in)
+      // Delivery validation: Delivery cannot exceed available stock
       if (params.field === 'delivery') {
-        const effectiveReceived = curReceived
-        const availableStock = previous + effectiveReceived + curTransferIn
+        const availableStock = Math.max(0, previous + curReceived + curTransferIn - curTransferOut + curAdjustment)
         if (params.value > availableStock) {
           return {
             success: false,
@@ -1154,6 +1162,7 @@ export interface BatchSyncOperationResult {
   success: boolean
   error?: string
   isConflict?: boolean
+  availableStock?: number
 }
 
 /**
@@ -1347,6 +1356,8 @@ export async function batchSyncDailyEntryAction(params: {
         let previous = 0
         let curReceived = 0
         let curTransferIn = 0
+        let curTransferOut = 0
+        let curAdjustment = 0
         let existingTargetTx: any = null
 
         for (const t of allTx || []) {
@@ -1360,19 +1371,23 @@ export async function batchSyncDailyEntryAction(params: {
           } else if (isCurrent) {
             if (t.transaction_type === 'RECEIVE') curReceived += qty
             if (t.transaction_type === 'TRANSFER_IN') curTransferIn += qty
+            if (t.transaction_type === 'TRANSFER_OUT') curTransferOut += qty
+            if (t.transaction_type === 'ADJUSTMENT_IN') curAdjustment += qty
+            if (t.transaction_type === 'ADJUSTMENT_OUT') curAdjustment -= qty
             if (t.transaction_type === targetType) existingTargetTx = t
           }
         }
 
         // Server-side Stock Validation for DELIVERY
         if (op.field === 'delivery') {
-          const availableStock = previous + curReceived + curTransferIn
+          const availableStock = Math.max(0, previous + curReceived + curTransferIn - curTransferOut + curAdjustment)
           if (op.value > availableStock) {
             results.push({
               id: op.id,
               client_operation_id: op.client_operation_id,
               success: false,
               isConflict: true,
+              availableStock,
               error: `Delivery quantity (${op.value}) exceeds available stock (${availableStock}).`,
             })
             continue
