@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs'
 import type { DailyReportData } from '@/types'
+import { formatFloorDisplayName } from './report-utils'
 
 const BORDER_THIN: Partial<ExcelJS.Borders> = {
   top: { style: 'thin', color: { argb: 'FF000000' } },
@@ -138,10 +139,8 @@ export function buildPresentBalanceSheet(
   ws.getRow(5).height = 20
   ws.mergeCells('A5:N5')
   const a5 = ws.getCell('A5')
-  const floorDesc = report.locationName
-    ? `${report.floorName} (${report.locationName})_${report.category}`
-    : `${report.floorName}_${report.category}`
-  a5.value = `Floor: ${floorDesc}   |   Date: ${report.date}   |   Category: ${report.category}   |   Operator: ${report.operatorName || 'Unknown'}   |   Source: ${report.sourceNote || '✅ Actual data: ' + report.date}`
+  const floorDesc = formatFloorDisplayName(report.floorName, report.locationName)
+  a5.value = `Floor: ${floorDesc}   |   Date: ${report.date}   |   Category: ${report.category}`
   a5.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF334155' } }
   a5.alignment = { horizontal: 'left', vertical: 'middle' }
   a5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }

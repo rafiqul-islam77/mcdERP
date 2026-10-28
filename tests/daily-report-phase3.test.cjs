@@ -103,12 +103,14 @@ test('Phase 3: Present Balance Excel matches reference workbook structure', asyn
   assert.ok(String(ws.getCell('I1').value).includes('QA/03/310'))
   assert.ok(String(ws.getCell('I1').value).includes('01/2026'))
 
-  // 3. Metadata cell
+  // 3. Metadata cell (only Floor, Date, Category - no Operator, no Source, no _NEW appended)
   const metaVal = String(ws.getCell('A5').value)
-  assert.ok(metaVal.includes('A-FLOOR'))
-  assert.ok(metaVal.includes('BUILDING NO-02'))
-  assert.ok(metaVal.includes('2026-10-24'))
-  assert.ok(metaVal.includes('Md. Operator'))
+  assert.ok(metaVal.includes('Floor: A-FLOOR (BUILDING NO-02)'))
+  assert.ok(metaVal.includes('Date: 2026-10-24'))
+  assert.ok(metaVal.includes('Category: NEW'))
+  assert.equal(metaVal.includes('Operator:'), false, 'Operator must NOT appear in metadata')
+  assert.equal(metaVal.includes('Source:'), false, 'Source must NOT appear in metadata')
+  assert.equal(metaVal.includes('A-FLOOR (BUILDING NO-02)_NEW'), false, 'Category must NOT be appended to floor name')
 
   // 4. Data rows
   assert.equal(ws.getCell('A8').value, 1) // SL
@@ -182,6 +184,12 @@ test('Phase 3: PDF generator generates valid Present Balance document', async ()
   assert.equal(Math.round(doc.internal.pageSize.getHeight()), 210) // Landscape A4 height
   const output = doc.output()
   assert.ok(output.includes('%PDF-'), 'Valid PDF header generated')
+  assert.equal(output.includes('F l o o r :'), false, 'PDF text must NOT have spaced letters')
+  assert.ok(output.includes('Floor: A-FLOOR') && output.includes('BUILDING NO-02'), 'PDF text has normal word and letter spacing')
+  assert.equal(output.includes('Operator:'), false, 'Operator must NOT appear in PDF')
+  assert.equal(output.includes('Source:'), false, 'Source must NOT appear in PDF')
+  assert.ok(output.includes('(TOTAL)'), 'TOTAL must appear in PDF text stream')
+  assert.equal(output.includes('T O T A L'), false, 'TOTAL must NOT have broken character spacing')
 })
 
 test('Phase 3: Parity validation between Daily Entry and Present Balance rows', () => {

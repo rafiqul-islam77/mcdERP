@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { DailyReportData } from '@/types'
+import { formatFloorDisplayName } from './report-utils'
 
 /**
  * Generate official PDF for Daily Sewing Needle Present Balance Report
@@ -76,10 +77,8 @@ export function generatePresentBalancePDF(report: DailyReportData): jsPDF {
   doc.setFontSize(7)
   doc.setTextColor(51, 65, 85) // #334155
 
-  const floorLabel = report.locationName
-    ? `${report.floorName} (${report.locationName})_${report.category}`
-    : `${report.floorName}_${report.category}`
-  const metaText = `Floor: ${floorLabel}   |   Date: ${report.date}   |   Category: ${report.category}   |   Operator: ${report.operatorName || 'Unknown'}   |   Source: ${report.sourceNote || '✅ Actual data: ' + report.date}`
+  const floorLabel = formatFloorDisplayName(report.floorName, report.locationName)
+  const metaText = `Floor: ${floorLabel}   |   Date: ${report.date}   |   Category: ${report.category}`
   doc.text(metaText, leftMargin + 3, metaY + 3.8)
 
   // 2. Prepare Table Body and Headers
@@ -124,7 +123,7 @@ export function generatePresentBalancePDF(report: DailyReportData): jsPDF {
     '',
     '',
     '',
-    'TOTAL →',
+    '',
     report.summary.totalPrevious.toLocaleString(),
     report.summary.totalReceived.toLocaleString(),
     '',
@@ -176,19 +175,41 @@ export function generatePresentBalancePDF(report: DailyReportData): jsPDF {
       13: { halign: 'left', cellWidth: 'auto' }, // NOTE
     },
     didParseCell: (data) => {
-      // Style Total Row
-      if (data.row.index === tableBody.length - 1) {
+      // Style Total Row: entire row has dark navy background, white bold text, and aligned cells
+      if (data.section === 'body' && data.row.index === tableBody.length - 1) {
+        data.cell.styles.fillColor = [51, 65, 85]
+        data.cell.styles.textColor = [255, 255, 255]
         data.cell.styles.fontStyle = 'bold'
-        if (data.column.index === 5) {
-          data.cell.styles.fillColor = [51, 65, 85]
-          data.cell.styles.textColor = [255, 255, 255]
+        data.cell.styles.fontSize = 7
+        data.cell.styles.minCellHeight = 6
+        data.cell.styles.cellPadding = 1.4
+        if ([6, 7, 9, 10, 11].includes(data.column.index)) {
           data.cell.styles.halign = 'right'
-        } else if (data.column.index === 10) {
-          data.cell.styles.fillColor = [255, 243, 214]
-          data.cell.styles.textColor = [146, 64, 14]
-        } else if ([6, 7, 9, 11].includes(data.column.index)) {
-          data.cell.styles.fillColor = [241, 245, 249]
         }
+      }
+    },
+    didDrawCell: (data) => {
+      // Custom render "TOTAL →" in column 5 of Total Row with crisp Helvetica and vector arrow
+      if (data.section === 'body' && data.row.index === tableBody.length - 1 && data.column.index === 5) {
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(7)
+        doc.setTextColor(255, 255, 255)
+        const label = 'TOTAL'
+        const textW = doc.getTextWidth(label)
+        const arrowW = 2.4
+        const gap = 1.2
+        const totalContentW = textW + gap + arrowW
+        const startX = data.cell.x + (data.cell.width - totalContentW) / 2
+        const cellCenterY = data.cell.y + data.cell.height / 2
+        doc.text(label, startX, cellCenterY, { baseline: 'middle' })
+
+        const arrowStartX = startX + textW + gap
+        const arrowEndX = arrowStartX + arrowW
+        doc.setDrawColor(255, 255, 255)
+        doc.setLineWidth(0.35)
+        doc.line(arrowStartX, cellCenterY, arrowEndX, cellCenterY)
+        doc.line(arrowEndX - 0.7, cellCenterY - 0.6, arrowEndX, cellCenterY)
+        doc.line(arrowEndX - 0.7, cellCenterY + 0.6, arrowEndX, cellCenterY)
       }
     },
   })

@@ -30,12 +30,12 @@ export function AppShell({
           </React.Suspense>
 
           {/* Main Content Area */}
-          <div className="flex-1 lg:ml-60 flex flex-col min-h-screen min-w-0">
+          <div className="flex-1 lg:ml-60 flex flex-col min-h-screen min-w-0 print:ml-0 print:block">
             <Header
               user={user}
               onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
             />
-            <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+            <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto print:p-0 print:m-0 print:max-w-none print:w-full">
               {children}
             </main>
           </div>

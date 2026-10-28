@@ -17,6 +17,7 @@ import { PresentBalanceTable } from '@/components/reports/present-balance-table'
 import { ReportSkeleton } from '@/components/reports/report-skeleton'
 import { getDailyReportAction } from '@/app/actions/reports'
 import { generatePresentBalancePDF } from '@/lib/reports/pdf-generator'
+import { formatFloorDisplayName } from '@/lib/reports/report-utils'
 import type { DailyEntryCategory, DailyReportData, Floor } from '@/types'
 
 interface DailyReportClientProps {
@@ -36,7 +37,6 @@ export function DailyReportClient({
 }: DailyReportClientProps) {
   // 1. Initial State
   const [date, setDate] = React.useState<string>(() => {
-    // Default to today's date (or 2026-10-24 if desired for initial seed)
     return new Date().toISOString().slice(0, 10)
   })
 
@@ -54,6 +54,9 @@ export function DailyReportClient({
   const [exportingStock, setExportingStock] = React.useState<boolean>(false)
   const [exportingPresent, setExportingPresent] = React.useState<boolean>(false)
   const [exportingPdf, setExportingPdf] = React.useState<boolean>(false)
+
+  // Any ongoing export prevents double-clicks
+  const isAnyExporting = exportingStock || exportingPresent || exportingPdf
 
   // 2. Permission checks
   const canExportStock =
@@ -118,55 +121,79 @@ export function DailyReportClient({
     loadReport()
   }, [loadReport])
 
-  // 4. Export handlers
+  // 4. Export handlers with progress states and duplicate-click prevention
   const handleExportStockExcel = async () => {
+    if (isAnyExporting) return
     try {
       setExportingStock(true)
+      setError(null)
       const url = `/api/reports/stock-excel?date=${encodeURIComponent(date)}&floorId=${encodeURIComponent(
         selectedFloorId
       )}`
+      const res = await fetch(url)
+      if (!res.ok) {
+        throw new Error('Stock report export failed. Try again.')
+      }
+      const blob = await res.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url
-      a.download = `STOCK REPORT ${date}.xlsx`
+      a.href = downloadUrl
+      const dateParts = date.split('-')
+      const formattedDate = dateParts.length === 3 ? `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}` : date
+      a.download = `STOCK REPORT ${formattedDate}.xlsx`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
+      window.URL.revokeObjectURL(downloadUrl)
     } catch (err: any) {
-      setError(`Failed to export Stock Excel: ${err.message}`)
+      setError(err.message || 'Excel generation failed. Try again.')
     } finally {
       setExportingStock(false)
     }
   }
 
   const handleExportPresentExcel = async () => {
+    if (isAnyExporting) return
     try {
       setExportingPresent(true)
+      setError(null)
       const url = `/api/reports/present-balance-excel?date=${encodeURIComponent(
         date
       )}&floorId=${encodeURIComponent(selectedFloorId)}&category=${encodeURIComponent(selectedCategory)}`
+      const res = await fetch(url)
+      if (!res.ok) {
+        throw new Error('Present balance export failed. Try again.')
+      }
+      const blob = await res.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url
-      a.download = `GMS-Needle-PresentBalance-${date}.xlsx`
+      a.href = downloadUrl
+      const cleanFloor = (reportData?.floorCode || reportData?.floorName || 'Floor').replace(/\s+/g, '-')
+      a.download = `GMS-Needle-PresentBalance-${cleanFloor}-${selectedCategory}-${date}.xlsx`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
+      window.URL.revokeObjectURL(downloadUrl)
     } catch (err: any) {
-      setError(`Failed to export Present Balance Excel: ${err.message}`)
+      setError(err.message || 'Excel generation failed. Try again.')
     } finally {
       setExportingPresent(false)
     }
   }
 
   const handleExportPdf = async () => {
-    if (!reportData) return
+    if (!reportData || isAnyExporting) return
     try {
       setExportingPdf(true)
+      setError(null)
+      // Allow browser UI to render spinner before running PDF compilation
+      await new Promise((resolve) => setTimeout(resolve, 60))
       const pdf = generatePresentBalancePDF(reportData)
       const cleanFloor = (reportData.floorCode || reportData.floorName).replace(/\s+/g, '-')
       const filename = `GMS-Needle-PresentBalance-${cleanFloor}-${reportData.category}-${reportData.date}.pdf`
       pdf.save(filename)
     } catch (err: any) {
-      setError(`Failed to generate PDF: ${err.message}`)
+      setError(err.message || 'PDF generation failed. Try again.')
     } finally {
       setExportingPdf(false)
     }
@@ -204,13 +231,13 @@ export function DailyReportClient({
                   size="sm"
                   variant="outline"
                   onClick={handleExportStockExcel}
-                  disabled={exportingStock}
+                  disabled={isAnyExporting}
                   loading={exportingStock}
-                  loadingText="Generating..."
+                  loadingText="Generating Excel..."
                   className="text-xs border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5" />
-                  <span>Daily Stock Excel</span>
+                  <span>{exportingStock ? 'Generating Excel...' : 'Daily Stock Excel'}</span>
                 </Button>
               )}
 
@@ -219,13 +246,13 @@ export function DailyReportClient({
                   size="sm"
                   variant="outline"
                   onClick={handleExportPresentExcel}
-                  disabled={exportingPresent || !reportData}
+                  disabled={isAnyExporting || !reportData}
                   loading={exportingPresent}
-                  loadingText="Generating..."
+                  loadingText="Generating Excel..."
                   className="text-xs border-blue-300 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-700 dark:text-blue-400"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5" />
-                  <span>Present Balance Excel</span>
+                  <span>{exportingPresent ? 'Generating Excel...' : 'Present Balance Excel'}</span>
                 </Button>
               )}
 
@@ -234,13 +261,13 @@ export function DailyReportClient({
                   size="sm"
                   variant="outline"
                   onClick={handleExportPdf}
-                  disabled={exportingPdf || !reportData}
+                  disabled={isAnyExporting || !reportData}
                   loading={exportingPdf}
-                  loadingText="Generating..."
+                  loadingText="Generating PDF..."
                   className="text-xs border-red-300 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-700 dark:text-red-400"
                 >
                   <FileText className="w-3.5 h-3.5" />
-                  <span>PDF</span>
+                  <span>{exportingPdf ? 'Generating PDF...' : 'PDF'}</span>
                 </Button>
               )}
 
@@ -362,8 +389,7 @@ export function DailyReportClient({
           <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800/60 border border-surface-border rounded-erp text-xs text-ink-muted font-medium">
             <div className="flex flex-wrap items-center gap-3">
               <span>
-                <b className="text-ink">Floor:</b> {reportData.floorName}
-                {reportData.locationName ? ` (${reportData.locationName})` : ''}
+                <b className="text-ink">Floor:</b> {formatFloorDisplayName(reportData.floorName, reportData.locationName)}
               </span>
               <span>•</span>
               <span>
@@ -372,10 +398,6 @@ export function DailyReportClient({
               <span>•</span>
               <span>
                 <b className="text-ink">Category:</b> {reportData.category}
-              </span>
-              <span>•</span>
-              <span>
-                <b className="text-ink">Operator:</b> {reportData.operatorName || 'System'}
               </span>
             </div>
             <div className="flex items-center gap-2 font-mono text-[11px]">
@@ -404,11 +426,13 @@ export function DailyReportClient({
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* PRINT-ONLY OFFICIAL REPORT LAYOUT (Visible only when printing)     */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      <div className="hidden print:block font-sans text-black bg-white p-2">
+      <div className="hidden print:block font-sans text-black bg-white p-0 m-0">
         <style dangerouslySetInnerHTML={{ __html: `
           @page { size: A4 landscape; margin: 6mm; }
           @media print {
-            body { background: white !important; color: black !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            header, aside, nav, [role="banner"], [role="navigation"] { display: none !important; }
+            body, html { background: white !important; color: black !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0 !important; padding: 0 !important; }
+            main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
           }
         ` }} />
 
@@ -435,14 +459,8 @@ export function DailyReportClient({
             </div>
 
             {/* Metadata Line */}
-            <div className="bg-slate-100 border border-slate-300 px-3 py-1 text-[10px] font-bold flex justify-between">
-              <span>
-                Floor: {reportData.floorName}
-                {reportData.locationName ? ` (${reportData.locationName})` : ''}_{reportData.category}   |   Date: {reportData.date}   |   Category: {reportData.category}
-              </span>
-              <span>
-                Operator: {reportData.operatorName || 'Unknown'}   |   Source: {reportData.sourceNote || '✅ Actual data: ' + reportData.date}
-              </span>
+            <div className="bg-slate-100 border border-slate-300 px-3 py-1 text-[10px] font-bold">
+              Floor: {formatFloorDisplayName(reportData.floorName, reportData.locationName)}   |   Date: {reportData.date}   |   Category: {reportData.category}
             </div>
 
             {/* Formal Table */}

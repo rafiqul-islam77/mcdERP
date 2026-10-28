@@ -21,6 +21,8 @@ for (const item of idleSeed as any[]) {
   idlePriceMap.set(item.item_code, item.unit_price_usd ?? null)
 }
 
+export { formatFloorDisplayName } from './report-utils'
+
 /**
  * Fetch Document No and Version No from system_settings with robust fallback
  */
