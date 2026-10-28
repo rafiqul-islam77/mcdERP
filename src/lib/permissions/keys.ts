@@ -7,6 +7,14 @@ export const PERMISSIONS = {
     VIEW: 'dashboard.view',
   },
 
+  DAILY_REPORT: {
+    VIEW: 'daily_report.view',
+    EXPORT_STOCK_EXCEL: 'daily_report.export_stock_excel',
+    EXPORT_PRESENT_EXCEL: 'daily_report.export_present_excel',
+    EXPORT_PDF: 'daily_report.export_pdf',
+    PRINT: 'daily_report.print',
+  },
+
   NEEDLE: {
     DAILY_ENTRY: {
       VIEW: 'needle.daily_entry.view',
@@ -22,6 +30,9 @@ export const PERMISSIONS = {
     DAILY_REPORT: {
       VIEW: 'needle.daily_report.view',
       EXPORT: 'needle.daily_report.export',
+      EXPORT_STOCK_EXCEL: 'needle.daily_report.export_stock_excel',
+      EXPORT_PRESENT_EXCEL: 'needle.daily_report.export_present_excel',
+      EXPORT_PDF: 'needle.daily_report.export_pdf',
       PRINT: 'needle.daily_report.print',
     },
     MONTHLY_REPORT: {
@@ -43,6 +54,9 @@ export const PERMISSIONS = {
     DAILY_REPORT: {
       VIEW: 'broken.daily_report.view',
       EXPORT: 'broken.daily_report.export',
+      EXPORT_STOCK_EXCEL: 'broken.daily_report.export_stock_excel',
+      EXPORT_PRESENT_EXCEL: 'broken.daily_report.export_present_excel',
+      EXPORT_PDF: 'broken.daily_report.export_pdf',
       PRINT: 'broken.daily_report.print',
     },
     MONTHLY_REPORT: {
@@ -64,6 +78,9 @@ export const PERMISSIONS = {
     DAILY_REPORT: {
       VIEW: 'idle.daily_report.view',
       EXPORT: 'idle.daily_report.export',
+      EXPORT_STOCK_EXCEL: 'idle.daily_report.export_stock_excel',
+      EXPORT_PRESENT_EXCEL: 'idle.daily_report.export_present_excel',
+      EXPORT_PDF: 'idle.daily_report.export_pdf',
       PRINT: 'idle.daily_report.print',
     },
     MONTHLY_REPORT: {
@@ -153,6 +170,10 @@ export const PERMISSIONS = {
     },
     AUDIT: {
       VIEW: 'admin.audit.view',
+    },
+    SETTINGS: {
+      VIEW: 'admin.settings.view',
+      EDIT: 'admin.settings.edit',
     },
   },
 

@@ -290,6 +290,7 @@ export type AuditEventType =
   | 'NEEDLE_DAILY_BNR_SAVED'
   | 'NEEDLE_DAILY_TRANSFER_EXECUTED'
   | 'NEEDLE_DAILY_SHEET_CREATED'
+  | 'SYSTEM_SETTING_UPDATED'
 
 // ─── Daily Entry Types (Phase 2.1) ──────────────────────────────────────────
 
@@ -559,6 +560,52 @@ export interface OfflineStockHistorySyncData {
   syncedAt: number
   isIncremental?: boolean
 }
+
+// ─── Phase 3 System Settings & Daily Report Types ─────────────────────────────
+
+export interface SystemSetting {
+  id: string
+  setting_key: string
+  setting_value: string
+  setting_type: string
+  section: string
+  label: string | null
+  description: string | null
+  updated_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface DailyReportRowItem extends DailyEntryRowItem {
+  sl: number
+  unit_price_usd: number | null
+  custom: string | null
+  note: string | null
+}
+
+export interface DailyReportData {
+  date: string
+  floorId: string
+  floorName: string
+  floorCode: string | null
+  locationName: string | null
+  category: DailyEntryCategory
+  operatorName: string | null
+  sourceNote: string | null
+  requisitionNo: string | null
+  sheetStatus: 'draft' | 'posted' | 'closed'
+  rows: DailyReportRowItem[]
+  documentNo: string
+  versionNo: string
+  summary: {
+    totalPrevious: number
+    totalReceived: number
+    totalDelivery: number
+    totalPresent: number
+    totalBnr: number
+  }
+}
+
 
 
 

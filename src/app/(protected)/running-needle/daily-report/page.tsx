@@ -1,7 +1,9 @@
 import { requireActiveAccount } from '@/lib/auth'
 import { requirePermission } from '@/lib/permissions'
-import { ModulePlaceholder } from '@/components/layout/module-placeholder'
+import { getAuthorizedContextAction } from '@/app/actions/daily-entry'
+import { DailyReportClient } from '@/components/reports/daily-report-client'
 import { Metadata } from 'next'
+import type { DailyEntryCategory } from '@/types'
 
 export const metadata: Metadata = {
   title: 'Daily Report (Running Needle) | GMS ERP',
@@ -9,14 +11,22 @@ export const metadata: Metadata = {
 
 export default async function RunningNeedleDailyReportPage() {
   const user = await requireActiveAccount()
-  await requirePermission(user.profile.id, 'needle.daily_report.view')
+  if (!user.isSiteAdmin) {
+    await requirePermission(user.profile.id, 'needle.daily_report.view')
+  }
+
+  const contextRes = await getAuthorizedContextAction()
+  const floors = contextRes.success && contextRes.data ? contextRes.data.floors : []
+  const allowedCategories: DailyEntryCategory[] =
+    contextRes.success && contextRes.data ? contextRes.data.allowedCategories : ['RUNNING']
 
   return (
-    <ModulePlaceholder
-      moduleName="Running Needle"
-      pageName="Daily Needle Report"
-      permissionKey="needle.daily_report.view"
-      description="Daily floor-wise running needle consumption reports will be implemented in Phase 2.2."
+    <DailyReportClient
+      defaultCategory="RUNNING"
+      initialFloors={floors}
+      allowedCategories={allowedCategories}
+      userPermissions={user.permissions || []}
+      isSiteAdmin={user.isSiteAdmin}
     />
   )
 }

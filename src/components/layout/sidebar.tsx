@@ -197,6 +197,7 @@ export function Sidebar({
           { label: 'Employees', href: '/administration/employees', permission: 'admin.users.view' },
           { label: 'Roles & Permissions', href: '/administration/roles', permission: 'admin.roles.view' },
           { label: 'Designations', href: '/administration/designations', permission: 'admin.designations.view' },
+          { label: 'System Settings', href: '/administration/system-settings', permission: 'admin.settings.view' },
           { label: 'Audit Log', href: '/administration/audit', permission: 'admin.audit.view' },
         ],
       },
