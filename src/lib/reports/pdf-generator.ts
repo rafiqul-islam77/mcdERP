@@ -88,7 +88,6 @@ export function generatePresentBalancePDF(report: DailyReportData): jsPDF {
     'TYPE',
     'SIZE',
     'BRAND',
-    'UNIT PRICE',
     'PREVIOUS',
     'RECEIVED',
     'REQ NO',
@@ -105,7 +104,6 @@ export function generatePresentBalancePDF(report: DailyReportData): jsPDF {
     r.needle_type,
     r.size_dia || '',
     r.brand,
-    r.unit_price_usd !== null && r.unit_price_usd !== undefined ? Number(r.unit_price_usd).toFixed(4) : '',
     r.previous.toLocaleString(),
     r.received.toLocaleString(),
     r.req_no || '',
@@ -118,7 +116,6 @@ export function generatePresentBalancePDF(report: DailyReportData): jsPDF {
 
   // Total row
   const totalRow = [
-    '',
     '',
     '',
     '',
@@ -161,18 +158,17 @@ export function generatePresentBalancePDF(report: DailyReportData): jsPDF {
     columnStyles: {
       0: { halign: 'center', cellWidth: 9 },   // SL
       1: { halign: 'center', cellWidth: 16 },  // CODE
-      2: { halign: 'left', cellWidth: 36 },    // TYPE
+      2: { halign: 'left', cellWidth: 43 },    // TYPE
       3: { halign: 'center', cellWidth: 14 },  // SIZE
-      4: { halign: 'center', cellWidth: 20 },  // BRAND
-      5: { halign: 'right', cellWidth: 17 },   // UNIT PRICE
-      6: { halign: 'right', cellWidth: 16 },   // PREVIOUS
-      7: { halign: 'right', cellWidth: 15 },   // RECEIVED
-      8: { halign: 'center', cellWidth: 22 },  // REQ NO
-      9: { halign: 'right', cellWidth: 15 },   // DELIVERY
-      10: { halign: 'right', cellWidth: 22, fontStyle: 'bold', fillColor: [255, 243, 214], textColor: [146, 64, 14] }, // PRESENT
-      11: { halign: 'right', cellWidth: 14 },  // BNR
-      12: { halign: 'center', cellWidth: 14 }, // CUSTOM
-      13: { halign: 'left', cellWidth: 'auto' }, // NOTE
+      4: { halign: 'center', cellWidth: 24 },  // BRAND
+      5: { halign: 'right', cellWidth: 16 },   // PREVIOUS
+      6: { halign: 'right', cellWidth: 15 },   // RECEIVED
+      7: { halign: 'center', cellWidth: 25 },  // REQ NO
+      8: { halign: 'right', cellWidth: 15 },   // DELIVERY
+      9: { halign: 'right', cellWidth: 25, fontStyle: 'bold', fillColor: [255, 243, 214], textColor: [146, 64, 14] }, // PRESENT
+      10: { halign: 'right', cellWidth: 14 },  // BNR
+      11: { halign: 'center', cellWidth: 14 }, // CUSTOM
+      12: { halign: 'left', cellWidth: 'auto' }, // NOTE
     },
     didParseCell: (data) => {
       // Style Total Row: entire row has dark navy background, white bold text, and aligned cells
@@ -183,14 +179,14 @@ export function generatePresentBalancePDF(report: DailyReportData): jsPDF {
         data.cell.styles.fontSize = 7
         data.cell.styles.minCellHeight = 6
         data.cell.styles.cellPadding = 1.4
-        if ([6, 7, 9, 10, 11].includes(data.column.index)) {
+        if ([5, 6, 8, 9, 10].includes(data.column.index)) {
           data.cell.styles.halign = 'right'
         }
       }
     },
     didDrawCell: (data) => {
-      // Custom render "TOTAL →" in column 5 of Total Row with crisp Helvetica and vector arrow
-      if (data.section === 'body' && data.row.index === tableBody.length - 1 && data.column.index === 5) {
+      // Custom render "TOTAL →" in column 4 (BRAND) of Total Row with crisp Helvetica and vector arrow
+      if (data.section === 'body' && data.row.index === tableBody.length - 1 && data.column.index === 4) {
         doc.setFont('helvetica', 'bold')
         doc.setFontSize(7)
         doc.setTextColor(255, 255, 255)

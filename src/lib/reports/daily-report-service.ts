@@ -24,30 +24,38 @@ for (const item of idleSeed as any[]) {
 export { formatFloorDisplayName } from './report-utils'
 
 /**
- * Fetch Document No and Version No from system_settings with robust fallback
+ * Fetch Document No and Version No for a specific category from system_settings with robust fallback
  */
-export async function getSystemReportSettings(): Promise<{ documentNo: string; versionNo: string }> {
+export async function getSystemReportSettings(
+  category: DailyEntryCategory = 'RUNNING'
+): Promise<{ documentNo: string; versionNo: string }> {
+  const catKey = (category || 'RUNNING').toLowerCase()
+  const docKey = `daily_report.${catKey}.document_no`
+  const verKey = `daily_report.${catKey}.version_no`
+
   try {
     const admin = getAdminClient()
     const { data, error } = await admin
       .from('system_settings')
       .select('setting_key, setting_value')
-      .in('setting_key', ['daily_report.document_no', 'daily_report.version_no'])
+      .in('setting_key', [docKey, verKey, 'daily_report.document_no', 'daily_report.version_no'])
 
     if (error || !data) {
       return { documentNo: 'QA/03/310', versionNo: '01/2026' }
     }
 
-    let documentNo = 'QA/03/310'
-    let versionNo = '01/2026'
-
+    const map = new Map<string, string>()
     for (const s of data) {
-      if (s.setting_key === 'daily_report.document_no' && s.setting_value) {
-        documentNo = s.setting_value
-      } else if (s.setting_key === 'daily_report.version_no' && s.setting_value) {
-        versionNo = s.setting_value
+      if (s.setting_value) {
+        map.set(s.setting_key, s.setting_value)
       }
     }
+
+    // 1. Category-specific setting
+    // 2. Legacy general setting
+    // 3. Fallback default
+    const documentNo = map.get(docKey) || map.get('daily_report.document_no') || 'QA/03/310'
+    const versionNo = map.get(verKey) || map.get('daily_report.version_no') || '01/2026'
 
     return { documentNo, versionNo }
   } catch {
@@ -157,8 +165,8 @@ export async function getDailyReportData(params: {
     }
   }
 
-  // 5. Fetch System Settings (Document No & Version No)
-  const { documentNo, versionNo } = await getSystemReportSettings()
+  // 5. Fetch System Settings (Category-specific Document No & Version No)
+  const { documentNo, versionNo } = await getSystemReportSettings(params.category)
 
   // 6. Enrich Rows for Present Balance Report
   let totalPrevious = 0

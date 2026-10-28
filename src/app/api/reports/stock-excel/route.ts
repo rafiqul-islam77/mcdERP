@@ -38,17 +38,24 @@ export async function GET(request: NextRequest) {
     idleReports: stockDataRes.data.idleReports,
   })
 
-  // Format date DD-MM-YYYY as in reference: STOCK REPORT 20-10-2026.xlsx
-  const dateParts = date.split('-')
-  const formattedDate = dateParts.length === 3 ? `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}` : date
-  const filename = `STOCK REPORT ${formattedDate}.xlsx`
+  let floorLabel = 'All Floors'
+  if (floorId !== 'all') {
+    const firstRep =
+      stockDataRes.data.runningReports[0] ||
+      stockDataRes.data.newReports[0] ||
+      stockDataRes.data.idleReports[0]
+    floorLabel = firstRep ? (firstRep.floorCode || firstRep.floorName) : 'Floor'
+  }
+  const safeFloor = floorLabel.replace(/[/\\?*:[\]<>|"]/g, '-').trim()
+  const filename = `Closing Stock - ${safeFloor} - ${date}.xlsx`
 
-  return new NextResponse(buffer as any, {
+  return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Cache-Control': 'no-store',
+      'Content-Disposition': `attachment; filename="${filename.replace(/"/g, '')}"`,
+      'Content-Length': buffer.byteLength.toString(),
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
     },
   })
 }

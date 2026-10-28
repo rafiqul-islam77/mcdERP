@@ -15,9 +15,14 @@ import {
 import { Button } from '@/components/ui/button'
 import { PresentBalanceTable } from '@/components/reports/present-balance-table'
 import { ReportSkeleton } from '@/components/reports/report-skeleton'
-import { getDailyReportAction } from '@/app/actions/reports'
+import { getDailyReportAction, getDailyStockReportDataAction } from '@/app/actions/reports'
 import { generatePresentBalancePDF } from '@/lib/reports/pdf-generator'
 import { formatFloorDisplayName } from '@/lib/reports/report-utils'
+import {
+  ExportProgressModal,
+  type ExportProgressState,
+  type FloorProgressItem,
+} from '@/components/reports/export-progress-modal'
 import type { DailyEntryCategory, DailyReportData, Floor } from '@/types'
 
 interface DailyReportClientProps {
@@ -54,6 +59,25 @@ export function DailyReportClient({
   const [exportingStock, setExportingStock] = React.useState<boolean>(false)
   const [exportingPresent, setExportingPresent] = React.useState<boolean>(false)
   const [exportingPdf, setExportingPdf] = React.useState<boolean>(false)
+
+  // Progress modal state for active export
+  const [progressModalState, setProgressModalState] = React.useState<ExportProgressState>({
+    isOpen: false,
+    exportType: 'stock_excel',
+    exportName: 'Closing Stock',
+    date,
+    floorLabel: 'All Floors',
+    isAllFloors: false,
+    status: 'idle',
+    statusMessage: '',
+    currentStep: 0,
+    totalSteps: 4,
+    progressPercent: 0,
+    floorItems: [],
+  })
+
+  // Ref to hold the most recently generated export for "Download Again"
+  const lastExportRef = React.useRef<{ blob?: Blob; pdf?: any; filename: string } | null>(null)
 
   // Any ongoing export prevents double-clicks
   const isAnyExporting = exportingStock || exportingPresent || exportingPdf
@@ -121,32 +145,167 @@ export function DailyReportClient({
     loadReport()
   }, [loadReport])
 
+  // Helper to trigger safe asynchronous browser download without prematurely revoking blob URL
+  const downloadBlobSafely = (blob: Blob, filename: string) => {
+    const downloadUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.style.display = 'none'
+    a.href = downloadUrl
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    // Defer revocation to prevent Windows/Excel corrupted 0-byte downloads caused by premature URL cleanup
+    setTimeout(() => {
+      window.URL.revokeObjectURL(downloadUrl)
+    }, 60000)
+  }
+
   // 4. Export handlers with progress states and duplicate-click prevention
   const handleExportStockExcel = async () => {
     if (isAnyExporting) return
+    const isAll = selectedFloorId === 'all'
+    let floorLabel = 'All Floors'
+    if (!isAll) {
+      const curFloor = initialFloors.find((f) => f.id === selectedFloorId)
+      floorLabel = curFloor ? (curFloor.code || curFloor.name) : (reportData?.floorCode || reportData?.floorName || 'Floor')
+    }
+    const safeFloor = floorLabel.replace(/[/\\?*:[\]<>|"]/g, '-').trim()
+    const filename = `Closing Stock - ${safeFloor} - ${date}.xlsx`
+
+    setExportingStock(true)
+    setError(null)
+    setProgressModalState({
+      isOpen: true,
+      exportType: 'stock_excel',
+      exportName: 'Closing Stock',
+      date,
+      floorLabel,
+      isAllFloors: isAll,
+      status: 'running',
+      statusMessage: 'Preparing report...',
+      currentStep: 1,
+      totalSteps: isAll ? initialFloors.length + 2 : 4,
+      progressPercent: 5,
+      itemsLabel: isAll ? `0 / ${initialFloors.length} Floors` : undefined,
+      floorItems: [],
+      downloadFilename: filename,
+    })
+
     try {
-      setExportingStock(true)
-      setError(null)
+      const floorItems: FloorProgressItem[] = []
+
+      if (isAll && initialFloors.length > 0) {
+        for (let i = 0; i < initialFloors.length; i++) {
+          const floor = initialFloors[i]
+          const pct = Math.round(5 + ((i + 1) / initialFloors.length) * 65)
+          setProgressModalState((prev) => ({
+            ...prev,
+            statusMessage: `Processing ${i + 1} / ${initialFloors.length} Floors (${floor.name})...`,
+            progressPercent: pct,
+            itemsLabel: `${i + 1} / ${initialFloors.length} Floors`,
+          }))
+
+          const repRes = await getDailyStockReportDataAction({ date, floorId: floor.id })
+          let itemsCount = 0
+          let presentTotal = 0
+          if (repRes.success && repRes.data) {
+            const allReps = [
+              ...(repRes.data.runningReports || []),
+              ...(repRes.data.newReports || []),
+              ...(repRes.data.idleReports || []),
+            ]
+            for (const r of allReps) {
+              itemsCount += r.rows.length
+              presentTotal += r.summary.totalPresent
+            }
+          }
+
+          const newItem: FloorProgressItem = {
+            id: floor.id,
+            floorName: floor.name,
+            date,
+            itemsCount,
+            presentStock: presentTotal,
+            source: 'actual',
+          }
+          floorItems.push(newItem)
+
+          setProgressModalState((prev) => ({
+            ...prev,
+            floorItems: [...floorItems],
+          }))
+        }
+      } else {
+        await new Promise((r) => setTimeout(r, 120))
+        setProgressModalState((prev) => ({
+          ...prev,
+          statusMessage: `Fetching report data for ${floorLabel}...`,
+          progressPercent: 35,
+          currentStep: 2,
+        }))
+      }
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: 'Generating Excel workbook...',
+        progressPercent: isAll ? 80 : 65,
+        currentStep: isAll ? initialFloors.length + 1 : 3,
+      }))
+
       const url = `/api/reports/stock-excel?date=${encodeURIComponent(date)}&floorId=${encodeURIComponent(
         selectedFloorId
       )}`
       const res = await fetch(url)
       if (!res.ok) {
-        throw new Error('Stock report export failed. Try again.')
+        let errMessage = 'Closing Stock export failed. Try again.'
+        try {
+          const errJson = await res.json()
+          if (errJson.error) errMessage = errJson.error
+        } catch {}
+        throw new Error(errMessage)
       }
-      const blob = await res.blob()
-      const downloadUrl = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = downloadUrl
-      const dateParts = date.split('-')
-      const formattedDate = dateParts.length === 3 ? `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}` : date
-      a.download = `STOCK REPORT ${formattedDate}.xlsx`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(downloadUrl)
+
+      const contentType = res.headers.get('content-type') || ''
+      if (!contentType.includes('spreadsheetml') && !contentType.includes('octet-stream')) {
+        throw new Error('Server returned an invalid format instead of an Excel spreadsheet.')
+      }
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: 'Finalizing file...',
+        progressPercent: 92,
+        currentStep: isAll ? initialFloors.length + 2 : 4,
+      }))
+
+      const arrayBuffer = await res.arrayBuffer()
+      if (!arrayBuffer || arrayBuffer.byteLength < 500) {
+        throw new Error('Received an incomplete Excel file. Please try again.')
+      }
+
+      const blob = new Blob([arrayBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+
+      lastExportRef.current = { blob, filename }
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        status: 'completed',
+        statusMessage: 'Generation Complete ✓',
+        progressPercent: 100,
+      }))
+
+      downloadBlobSafely(blob, filename)
     } catch (err: any) {
-      setError(err.message || 'Excel generation failed. Try again.')
+      const errorMsg = err.message || 'Excel generation failed. Try again.'
+      setError(errorMsg)
+      setProgressModalState((prev) => ({
+        ...prev,
+        status: 'failed',
+        statusMessage: 'Generation Failed',
+        errorMessage: errorMsg,
+      }))
     } finally {
       setExportingStock(false)
     }
@@ -154,28 +313,150 @@ export function DailyReportClient({
 
   const handleExportPresentExcel = async () => {
     if (isAnyExporting) return
+    const isAll = selectedFloorId === 'all'
+    let floorLabel = 'All Floors'
+    if (!isAll) {
+      const curFloor = initialFloors.find((f) => f.id === selectedFloorId)
+      floorLabel = curFloor ? (curFloor.code || curFloor.name) : (reportData?.floorCode || reportData?.floorName || 'Floor')
+    }
+    const cleanFloor = floorLabel.replace(/[/\\?*:[\]<>|"]/g, '-').trim()
+    const filename = isAll
+      ? `Daily Stock - All Floors - ${date}.xlsx`
+      : `Daily Stock - ${cleanFloor} - ${selectedCategory} - ${date}.xlsx`
+
+    setExportingPresent(true)
+    setError(null)
+    setProgressModalState({
+      isOpen: true,
+      exportType: 'present_excel',
+      exportName: 'Daily Stock',
+      date,
+      floorLabel,
+      category: selectedCategory,
+      isAllFloors: isAll,
+      status: 'running',
+      statusMessage: 'Preparing report...',
+      currentStep: 1,
+      totalSteps: isAll ? initialFloors.length + 2 : 4,
+      progressPercent: 5,
+      itemsLabel: isAll ? `0 / ${initialFloors.length} Floors` : undefined,
+      floorItems: [],
+      downloadFilename: filename,
+    })
+
     try {
-      setExportingPresent(true)
-      setError(null)
+      const floorItems: FloorProgressItem[] = []
+
+      if (isAll && initialFloors.length > 0) {
+        for (let i = 0; i < initialFloors.length; i++) {
+          const floor = initialFloors[i]
+          const pct = Math.round(5 + ((i + 1) / initialFloors.length) * 65)
+          setProgressModalState((prev) => ({
+            ...prev,
+            statusMessage: `Processing ${i + 1} / ${initialFloors.length} Floors (${floor.name})...`,
+            progressPercent: pct,
+            itemsLabel: `${i + 1} / ${initialFloors.length} Floors`,
+          }))
+
+          const repRes = await getDailyReportAction({
+            date,
+            floorId: floor.id,
+            category: selectedCategory,
+          })
+
+          let itemsCount = 0
+          let presentTotal = 0
+          if (repRes.success && repRes.data) {
+            itemsCount = repRes.data.rows.length
+            presentTotal = repRes.data.summary.totalPresent
+          }
+
+          const newItem: FloorProgressItem = {
+            id: floor.id,
+            floorName: floor.name,
+            category: selectedCategory,
+            date,
+            itemsCount,
+            presentStock: presentTotal,
+            source: 'actual',
+          }
+          floorItems.push(newItem)
+
+          setProgressModalState((prev) => ({
+            ...prev,
+            floorItems: [...floorItems],
+          }))
+        }
+      } else {
+        await new Promise((r) => setTimeout(r, 120))
+        setProgressModalState((prev) => ({
+          ...prev,
+          statusMessage: `Fetching report data for ${floorLabel}...`,
+          progressPercent: 35,
+          currentStep: 2,
+        }))
+      }
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: 'Generating Excel workbook...',
+        progressPercent: isAll ? 80 : 65,
+        currentStep: isAll ? initialFloors.length + 1 : 3,
+      }))
+
       const url = `/api/reports/present-balance-excel?date=${encodeURIComponent(
         date
       )}&floorId=${encodeURIComponent(selectedFloorId)}&category=${encodeURIComponent(selectedCategory)}`
       const res = await fetch(url)
       if (!res.ok) {
-        throw new Error('Present balance export failed. Try again.')
+        let errMessage = 'Daily Stock export failed. Try again.'
+        try {
+          const errJson = await res.json()
+          if (errJson.error) errMessage = errJson.error
+        } catch {}
+        throw new Error(errMessage)
       }
-      const blob = await res.blob()
-      const downloadUrl = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = downloadUrl
-      const cleanFloor = (reportData?.floorCode || reportData?.floorName || 'Floor').replace(/\s+/g, '-')
-      a.download = `GMS-Needle-PresentBalance-${cleanFloor}-${selectedCategory}-${date}.xlsx`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(downloadUrl)
+
+      const contentType = res.headers.get('content-type') || ''
+      if (!contentType.includes('spreadsheetml') && !contentType.includes('octet-stream')) {
+        throw new Error('Server returned an invalid format instead of an Excel spreadsheet.')
+      }
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: 'Finalizing file...',
+        progressPercent: 92,
+        currentStep: isAll ? initialFloors.length + 2 : 4,
+      }))
+
+      const arrayBuffer = await res.arrayBuffer()
+      if (!arrayBuffer || arrayBuffer.byteLength < 500) {
+        throw new Error('Received an incomplete Excel file. Please try again.')
+      }
+
+      const blob = new Blob([arrayBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+
+      lastExportRef.current = { blob, filename }
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        status: 'completed',
+        statusMessage: 'Generation Complete ✓',
+        progressPercent: 100,
+      }))
+
+      downloadBlobSafely(blob, filename)
     } catch (err: any) {
-      setError(err.message || 'Excel generation failed. Try again.')
+      const errorMsg = err.message || 'Excel generation failed. Try again.'
+      setError(errorMsg)
+      setProgressModalState((prev) => ({
+        ...prev,
+        status: 'failed',
+        statusMessage: 'Generation Failed',
+        errorMessage: errorMsg,
+      }))
     } finally {
       setExportingPresent(false)
     }
@@ -183,19 +464,107 @@ export function DailyReportClient({
 
   const handleExportPdf = async () => {
     if (!reportData || isAnyExporting) return
+    const cleanFloor = (reportData.floorCode || reportData.floorName).replace(/\s+/g, '-')
+    const filename = `GMS-Needle-PresentBalance-${cleanFloor}-${reportData.category}-${reportData.date}.pdf`
+    const totalRows = reportData.rows.length
+
+    setExportingPdf(true)
+    setError(null)
+    setProgressModalState({
+      isOpen: true,
+      exportType: 'pdf',
+      exportName: 'Daily Stock PDF',
+      date: reportData.date,
+      floorLabel: formatFloorDisplayName(reportData.floorName, reportData.locationName),
+      category: reportData.category,
+      isAllFloors: false,
+      status: 'running',
+      statusMessage: 'Preparing PDF document...',
+      currentStep: 1,
+      totalSteps: 4,
+      progressPercent: 10,
+      itemsLabel: `0 / ${totalRows} rows processed`,
+      floorItems: [],
+      downloadFilename: filename,
+    })
+
     try {
-      setExportingPdf(true)
-      setError(null)
-      // Allow browser UI to render spinner before running PDF compilation
-      await new Promise((resolve) => setTimeout(resolve, 60))
+      await new Promise((resolve) => setTimeout(resolve, 80))
+
+      // Step 2: Compiling table rows
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: `Processing ${totalRows} / ${totalRows} rows...`,
+        progressPercent: 45,
+        itemsLabel: `${totalRows} / ${totalRows} rows processed`,
+        currentStep: 2,
+      }))
+      await new Promise((resolve) => setTimeout(resolve, 80))
+
+      // Step 3: Rendering PDF
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: 'Generating PDF vector layouts & signatures...',
+        progressPercent: 75,
+        currentStep: 3,
+      }))
+      await new Promise((resolve) => setTimeout(resolve, 80))
+
       const pdf = generatePresentBalancePDF(reportData)
-      const cleanFloor = (reportData.floorCode || reportData.floorName).replace(/\s+/g, '-')
-      const filename = `GMS-Needle-PresentBalance-${cleanFloor}-${reportData.category}-${reportData.date}.pdf`
+
+      // Step 4: Finalizing
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: 'Finalizing file...',
+        progressPercent: 95,
+        currentStep: 4,
+      }))
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      lastExportRef.current = { pdf, filename }
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        status: 'completed',
+        statusMessage: 'Generation Complete ✓',
+        progressPercent: 100,
+      }))
+
       pdf.save(filename)
     } catch (err: any) {
-      setError(err.message || 'PDF generation failed. Try again.')
+      const errorMsg = err.message || 'PDF generation failed. Try again.'
+      setError(errorMsg)
+      setProgressModalState((prev) => ({
+        ...prev,
+        status: 'failed',
+        statusMessage: 'Generation Failed',
+        errorMessage: errorMsg,
+      }))
     } finally {
       setExportingPdf(false)
+    }
+  }
+
+  const handleCloseModal = () => {
+    setProgressModalState((prev) => ({ ...prev, isOpen: false }))
+  }
+
+  const handleRetryExport = () => {
+    if (progressModalState.exportType === 'stock_excel') {
+      handleExportStockExcel()
+    } else if (progressModalState.exportType === 'present_excel') {
+      handleExportPresentExcel()
+    } else if (progressModalState.exportType === 'pdf') {
+      handleExportPdf()
+    }
+  }
+
+  const handleDownloadAgain = () => {
+    if (!lastExportRef.current) return
+    if (lastExportRef.current.blob && lastExportRef.current.filename) {
+      downloadBlobSafely(lastExportRef.current.blob, lastExportRef.current.filename)
+    } else if (lastExportRef.current.pdf && lastExportRef.current.filename) {
+      lastExportRef.current.pdf.save(lastExportRef.current.filename)
     }
   }
 
@@ -237,7 +606,7 @@ export function DailyReportClient({
                   className="text-xs border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5" />
-                  <span>{exportingStock ? 'Generating Excel...' : 'Daily Stock Excel'}</span>
+                  <span>{exportingStock ? 'Generating Excel...' : 'Closing Stock'}</span>
                 </Button>
               )}
 
@@ -252,7 +621,7 @@ export function DailyReportClient({
                   className="text-xs border-blue-300 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-700 dark:text-blue-400"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5" />
-                  <span>{exportingPresent ? 'Generating Excel...' : 'Present Balance Excel'}</span>
+                  <span>{exportingPresent ? 'Generating Excel...' : 'Daily Stock'}</span>
                 </Button>
               )}
 
@@ -472,7 +841,6 @@ export function DailyReportClient({
                   <th className="border border-black p-1 text-left">TYPE</th>
                   <th className="border border-black p-1 w-10">SIZE</th>
                   <th className="border border-black p-1 w-16">BRAND</th>
-                  <th className="border border-black p-1 text-right w-16">UNIT PRICE</th>
                   <th className="border border-black p-1 text-right w-14">PREVIOUS</th>
                   <th className="border border-black p-1 text-right w-14">RECEIVED</th>
                   <th className="border border-black p-1 w-20">REQ NO</th>
@@ -492,11 +860,6 @@ export function DailyReportClient({
                     <td className="border border-black p-1 text-left">{row.needle_type}</td>
                     <td className="border border-black p-1">{row.size_dia || ''}</td>
                     <td className="border border-black p-1">{row.brand}</td>
-                    <td className="border border-black p-1 text-right font-mono">
-                      {row.unit_price_usd !== null && row.unit_price_usd !== undefined
-                        ? Number(row.unit_price_usd).toFixed(4)
-                        : ''}
-                    </td>
                     <td className="border border-black p-1 text-right font-mono">{row.previous.toLocaleString()}</td>
                     <td className="border border-black p-1 text-right font-mono">{row.received.toLocaleString()}</td>
                     <td className="border border-black p-1 font-mono">{row.req_no || ''}</td>
@@ -510,7 +873,7 @@ export function DailyReportClient({
                 ))}
                 {/* Total Row */}
                 <tr className="font-bold bg-slate-100 text-black">
-                  <td colSpan={6} className="border border-black p-1 text-right bg-slate-200">
+                  <td colSpan={5} className="border border-black p-1 text-right bg-slate-200">
                     TOTAL →
                   </td>
                   <td className="border border-black p-1 text-right font-mono">
@@ -549,6 +912,16 @@ export function DailyReportClient({
           </div>
         )}
       </div>
+
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* EXPORT PROGRESS MODAL (Non-blocking with corner minimization)       */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      <ExportProgressModal
+        state={progressModalState}
+        onClose={handleCloseModal}
+        onRetry={handleRetryExport}
+        onDownloadAgain={handleDownloadAgain}
+      />
     </div>
   )
 }

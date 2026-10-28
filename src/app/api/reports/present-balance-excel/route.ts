@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
   }
 
   let reports: DailyReportData[] = []
-  let filename = `GMS-Needle-PresentBalance-AllFloors-${date}.xlsx`
+  let filename = `Daily Stock - All Floors - ${date}.xlsx`
 
   if (floorId === 'all') {
     const res = await getAllFloorsDailyReportAction({ date, category })
@@ -50,8 +50,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: res.error || 'Failed to generate report' }, { status: 500 })
     }
     reports = [res.data]
-    const cleanFloor = (res.data.floorCode || res.data.floorName).replace(/\s+/g, '-')
-    filename = `GMS-Needle-PresentBalance-${cleanFloor}-${category}-${date}.xlsx`
+    const cleanFloor = (res.data.floorCode || res.data.floorName).replace(/[/\\?*:[\]<>|"]/g, '-').trim()
+    filename = `Daily Stock - ${cleanFloor} - ${category} - ${date}.xlsx`
   }
 
   if (reports.length === 0) {
@@ -60,12 +60,13 @@ export async function GET(request: NextRequest) {
 
   const buffer = await generatePresentBalanceWorkbook(reports)
 
-  return new NextResponse(buffer as any, {
+  return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Cache-Control': 'no-store',
+      'Content-Disposition': `attachment; filename="${filename.replace(/"/g, '')}"`,
+      'Content-Length': buffer.byteLength.toString(),
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
     },
   })
 }

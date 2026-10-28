@@ -67,18 +67,17 @@ export function buildPresentBalanceSheet(
   const columnWidths = [
     5,  // A: SL
     11, // B: CODE
-    22, // C: TYPE
+    25, // C: TYPE
     8,  // D: SIZE
-    14, // E: BRAND
-    11, // F: UNIT PRICE
-    11, // G: PREVIOUS
-    10, // H: RECEIVED
-    16, // I: REQ NO
-    10, // J: DELIVERY
-    15, // K: PRESENT BALANCE
-    10, // L: BNR
-    8,  // M: CUSTOM
-    22, // N: NOTE
+    16, // E: BRAND
+    11, // F: PREVIOUS
+    10, // G: RECEIVED
+    18, // H: REQ NO
+    10, // I: DELIVERY
+    15, // J: PRESENT BALANCE
+    10, // K: BNR
+    8,  // L: CUSTOM
+    26, // M: NOTE
   ]
 
   columnWidths.forEach((width, index) => {
@@ -93,17 +92,17 @@ export function buildPresentBalanceSheet(
   a1.font = { name: 'Calibri', size: 18, bold: true, underline: true, color: { argb: 'FF0F172A' } }
   a1.alignment = { horizontal: 'center', vertical: 'middle' }
 
-  // Document & Version block (I1:N2)
-  ws.mergeCells('I1:N2')
+  // Document & Version block (I1:M2)
+  ws.mergeCells('I1:M2')
   const i1 = ws.getCell('I1')
   i1.value = `DOCUMENT NO : ${report.documentNo || 'QA/03/310'}\nVERSION NO : ${report.versionNo || '01/2026'}`
   i1.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F172A' } }
   i1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
   i1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }
 
-  // Apply border to I1:N2 block
+  // Apply border to I1:M2 block
   for (let r = 1; r <= 2; r++) {
-    for (let c = 9; c <= 14; c++) {
+    for (let c = 9; c <= 13; c++) {
       ws.getCell(r, c).border = BORDER_BOX
     }
   }
@@ -116,7 +115,7 @@ export function buildPresentBalanceSheet(
   a2.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF475569' } }
   a2.alignment = { horizontal: 'center', vertical: 'middle' }
 
-  // Row 3: Department & Empty I3:N3
+  // Row 3: Department & Empty I3:M3
   ws.getRow(3).height = 16
   ws.mergeCells('A3:H3')
   const a3 = ws.getCell('A3')
@@ -124,11 +123,11 @@ export function buildPresentBalanceSheet(
   a3.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF2563EB' } }
   a3.alignment = { horizontal: 'center', vertical: 'middle' }
 
-  ws.mergeCells('I3:N3')
+  ws.mergeCells('I3:M3')
 
   // Row 4: Report Title
   ws.getRow(4).height = 24
-  ws.mergeCells('A4:N4')
+  ws.mergeCells('A4:M4')
   const a4 = ws.getCell('A4')
   a4.value = 'DAILY SEWING NEEDLE PRESENT BALANCE REPORT'
   a4.font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FFFFFFFF' } }
@@ -137,7 +136,7 @@ export function buildPresentBalanceSheet(
 
   // Row 5: Metadata line
   ws.getRow(5).height = 20
-  ws.mergeCells('A5:N5')
+  ws.mergeCells('A5:M5')
   const a5 = ws.getCell('A5')
   const floorDesc = formatFloorDisplayName(report.floorName, report.locationName)
   a5.value = `Floor: ${floorDesc}   |   Date: ${report.date}   |   Category: ${report.category}`
@@ -156,7 +155,6 @@ export function buildPresentBalanceSheet(
     'TYPE',
     'SIZE',
     'BRAND',
-    'UNIT PRICE',
     'PREVIOUS',
     'RECEIVED',
     'REQ NO',
@@ -210,68 +208,58 @@ export function buildPresentBalanceSheet(
     c5.value = row.brand
     c5.alignment = { horizontal: 'center', vertical: 'middle' }
 
-    // UNIT PRICE
+    // PREVIOUS
     const c6 = r.getCell(6)
-    if (row.unit_price_usd !== null && row.unit_price_usd !== undefined) {
-      c6.value = Number(row.unit_price_usd)
-      c6.numFmt = '0.0000'
-    } else {
-      c6.value = ''
-    }
+    c6.value = Number(row.previous) || 0
+    c6.numFmt = '#,##0'
     c6.alignment = { horizontal: 'right', vertical: 'middle' }
 
-    // PREVIOUS
+    // RECEIVED
     const c7 = r.getCell(7)
-    c7.value = Number(row.previous) || 0
+    c7.value = Number(row.received) || 0
     c7.numFmt = '#,##0'
     c7.alignment = { horizontal: 'right', vertical: 'middle' }
 
-    // RECEIVED
-    const c8 = r.getCell(8)
-    c8.value = Number(row.received) || 0
-    c8.numFmt = '#,##0'
-    c8.alignment = { horizontal: 'right', vertical: 'middle' }
-
     // REQ NO
-    const c9 = r.getCell(9)
-    c9.value = row.req_no || ''
-    c9.alignment = { horizontal: 'center', vertical: 'middle' }
+    const c8 = r.getCell(8)
+    c8.value = row.req_no || ''
+    c8.alignment = { horizontal: 'center', vertical: 'middle' }
 
     // DELIVERY
-    const c10 = r.getCell(10)
-    c10.value = Number(row.delivery) || 0
-    c10.numFmt = '#,##0'
-    c10.alignment = { horizontal: 'right', vertical: 'middle' }
+    const c9 = r.getCell(9)
+    c9.value = Number(row.delivery) || 0
+    c9.numFmt = '#,##0'
+    c9.alignment = { horizontal: 'right', vertical: 'middle' }
 
     // PRESENT BALANCE (amber highlight)
-    const c11 = r.getCell(11)
-    c11.value = Number(row.present) || 0
-    c11.numFmt = '#,##0'
-    c11.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF92400E' } }
-    c11.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3D6' } }
-    c11.alignment = { horizontal: 'right', vertical: 'middle' }
+    const c10 = r.getCell(10)
+    c10.value = Number(row.present) || 0
+    c10.numFmt = '#,##0'
+    c10.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF92400E' } }
+    c10.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3D6' } }
+    c10.alignment = { horizontal: 'right', vertical: 'middle' }
 
     // BNR
-    const c12 = r.getCell(12)
-    c12.value = Number(row.bnr) || 0
-    c12.numFmt = '#,##0'
-    c12.alignment = { horizontal: 'right', vertical: 'middle' }
+    const c11 = r.getCell(11)
+    c11.value = Number(row.bnr) || 0
+    c11.numFmt = '#,##0'
+    c11.alignment = { horizontal: 'right', vertical: 'middle' }
 
     // CUSTOM
-    const c13 = r.getCell(13)
-    c13.value = row.custom || ''
-    c13.alignment = { horizontal: 'center', vertical: 'middle' }
+    const c12 = r.getCell(12)
+    c12.value = row.custom || ''
+    c12.alignment = { horizontal: 'center', vertical: 'middle' }
 
     // NOTE
-    const c14 = r.getCell(14)
-    c14.value = row.note || ''
-    c14.alignment = { horizontal: 'left', vertical: 'middle' }
+    const c13 = r.getCell(13)
+    c13.value = row.note || ''
+    c13.alignment = { horizontal: 'left', vertical: 'middle' }
 
     // Borders & Base Font for row
-    for (let col = 1; col <= 14; col++) {
+    for (let col = 1; col <= 13; col++) {
       const cell = r.getCell(col)
       cell.border = BORDER_THIN
-      if (col !== 11) {
+      if (col !== 10) {
         cell.font = { name: 'Calibri', size: 10 }
       }
     }
@@ -283,59 +271,59 @@ export function buildPresentBalanceSheet(
   const totalRow = ws.getRow(currentRow)
   totalRow.height = 20
 
-  for (let col = 1; col <= 14; col++) {
+  for (let col = 1; col <= 13; col++) {
     const cell = totalRow.getCell(col)
     cell.border = BORDER_THIN
     cell.font = { name: 'Calibri', size: 10, bold: true }
   }
 
-  // Label TOTAL -> in column F (col 6)
-  const lblCell = totalRow.getCell(6)
+  // Label TOTAL -> in column E (col 5)
+  const lblCell = totalRow.getCell(5)
   lblCell.value = 'TOTAL →'
   lblCell.alignment = { horizontal: 'right', vertical: 'middle' }
   lblCell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } }
   lblCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } }
 
-  // Numeric totals (Columns G, H, J, K, L)
+  // Numeric totals (Columns F, G, I, J, K)
   const endDataRow = currentRow - 1
   if (endDataRow >= startDataRow) {
-    // PREVIOUS (G)
-    const totPrev = totalRow.getCell(7)
-    totPrev.value = { formula: `SUM(G${startDataRow}:G${endDataRow})`, result: report.summary.totalPrevious }
+    // PREVIOUS (F)
+    const totPrev = totalRow.getCell(6)
+    totPrev.value = { formula: `SUM(F${startDataRow}:F${endDataRow})`, result: report.summary.totalPrevious }
     totPrev.numFmt = '#,##0'
     totPrev.alignment = { horizontal: 'right', vertical: 'middle' }
 
-    // RECEIVED (H)
-    const totRcvd = totalRow.getCell(8)
-    totRcvd.value = { formula: `SUM(H${startDataRow}:H${endDataRow})`, result: report.summary.totalReceived }
+    // RECEIVED (G)
+    const totRcvd = totalRow.getCell(7)
+    totRcvd.value = { formula: `SUM(G${startDataRow}:G${endDataRow})`, result: report.summary.totalReceived }
     totRcvd.numFmt = '#,##0'
     totRcvd.alignment = { horizontal: 'right', vertical: 'middle' }
 
-    // DELIVERY (J)
-    const totDvld = totalRow.getCell(10)
-    totDvld.value = { formula: `SUM(J${startDataRow}:J${endDataRow})`, result: report.summary.totalDelivery }
+    // DELIVERY (I)
+    const totDvld = totalRow.getCell(9)
+    totDvld.value = { formula: `SUM(I${startDataRow}:I${endDataRow})`, result: report.summary.totalDelivery }
     totDvld.numFmt = '#,##0'
     totDvld.alignment = { horizontal: 'right', vertical: 'middle' }
 
-    // PRESENT BALANCE (K)
-    const totPres = totalRow.getCell(11)
-    totPres.value = { formula: `SUM(K${startDataRow}:K${endDataRow})`, result: report.summary.totalPresent }
+    // PRESENT BALANCE (J)
+    const totPres = totalRow.getCell(10)
+    totPres.value = { formula: `SUM(J${startDataRow}:J${endDataRow})`, result: report.summary.totalPresent }
     totPres.numFmt = '#,##0'
     totPres.alignment = { horizontal: 'right', vertical: 'middle' }
     totPres.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF92400E' } }
     totPres.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3D6' } }
 
-    // BNR (L)
-    const totBnr = totalRow.getCell(12)
-    totBnr.value = { formula: `SUM(L${startDataRow}:L${endDataRow})`, result: report.summary.totalBnr }
+    // BNR (K)
+    const totBnr = totalRow.getCell(11)
+    totBnr.value = { formula: `SUM(K${startDataRow}:K${endDataRow})`, result: report.summary.totalBnr }
     totBnr.numFmt = '#,##0'
     totBnr.alignment = { horizontal: 'right', vertical: 'middle' }
   } else {
+    totalRow.getCell(6).value = 0
     totalRow.getCell(7).value = 0
-    totalRow.getCell(8).value = 0
+    totalRow.getCell(9).value = 0
     totalRow.getCell(10).value = 0
     totalRow.getCell(11).value = 0
-    totalRow.getCell(12).value = 0
   }
 
   // Signature Section (with blank signing space)
@@ -347,10 +335,10 @@ export function buildPresentBalanceSheet(
   for (let c = 1; c <= 4; c++) {
     ws.getCell(lineRow, c).border = { top: { style: 'medium', color: { argb: 'FF000000' } } }
   }
-  for (let c = 6; c <= 9; c++) {
+  for (let c = 6; c <= 8; c++) {
     ws.getCell(lineRow, c).border = { top: { style: 'medium', color: { argb: 'FF000000' } } }
   }
-  for (let c = 11; c <= 14; c++) {
+  for (let c = 10; c <= 13; c++) {
     ws.getCell(lineRow, c).border = { top: { style: 'medium', color: { argb: 'FF000000' } } }
   }
 
@@ -361,14 +349,14 @@ export function buildPresentBalanceSheet(
   prepCell.font = { name: 'Calibri', size: 10, bold: true }
   prepCell.alignment = { horizontal: 'center', vertical: 'middle' }
 
-  ws.mergeCells(`F${textRow}:I${textRow}`)
+  ws.mergeCells(`F${textRow}:H${textRow}`)
   const chkCell = ws.getCell(`F${textRow}`)
   chkCell.value = 'CHECKED BY'
   chkCell.font = { name: 'Calibri', size: 10, bold: true }
   chkCell.alignment = { horizontal: 'center', vertical: 'middle' }
 
-  ws.mergeCells(`K${textRow}:N${textRow}`)
-  const authCell = ws.getCell(`K${textRow}`)
+  ws.mergeCells(`J${textRow}:M${textRow}`)
+  const authCell = ws.getCell(`J${textRow}`)
   authCell.value = 'AUTHORISED BY'
   authCell.font = { name: 'Calibri', size: 10, bold: true }
   authCell.alignment = { horizontal: 'center', vertical: 'middle' }

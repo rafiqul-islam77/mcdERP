@@ -12,15 +12,37 @@ interface SystemSettingsClientProps {
 }
 
 export function SystemSettingsClient({ initialSettings, canEdit }: SystemSettingsClientProps) {
-  const [docNo, setDocNo] = React.useState<string>(() => {
-    const s = initialSettings.find((item) => item.setting_key === 'daily_report.document_no')
-    return s?.setting_value || 'QA/03/310'
-  })
+  const getInitialValue = (key: string, legacyKey: string, defaultValue: string) => {
+    const direct = initialSettings.find((item) => item.setting_key === key)
+    if (direct?.setting_value) return direct.setting_value
+    const legacy = initialSettings.find((item) => item.setting_key === legacyKey)
+    if (legacy?.setting_value) return legacy.setting_value
+    return defaultValue
+  }
 
-  const [verNo, setVerNo] = React.useState<string>(() => {
-    const s = initialSettings.find((item) => item.setting_key === 'daily_report.version_no')
-    return s?.setting_value || '01/2026'
-  })
+  // RUNNING
+  const [runningDocNo, setRunningDocNo] = React.useState<string>(() =>
+    getInitialValue('daily_report.running.document_no', 'daily_report.document_no', 'QA/03/310')
+  )
+  const [runningVerNo, setRunningVerNo] = React.useState<string>(() =>
+    getInitialValue('daily_report.running.version_no', 'daily_report.version_no', '01/2026')
+  )
+
+  // NEW
+  const [newDocNo, setNewDocNo] = React.useState<string>(() =>
+    getInitialValue('daily_report.new.document_no', 'daily_report.document_no', 'QA/03/310')
+  )
+  const [newVerNo, setNewVerNo] = React.useState<string>(() =>
+    getInitialValue('daily_report.new.version_no', 'daily_report.version_no', '01/2026')
+  )
+
+  // IDLE
+  const [idleDocNo, setIdleDocNo] = React.useState<string>(() =>
+    getInitialValue('daily_report.idle.document_no', 'daily_report.document_no', 'QA/03/310')
+  )
+  const [idleVerNo, setIdleVerNo] = React.useState<string>(() =>
+    getInitialValue('daily_report.idle.version_no', 'daily_report.version_no', '01/2026')
+  )
 
   const [saving, setSaving] = React.useState<boolean>(false)
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null)
@@ -36,14 +58,18 @@ export function SystemSettingsClient({ initialSettings, canEdit }: SystemSetting
 
     try {
       const res = await updateSystemSettingsAction([
-        { setting_key: 'daily_report.document_no', setting_value: docNo },
-        { setting_key: 'daily_report.version_no', setting_value: verNo },
+        { setting_key: 'daily_report.running.document_no', setting_value: runningDocNo },
+        { setting_key: 'daily_report.running.version_no', setting_value: runningVerNo },
+        { setting_key: 'daily_report.new.document_no', setting_value: newDocNo },
+        { setting_key: 'daily_report.new.version_no', setting_value: newVerNo },
+        { setting_key: 'daily_report.idle.document_no', setting_value: idleDocNo },
+        { setting_key: 'daily_report.idle.version_no', setting_value: idleVerNo },
       ])
 
       if (!res.success) {
         setErrorMessage(res.error || 'Failed to update system settings.')
       } else {
-        setSuccessMessage('System settings updated successfully and logged in audit trail.')
+        setSuccessMessage('Category-specific report settings updated successfully and logged in audit trail.')
         setTimeout(() => setSuccessMessage(null), 4000)
       }
     } catch (err: any) {
@@ -95,48 +121,134 @@ export function SystemSettingsClient({ initialSettings, canEdit }: SystemSetting
             <span>Daily Report Configuration</span>
           </h2>
           <p className="text-xs text-ink-muted mt-0.5">
-            Configure official Document Number and Version Number printed on all Present Balance reports.
+            Configure official Document Number and Version Number printed on Present Balance reports by category.
           </p>
         </div>
 
-        <div className="p-6 space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {/* Document No */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-ink">
-                Document No. <span className="text-danger">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                disabled={!canEdit || saving}
-                value={docNo}
-                onChange={(e) => setDocNo(e.target.value)}
-                placeholder="e.g. QA/03/310"
-                className="w-full text-xs font-mono font-medium px-3 py-2 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
-              />
-              <p className="text-[11px] text-ink-muted">
-                Official document identifier code (e.g. QA/03/310).
-              </p>
+        <div className="p-6 space-y-6 divide-y divide-surface-border">
+          {/* RUNNING NEEDLE */}
+          <div className="space-y-4 pt-1 first:pt-0">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded text-[11px] font-bold tracking-wide bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                RUNNING
+              </span>
+              <span className="text-xs font-semibold text-ink">Running Needle Present Balance Report</span>
             </div>
 
-            {/* Version No */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-ink">
-                Version No. <span className="text-danger">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                disabled={!canEdit || saving}
-                value={verNo}
-                onChange={(e) => setVerNo(e.target.value)}
-                placeholder="e.g. 01/2026"
-                className="w-full text-xs font-mono font-medium px-3 py-2 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
-              />
-              <p className="text-[11px] text-ink-muted">
-                Active version identifier (e.g. 01/2026).
-              </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-ink">
+                  Document No. <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  disabled={!canEdit || saving}
+                  value={runningDocNo}
+                  onChange={(e) => setRunningDocNo(e.target.value)}
+                  placeholder="e.g. QA/03/310"
+                  className="w-full text-xs font-mono font-medium px-3 py-2 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-ink">
+                  Version No. <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  disabled={!canEdit || saving}
+                  value={runningVerNo}
+                  onChange={(e) => setRunningVerNo(e.target.value)}
+                  placeholder="e.g. 01/2026"
+                  className="w-full text-xs font-mono font-medium px-3 py-2 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* NEW NEEDLE */}
+          <div className="space-y-4 pt-5">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded text-[11px] font-bold tracking-wide bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                NEW
+              </span>
+              <span className="text-xs font-semibold text-ink">New Needle Present Balance Report</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-ink">
+                  Document No. <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  disabled={!canEdit || saving}
+                  value={newDocNo}
+                  onChange={(e) => setNewDocNo(e.target.value)}
+                  placeholder="e.g. QA/03/310"
+                  className="w-full text-xs font-mono font-medium px-3 py-2 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-ink">
+                  Version No. <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  disabled={!canEdit || saving}
+                  value={newVerNo}
+                  onChange={(e) => setNewVerNo(e.target.value)}
+                  placeholder="e.g. 01/2026"
+                  className="w-full text-xs font-mono font-medium px-3 py-2 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* IDLE NEEDLE */}
+          <div className="space-y-4 pt-5">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded text-[11px] font-bold tracking-wide bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                IDLE
+              </span>
+              <span className="text-xs font-semibold text-ink">Idle Needle Present Balance Report</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-ink">
+                  Document No. <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  disabled={!canEdit || saving}
+                  value={idleDocNo}
+                  onChange={(e) => setIdleDocNo(e.target.value)}
+                  placeholder="e.g. QA/03/310"
+                  className="w-full text-xs font-mono font-medium px-3 py-2 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-ink">
+                  Version No. <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  disabled={!canEdit || saving}
+                  value={idleVerNo}
+                  onChange={(e) => setIdleVerNo(e.target.value)}
+                  placeholder="e.g. 01/2026"
+                  className="w-full text-xs font-mono font-medium px-3 py-2 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
+                />
+              </div>
             </div>
           </div>
         </div>
