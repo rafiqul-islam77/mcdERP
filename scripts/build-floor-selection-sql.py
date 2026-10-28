@@ -2,20 +2,61 @@
 from collections import Counter
 from pathlib import Path
 import hashlib
+import argparse
 import re
 import openpyxl
 
-SOURCE = Path('C:/Users/tazzi/Downloads/FLOOR WISE ITEM CODE.xlsx')
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / 'supabase/migrations/20261027010000_floor_selections_from_workbook.sql'
+parser = argparse.ArgumentParser()
+parser.add_argument('--source', default='C:/Users/tazzi/Downloads/FLOOR WISE ITEM CODE.xlsx')
+parser.add_argument('--output', default='supabase/migrations/20261027010000_floor_selections_from_workbook.sql')
+parser.add_argument('--date', default='2026-10-27')
+args = parser.parse_args()
+SOURCE = Path(args.source)
+OUTPUT = ROOT / args.output
 workbook = openpyxl.load_workbook(SOURCE, data_only=False)
-assert workbook.sheetnames == ['NEW', 'RUNNING', 'IDLE']
+stock_format = workbook.sheetnames == ['RUNNING+NEW', 'IDLE']
+assert stock_format or workbook.sheetnames == ['NEW', 'RUNNING', 'IDLE']
 headers = list('ABCDE') + ['EMB'] + list('FGHIJK') + ['SAMPLE', 'TRAINING CENTRE']
 floor_map = {name: 'FL-' + name for name in headers}
 floor_map.update({'SAMPLE': 'FL-SMP', 'TRAINING CENTRE': 'FL-TC'})
 groups = {(category, code): [] for category in ('new', 'running', 'idle') for code in floor_map.values()}
 source_cells = []
-for title in ('NEW', 'RUNNING'):
+
+def resolve_floor(label):
+    label = str(label).strip().upper()
+    if label.startswith('SAMPLE-'):
+        return 'FL-SMP'
+    if label.startswith('TRAINING CENTRE'):
+        return 'FL-TC'
+    if label.startswith('EMB-'):
+        return 'FL-EMB'
+    match = re.match(r'^([A-K])-FLOOR\s*\(', label)
+    assert match, label
+    return 'FL-' + match[1]
+
+if stock_format:
+    assert [c.value for c in workbook['RUNNING+NEW'][1]][:3] == ['FLOOR NAME & LOCATION', 'CATEGORY', 'ITEM CODE']
+    assert [c.value for c in workbook['IDLE'][1]][:2] == ['FLOOR NAME & LOCATION', 'ITEM CODE']
+    for sheet in workbook:
+        for row in sheet.iter_rows(min_row=2):
+            values = [cell.value for cell in row]
+            label = values[0]
+            code = values[2] if sheet.title == 'RUNNING+NEW' else values[1]
+            if code is None:
+                # Only explicitly identified subtotal/grand-total rows may be skipped.
+                assert (sheet.title == 'RUNNING+NEW' and (values[1] in ('NEW Total', 'RUNNING Total') or label == 'Grand Total')) or (sheet.title == 'IDLE' and str(label).endswith(' Total')), (sheet.title, row[0].row, values)
+                continue
+            category = str(values[1]).lower() if sheet.title == 'RUNNING+NEW' else 'idle'
+            assert category in ('new', 'running', 'idle'), values
+            code = str(code).strip().upper()
+            assert re.fullmatch(r'IN-\d{3}' if category == 'idle' else r'SN-\d{3}', code), values
+            floor = resolve_floor(label)
+            # Selection is based on item presence, regardless of stock quantity.
+            groups[(category, floor)].append(code)
+            source_cells.append((category, floor, code))
+
+for title in (() if stock_format else ('NEW', 'RUNNING')):
     sheet = workbook[title]
     assert [cell.value for cell in sheet[2]] == headers
     for row in sheet.iter_rows(min_row=3):
@@ -27,7 +68,7 @@ for title in ('NEW', 'RUNNING'):
             floor = floor_map[headers[cell.column - 1]]
             groups[(title.lower(), floor)].append(code)
             source_cells.append((title.lower(), floor, code))
-for row in workbook['IDLE'].iter_rows():
+for row in ([] if stock_format else workbook['IDLE'].iter_rows()):
     values = [cell.value for cell in row]
     if not any(value is not None for value in values):
         continue
@@ -52,9 +93,10 @@ known = set(re.findall(r'\b(?:SN|IN)-\d+', seed))
 assert {row[2] for row in source_cells} <= known, 'Unknown seeded item code'
 counts = Counter(row[0] for row in source_cells)
 
-sql = f"""-- Source: FLOOR WISE ITEM CODE.xlsx, sheets NEW, RUNNING and IDLE.
+sql = f"""-- Source: {SOURCE.name}, sheets {', '.join(workbook.sheetnames)}.
 -- Source SHA256: {hashlib.sha256(SOURCE.read_bytes()).hexdigest()}
--- Generated 2026-10-27. Run the ENTIRE file in Supabase SQL Editor.
+-- Generated {args.date}. Run the ENTIRE file in Supabase SQL Editor.
+-- Select all listed item codes regardless of stock quantity; exclude subtotal rows.
 -- Requires the separate normal/idle catalogs and entry_type migration
 -- (20261023000002_reset_separate_needle_catalogs.sql and
 --  20261024000000_needle_floor_entry_type.sql) to have already been applied.
