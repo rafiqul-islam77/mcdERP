@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Calendar, Building2, Tag, Search, User, RefreshCw, Check, Loader2 } from 'lucide-react'
+import { Calendar, Building2, Tag, Search, User, RefreshCw } from 'lucide-react'
 import { SaveStatusIndicator, type SaveStatus } from '@/components/needle/save-status-indicator'
 import type { DailyEntryCategory, Floor, CurrentUser } from '@/types'
 
@@ -28,7 +28,6 @@ interface DailyEntryHeaderProps {
   disabled?: boolean
   requisitionNo?: string | null
   onOpenRequisitionModal?: () => void
-  offlineReadiness?: 'idle' | 'preparing' | 'ready'
 }
 
 export function DailyEntryHeader({
@@ -54,7 +53,6 @@ export function DailyEntryHeader({
   disabled = false,
   requisitionNo,
   onOpenRequisitionModal,
-  offlineReadiness = 'idle',
 }: DailyEntryHeaderProps) {
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded p-2 sm:p-2.5 shadow-xs space-y-1.5">
@@ -91,24 +89,6 @@ export function DailyEntryHeader({
 
           {/* Status Capsule + Offline Ready Capsule + Reload Button */}
           <div className="flex items-center gap-1.5">
-            {offlineReadiness === 'preparing' && (
-              <div
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 select-none animate-pulse"
-                title="Downloading and synchronizing previous 30 days of offline stock data..."
-              >
-                <Loader2 className="w-3 h-3 text-blue-600 animate-spin" />
-                <span>Preparing Offline Data...</span>
-              </div>
-            )}
-            {offlineReadiness === 'ready' && (
-              <div
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 select-none transition-all duration-200"
-                title="All authorized floors & categories are ready for offline use across the 30-day window."
-              >
-                <Check className="w-3 h-3 text-emerald-600 stroke-[2.5]" />
-                <span>Offline Ready ✓</span>
-              </div>
-            )}
             <SaveStatusIndicator
               status={saveStatus}
               lastSavedAt={lastSavedAt}

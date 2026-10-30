@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { getAdminClient } from '@/lib/supabase/admin'
 import { getUserPermissions, isSiteAdmin as checkIsSiteAdmin } from '@/lib/permissions'
@@ -6,17 +7,19 @@ import type { CurrentUser, ProfileWithRelations } from '@/types'
 
 /**
  * Returns basic Supabase authenticated user.
+ * Request-scoped deduplication via React cache().
  */
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async () => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   return user
-}
+})
 
 /**
  * Returns full profile record joined with designations, roles, floors.
+ * Request-scoped deduplication via React cache().
  */
-export async function getCurrentProfile(): Promise<ProfileWithRelations | null> {
+export const getCurrentProfile = cache(async (): Promise<ProfileWithRelations | null> => {
   const user = await getCurrentUser()
   if (!user) return null
 
@@ -52,12 +55,13 @@ export async function getCurrentProfile(): Promise<ProfileWithRelations | null> 
   }
 
   return p
-}
+})
 
 /**
  * Returns full context: user, profile, permissions, and site admin flag.
+ * Request-scoped deduplication via React cache().
  */
-export async function getCurrentUserFull(): Promise<CurrentUser | null> {
+export const getCurrentUserFull = cache(async (): Promise<CurrentUser | null> => {
   const user = await getCurrentUser()
   if (!user) return null
 
@@ -65,7 +69,9 @@ export async function getCurrentUserFull(): Promise<CurrentUser | null> {
   if (!profile) return null
 
   const permissions = await getUserPermissions(profile.id)
-  const isSiteAdmin = await checkIsSiteAdmin(profile.id)
+  const isSiteAdmin = profile.roles
+    ? Boolean(profile.roles.is_system && profile.roles.name === 'Site Admin')
+    : await checkIsSiteAdmin(profile.id)
 
   return {
     id: user.id,
@@ -74,7 +80,7 @@ export async function getCurrentUserFull(): Promise<CurrentUser | null> {
     permissions,
     isSiteAdmin,
   }
-}
+})
 
 /**
  * Route protection: requires authenticated session.
@@ -90,8 +96,9 @@ export async function requireAuth(): Promise<CurrentUser> {
 /**
  * Route protection: requires active account state.
  * Directs pending_activation, credential_reset_required, or disabled accounts appropriately.
+ * Request-scoped deduplication via React cache().
  */
-export async function requireActiveAccount(): Promise<CurrentUser> {
+export const requireActiveAccount = cache(async (): Promise<CurrentUser> => {
   const current = await requireAuth()
 
   if (current.profile.account_state === 'disabled') {
@@ -107,7 +114,7 @@ export async function requireActiveAccount(): Promise<CurrentUser> {
   }
 
   return current
-}
+})
 
 /**
  * Resolves an Employee ID to their associated Auth email server-side.
