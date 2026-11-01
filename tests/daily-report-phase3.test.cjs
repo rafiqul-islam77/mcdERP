@@ -324,3 +324,123 @@ test('Phase 3: Export progress state machine and floor progress calculation', ()
   assert.equal(donePct, 100)
 })
 
+
+test('Report Studio: Regular Reports - buildSummarySheet generates valid SUMMARY worksheet', async () => {
+  const { buildSummarySheet } = require('../src/lib/reports/excel-summary-sheet.ts')
+  const { buildPresentBalanceSheet } = require('../src/lib/reports/excel-present-balance.ts')
+  const wb = new ExcelJS.Workbook()
+
+  const report1 = {
+    ...sampleReportData,
+    floorName: 'A-FLOOR',
+    category: 'NEW',
+    summary: { totalPrevious: 271, totalReceived: 0, totalDelivery: 57, totalPresent: 214, totalBnr: 1 },
+  }
+  const report2 = {
+    ...sampleReportData,
+    floorName: 'A-FLOOR',
+    category: 'RUNNING',
+    summary: { totalPrevious: 1932, totalReceived: 500, totalDelivery: 276, totalPresent: 2156, totalBnr: 0 },
+  }
+
+  const reports = [report1, report2]
+
+  // 1. Build summary sheet first
+  const wsSummary = buildSummarySheet(wb, reports, '2026-10-27')
+  assert.equal(wsSummary.name, 'SUMMARY')
+
+  // 2. Check title and date
+  assert.equal(wsSummary.getCell('A4').value, 'DAILY SEWING NEEDLE PRESENT BALANCE REPORT')
+  assert.ok(String(wsSummary.getCell('A5').value).includes('2026-10-27'))
+
+  // 3. Check headers (Row 7)
+  assert.equal(wsSummary.getCell('A7').value, 'SL')
+  assert.equal(wsSummary.getCell('B7').value, 'FLOOR NAME')
+  assert.equal(wsSummary.getCell('C7').value, 'CATEGORY')
+  assert.equal(wsSummary.getCell('D7').value, 'PREVIOUS')
+  assert.equal(wsSummary.getCell('E7').value, 'RECEIVED')
+  assert.equal(wsSummary.getCell('F7').value, 'DELIVERY')
+  assert.equal(wsSummary.getCell('G7').value, 'PRESENT BALANCE')
+  assert.equal(wsSummary.getCell('H7').value, 'BNR/BNF')
+  assert.equal(wsSummary.getCell('I7').value, 'ITEMS')
+
+  // 4. Check data rows (Row 8, 9)
+  assert.equal(wsSummary.getCell('A8').value, 1)
+  assert.ok(String(wsSummary.getCell('B8').value).includes('A-FLOOR'))
+  assert.equal(wsSummary.getCell('C8').value, 'NEW')
+  assert.equal(wsSummary.getCell('D8').value, 271)
+  assert.equal(wsSummary.getCell('G8').value, 214)
+
+  assert.equal(wsSummary.getCell('A9').value, 2)
+  assert.equal(wsSummary.getCell('C9').value, 'RUNNING')
+  assert.equal(wsSummary.getCell('D9').value, 1932)
+  assert.equal(wsSummary.getCell('G9').value, 2156)
+
+  // 5. Check Grand Total Row (Row 10)
+  assert.ok(String(wsSummary.getCell('B10').value).includes('GRAND TOTAL (2 Floors)'))
+  assert.equal(wsSummary.getCell('D10').value, 271 + 1932)
+  assert.equal(wsSummary.getCell('E10').value, 0 + 500)
+  assert.equal(wsSummary.getCell('F10').value, 57 + 276)
+  assert.equal(wsSummary.getCell('G10').value, 214 + 2156)
+  assert.equal(wsSummary.getCell('H10').value, 1 + 0)
+
+  // 6. Check signatures
+  const sigTextRow = 10 + 6
+  assert.equal(wsSummary.getCell('A' + sigTextRow).value, 'PREPARED BY')
+  assert.equal(wsSummary.getCell('E' + sigTextRow).value, 'CHECKED BY')
+  assert.equal(wsSummary.getCell('H' + sigTextRow).value, 'AUTHORISED BY')
+
+  // 7. Add individual floor sheets to verify multi-sheet workbook load
+  buildPresentBalanceSheet(wb, report1)
+  buildPresentBalanceSheet(wb, report2)
+
+  assert.equal(wb.worksheets.length, 3)
+  assert.equal(wb.worksheets[0].name, 'SUMMARY')
+  assert.equal(wb.worksheets[1].name, 'A-FLOOR_N')
+  assert.equal(wb.worksheets[2].name, 'A-FLOOR_R')
+
+  const buffer = await wb.xlsx.writeBuffer()
+  assert.ok(buffer.byteLength > 1000)
+})
+
+test('Report Studio: Regular Reports - generateMultiReportPresentBalancePDF generates multi-page PDF', () => {
+  const { generateMultiReportPresentBalancePDF } = require('../src/lib/reports/pdf-multi-generator.ts')
+
+  const report1 = { ...sampleReportData, floorName: 'A-FLOOR', category: 'NEW' }
+  const report2 = { ...sampleReportData, floorName: 'B-FLOOR', category: 'RUNNING' }
+
+  const doc = generateMultiReportPresentBalancePDF([report1, report2])
+  assert.ok(doc)
+  assert.ok(doc.getNumberOfPages() >= 2, 'Must contain at least 2 pages for 2 reports')
+
+  const pdfOutput = doc.output()
+  assert.ok(pdfOutput.includes('GMS COMPOSITE KNITTING IND LTD'))
+  assert.ok(pdfOutput.includes('A-FLOOR'))
+  assert.ok(pdfOutput.includes('B-FLOOR'))
+})
+
+test('Report Studio: Regular Reports - generateMultiReportPresentBalancePDF with includeSummary', () => {
+  const { generateMultiReportPresentBalancePDF } = require('../src/lib/reports/pdf-multi-generator.ts')
+
+  const report1 = { ...sampleReportData, floorName: 'A-FLOOR', category: 'NEW' }
+  const report2 = { ...sampleReportData, floorName: 'B-FLOOR', category: 'RUNNING' }
+
+  // 1. When includeSummary is false/omitted: only detailed report pages
+  const docNoSummary = generateMultiReportPresentBalancePDF([report1, report2], { includeSummary: false })
+  assert.equal(docNoSummary.getNumberOfPages(), 2, 'Must contain exactly 2 pages when Summary is unchecked')
+
+  // 2. When includeSummary is true: 1 Summary page + 2 detailed report pages = 3 pages
+  const docWithSummary = generateMultiReportPresentBalancePDF([report1, report2], {
+    includeSummary: true,
+    date: '2026-10-27',
+  })
+  assert.equal(docWithSummary.getNumberOfPages(), 3, 'Must contain 1 Summary page + 2 detailed report pages = 3 pages')
+
+  const pdfOutput = docWithSummary.output()
+  assert.ok(pdfOutput.includes('GMS COMPOSITE KNITTING IND LTD'))
+  assert.ok(pdfOutput.includes('GRAND TOTAL'))
+  assert.ok(pdfOutput.includes('2 Floors'))
+  assert.ok(pdfOutput.includes('Date: 2026-10-27'))
+  assert.ok(pdfOutput.includes('A-FLOOR'))
+  assert.ok(pdfOutput.includes('B-FLOOR'))
+})
