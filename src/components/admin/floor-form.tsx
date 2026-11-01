@@ -21,7 +21,14 @@ export function FloorManager({
   canEdit: boolean
 }) {
   const { toast } = useToast()
+  const [searchInput, setSearchInput] = React.useState('')
   const [search, setSearch] = React.useState('')
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    setSearch(searchInput)
+  }
+
   const [modalOpen, setModalOpen] = React.useState(false)
   const [editingFloor, setEditingFloor] = React.useState<Floor | null>(null)
   const [loading, setLoading] = React.useState(false)
@@ -150,18 +157,24 @@ export function FloorManager({
 
       {/* Search Toolbar */}
       <div className="bg-white p-3.5 rounded-erp-lg border border-surface-border shadow-xs flex items-center justify-between gap-3">
-        <div className="relative max-w-sm w-full">
+        <form onSubmit={handleSearchSubmit} className="relative max-w-sm w-full">
           <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-ink-light">
             <Search className="w-4 h-4" />
           </span>
           <input
             type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                handleSearchSubmit()
+              }
+            }}
             placeholder="Search floors by name, code, or building location..."
             className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-surface-border rounded-erp text-ink placeholder:text-ink-light focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand"
           />
-        </div>
+        </form>
         <span className="text-xs text-ink-muted font-medium">
           Total Floors: {floors.length}
         </span>

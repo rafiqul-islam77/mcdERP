@@ -54,6 +54,17 @@ export function DailyEntryHeader({
   requisitionNo,
   onOpenRequisitionModal,
 }: DailyEntryHeaderProps) {
+  const [searchInput, setSearchInput] = React.useState(searchTerm)
+
+  React.useEffect(() => {
+    setSearchInput(searchTerm)
+  }, [searchTerm])
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    onSearchChange(searchInput)
+  }
+
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded p-2 sm:p-2.5 shadow-xs space-y-1.5">
       {/* Top row: Module title, subtle user badge, save status indicator + reload button (Image 3) */}
@@ -101,7 +112,7 @@ export function DailyEntryHeader({
             <button
               type="button"
               onClick={onReload}
-              disabled={disabled}
+              disabled={disabled || !date}
               title="Reload sheet data"
               className="p-1 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
             >
@@ -111,23 +122,8 @@ export function DailyEntryHeader({
         </div>
       </div>
 
-      {/* Control filters row: Date, Floor, Category, Search */}
+      {/* Control filters row: Floor, Category, Date, Search */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-        {/* Date Selector */}
-        <div className="space-y-0.5">
-          <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
-            <Calendar className="w-3 h-3 text-slate-400" />
-            <span>Date</span>
-          </label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => onDateChange(e.target.value)}
-            disabled={disabled}
-            className="w-full text-xs h-7 px-2 py-0.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-brand font-mono"
-          />
-        </div>
-
         {/* Floor Selector (Restricted to Authorized Floors) */}
         <div className="space-y-0.5">
           <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
@@ -172,22 +168,43 @@ export function DailyEntryHeader({
           </select>
         </div>
 
+        {/* Date Selector */}
+        <div className="space-y-0.5">
+          <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
+            <Calendar className="w-3 h-3 text-slate-400" />
+            <span>Date</span>
+          </label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => onDateChange(e.target.value)}
+            disabled={disabled}
+            className="w-full text-xs h-7 px-2 py-0.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+          />
+        </div>
+
         {/* Search / Filter Needles */}
         <div className="space-y-0.5">
           <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
             <Search className="w-3 h-3 text-slate-400" />
             <span>Search Filter</span>
           </label>
-          <div className="relative">
+          <form onSubmit={handleSearchSubmit} className="relative">
             <input
               type="text"
               placeholder="Code, type, size..."
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleSearchSubmit()
+                }
+              }}
               className="w-full text-xs h-7 pl-7 pr-2 py-0.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-brand placeholder:text-slate-400"
             />
-            <Search className="w-3 h-3 text-slate-400 absolute left-2 top-2" />
-          </div>
+            <Search className="w-3 h-3 text-slate-400 absolute left-2 top-2 pointer-events-none" />
+          </form>
         </div>
       </div>
     </div>

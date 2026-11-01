@@ -32,6 +32,8 @@ Thumbs.db
 *.swp
 .vscode/
 .idea/
+__pycache__/
+*.py[cod]
 
 # TypeScript cache
 *.tsbuildinfo
