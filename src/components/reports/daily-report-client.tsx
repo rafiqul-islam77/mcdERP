@@ -15,14 +15,17 @@ import {
 import { Button } from '@/components/ui/button'
 import { PresentBalanceTable } from '@/components/reports/present-balance-table'
 import { ReportSkeleton } from '@/components/reports/report-skeleton'
-import { getDailyReportAction, getDailyStockReportDataAction } from '@/app/actions/reports'
+import {
+  getDailyReportAction,
+  exportDailyStockExcelAction,
+  exportClosingStockExcelAction,
+} from '@/app/actions/reports'
 import { generatePresentBalancePDF } from '@/lib/reports/pdf-generator'
 import { formatFloorDisplayName } from '@/lib/reports/report-utils'
 import {
   ExportProgressModal,
   type ExportProgressState,
-  type FloorProgressItem,
-} from '@/components/reports/export-progress-modal'
+  } from '@/components/reports/export-progress-modal'
 import type { DailyEntryCategory, DailyReportData, Floor } from '@/types'
 
 interface DailyReportClientProps {
@@ -170,7 +173,18 @@ export function DailyReportClient({
     }, 60000)
   }
 
-  // 4. Export handlers with progress states and duplicate-click prevention
+  // Helper to convert base64 payload to Blob for client download
+  const base64ToBlob = (base64: string, mimeType: string): Blob => {
+    const binaryString = window.atob(base64)
+    const len = binaryString.length
+    const bytes = new Uint8Array(len)
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i)
+    }
+    return new Blob([bytes], { type: mimeType })
+  }
+
+  // 4. Export handlers with single-pass data fetch and duplicate-click prevention
   const handleExportStockExcel = async () => {
     if (!date || isAnyExporting) return
     const isAll = selectedFloorId === 'all'
@@ -194,118 +208,56 @@ export function DailyReportClient({
       status: 'running',
       statusMessage: 'Preparing report...',
       currentStep: 1,
-      totalSteps: isAll ? initialFloors.length + 2 : 4,
-      progressPercent: 5,
-      itemsLabel: isAll ? `0 / ${initialFloors.length} Floors` : undefined,
+      totalSteps: 4,
+      progressPercent: 15,
+      itemsLabel: isAll ? `All Authorized Floors` : undefined,
       floorItems: [],
       downloadFilename: filename,
     })
 
     try {
-      const floorItems: FloorProgressItem[] = []
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: isAll ? 'Loading batch report data for all floors...' : `Fetching report data for ${floorLabel}...`,
+        progressPercent: 40,
+        currentStep: 2,
+      }))
 
-      if (isAll && initialFloors.length > 0) {
-        for (let i = 0; i < initialFloors.length; i++) {
-          const floor = initialFloors[i]
-          const pct = Math.round(5 + ((i + 1) / initialFloors.length) * 65)
-          setProgressModalState((prev) => ({
-            ...prev,
-            statusMessage: `Processing ${i + 1} / ${initialFloors.length} Floors (${floor.name})...`,
-            progressPercent: pct,
-            itemsLabel: `${i + 1} / ${initialFloors.length} Floors`,
-          }))
+      const res = await exportClosingStockExcelAction({
+        date,
+        floorId: selectedFloorId,
+      })
 
-          const repRes = await getDailyStockReportDataAction({ date, floorId: floor.id })
-          let itemsCount = 0
-          let presentTotal = 0
-          if (repRes.success && repRes.data) {
-            const allReps = [
-              ...(repRes.data.runningReports || []),
-              ...(repRes.data.newReports || []),
-              ...(repRes.data.idleReports || []),
-            ]
-            for (const r of allReps) {
-              itemsCount += r.rows.length
-              presentTotal += r.summary.totalPresent
-            }
-          }
-
-          const newItem: FloorProgressItem = {
-            id: floor.id,
-            floorName: floor.name,
-            date,
-            itemsCount,
-            presentStock: presentTotal,
-            source: 'actual',
-          }
-          floorItems.push(newItem)
-
-          setProgressModalState((prev) => ({
-            ...prev,
-            floorItems: [...floorItems],
-          }))
-        }
-      } else {
-        await new Promise((r) => setTimeout(r, 120))
-        setProgressModalState((prev) => ({
-          ...prev,
-          statusMessage: `Fetching report data for ${floorLabel}...`,
-          progressPercent: 35,
-          currentStep: 2,
-        }))
+      if (!res.success || !res.data) {
+        throw new Error(res.error || 'Closing Stock export failed. Try again.')
       }
 
       setProgressModalState((prev) => ({
         ...prev,
         statusMessage: 'Generating Excel workbook...',
-        progressPercent: isAll ? 80 : 65,
-        currentStep: isAll ? initialFloors.length + 1 : 3,
+        progressPercent: 85,
+        currentStep: 3,
       }))
 
-      const url = `/api/reports/stock-excel?date=${encodeURIComponent(date)}&floorId=${encodeURIComponent(
-        selectedFloorId
-      )}`
-      const res = await fetch(url)
-      if (!res.ok) {
-        let errMessage = 'Closing Stock export failed. Try again.'
-        try {
-          const errJson = await res.json()
-          if (errJson.error) errMessage = errJson.error
-        } catch {}
-        throw new Error(errMessage)
-      }
+      const blob = base64ToBlob(
+        res.data.base64,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      )
+      const outFilename = res.data.filename || filename
 
-      const contentType = res.headers.get('content-type') || ''
-      if (!contentType.includes('spreadsheetml') && !contentType.includes('octet-stream')) {
-        throw new Error('Server returned an invalid format instead of an Excel spreadsheet.')
-      }
-
-      setProgressModalState((prev) => ({
-        ...prev,
-        statusMessage: 'Finalizing file...',
-        progressPercent: 92,
-        currentStep: isAll ? initialFloors.length + 2 : 4,
-      }))
-
-      const arrayBuffer = await res.arrayBuffer()
-      if (!arrayBuffer || arrayBuffer.byteLength < 500) {
-        throw new Error('Received an incomplete Excel file. Please try again.')
-      }
-
-      const blob = new Blob([arrayBuffer], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      })
-
-      lastExportRef.current = { blob, filename }
+      lastExportRef.current = { blob, filename: outFilename }
 
       setProgressModalState((prev) => ({
         ...prev,
         status: 'completed',
         statusMessage: 'Generation Complete ✓',
         progressPercent: 100,
+        currentStep: 4,
+        floorItems: res.data?.floorItems || [],
+        downloadFilename: outFilename,
       }))
 
-      downloadBlobSafely(blob, filename)
+      downloadBlobSafely(blob, outFilename)
     } catch (err: any) {
       const errorMsg = err.message || 'Excel generation failed. Try again.'
       setError(errorMsg)
@@ -346,117 +298,57 @@ export function DailyReportClient({
       status: 'running',
       statusMessage: 'Preparing report...',
       currentStep: 1,
-      totalSteps: isAll ? initialFloors.length + 2 : 4,
-      progressPercent: 5,
-      itemsLabel: isAll ? `0 / ${initialFloors.length} Floors` : undefined,
+      totalSteps: 4,
+      progressPercent: 15,
+      itemsLabel: isAll ? `All Authorized Floors` : undefined,
       floorItems: [],
       downloadFilename: filename,
     })
 
     try {
-      const floorItems: FloorProgressItem[] = []
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: isAll ? 'Loading batch report data for all floors...' : `Fetching report data for ${floorLabel}...`,
+        progressPercent: 40,
+        currentStep: 2,
+      }))
 
-      if (isAll && initialFloors.length > 0) {
-        for (let i = 0; i < initialFloors.length; i++) {
-          const floor = initialFloors[i]
-          const pct = Math.round(5 + ((i + 1) / initialFloors.length) * 65)
-          setProgressModalState((prev) => ({
-            ...prev,
-            statusMessage: `Processing ${i + 1} / ${initialFloors.length} Floors (${floor.name})...`,
-            progressPercent: pct,
-            itemsLabel: `${i + 1} / ${initialFloors.length} Floors`,
-          }))
+      const res = await exportDailyStockExcelAction({
+        date,
+        floorId: selectedFloorId,
+        category: selectedCategory,
+      })
 
-          const repRes = await getDailyReportAction({
-            date,
-            floorId: floor.id,
-            category: selectedCategory,
-          })
-
-          let itemsCount = 0
-          let presentTotal = 0
-          if (repRes.success && repRes.data) {
-            itemsCount = repRes.data.rows.length
-            presentTotal = repRes.data.summary.totalPresent
-          }
-
-          const newItem: FloorProgressItem = {
-            id: floor.id,
-            floorName: floor.name,
-            category: selectedCategory,
-            date,
-            itemsCount,
-            presentStock: presentTotal,
-            source: 'actual',
-          }
-          floorItems.push(newItem)
-
-          setProgressModalState((prev) => ({
-            ...prev,
-            floorItems: [...floorItems],
-          }))
-        }
-      } else {
-        await new Promise((r) => setTimeout(r, 120))
-        setProgressModalState((prev) => ({
-          ...prev,
-          statusMessage: `Fetching report data for ${floorLabel}...`,
-          progressPercent: 35,
-          currentStep: 2,
-        }))
+      if (!res.success || !res.data) {
+        throw new Error(res.error || 'Daily Stock export failed. Try again.')
       }
 
       setProgressModalState((prev) => ({
         ...prev,
         statusMessage: 'Generating Excel workbook...',
-        progressPercent: isAll ? 80 : 65,
-        currentStep: isAll ? initialFloors.length + 1 : 3,
+        progressPercent: 85,
+        currentStep: 3,
       }))
 
-      const url = `/api/reports/present-balance-excel?date=${encodeURIComponent(
-        date
-      )}&floorId=${encodeURIComponent(selectedFloorId)}&category=${encodeURIComponent(selectedCategory)}`
-      const res = await fetch(url)
-      if (!res.ok) {
-        let errMessage = 'Daily Stock export failed. Try again.'
-        try {
-          const errJson = await res.json()
-          if (errJson.error) errMessage = errJson.error
-        } catch {}
-        throw new Error(errMessage)
-      }
+      const blob = base64ToBlob(
+        res.data.base64,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      )
+      const outFilename = res.data.filename || filename
 
-      const contentType = res.headers.get('content-type') || ''
-      if (!contentType.includes('spreadsheetml') && !contentType.includes('octet-stream')) {
-        throw new Error('Server returned an invalid format instead of an Excel spreadsheet.')
-      }
-
-      setProgressModalState((prev) => ({
-        ...prev,
-        statusMessage: 'Finalizing file...',
-        progressPercent: 92,
-        currentStep: isAll ? initialFloors.length + 2 : 4,
-      }))
-
-      const arrayBuffer = await res.arrayBuffer()
-      if (!arrayBuffer || arrayBuffer.byteLength < 500) {
-        throw new Error('Received an incomplete Excel file. Please try again.')
-      }
-
-      const blob = new Blob([arrayBuffer], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      })
-
-      lastExportRef.current = { blob, filename }
+      lastExportRef.current = { blob, filename: outFilename }
 
       setProgressModalState((prev) => ({
         ...prev,
         status: 'completed',
         statusMessage: 'Generation Complete ✓',
         progressPercent: 100,
+        currentStep: 4,
+        floorItems: res.data?.floorItems || [],
+        downloadFilename: outFilename,
       }))
 
-      downloadBlobSafely(blob, filename)
+      downloadBlobSafely(blob, outFilename)
     } catch (err: any) {
       const errorMsg = err.message || 'Excel generation failed. Try again.'
       setError(errorMsg)

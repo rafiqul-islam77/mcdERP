@@ -3,7 +3,10 @@
 import { requireActiveAccount } from '@/lib/auth'
 import { hasPermission } from '@/lib/permissions'
 import { getAuthorizedContextAction } from '@/app/actions/daily-entry'
-import { getDailyReportData } from '@/lib/reports/daily-report-service'
+import { getDailyReportData, getBatchDailyReportData } from '@/lib/reports/daily-report-service'
+import { generatePresentBalanceWorkbook } from '@/lib/reports/excel-present-balance'
+import { generateDailyStockReportWorkbook } from '@/lib/reports/excel-stock-report'
+import type { FloorProgressItem } from '@/components/reports/export-progress-modal'
 import type { ActionResult, DailyEntryCategory, DailyReportData, Floor } from '@/types'
 
 /**
@@ -50,7 +53,7 @@ export async function getDailyReportAction(params: {
 }
 
 /**
- * Fetch authoritative Daily Reports for ALL authorized floors (for All Floors export)
+ * Fetch authoritative Daily Reports for ALL authorized floors (optimized with batch service)
  */
 export async function getAllFloorsDailyReportAction(params: {
   date: string
@@ -77,23 +80,17 @@ export async function getAllFloorsDailyReportAction(params: {
     return { success: true, data: [] }
   }
 
-  const reports: DailyReportData[] = []
-  for (const floor of authorizedFloors) {
-    const repRes = await getDailyReportData({
-      date: params.date,
-      floorId: floor.id,
-      category: params.category,
-    })
-    if (repRes.success && repRes.data) {
-      reports.push(repRes.data)
-    }
-  }
-
-  return { success: true, data: reports }
+  const floorIds = authorizedFloors.map((f) => f.id)
+  return await getBatchDailyReportData({
+    date: params.date,
+    floorIds,
+    categories: [params.category],
+  })
 }
 
 /**
  * Fetch datasets required for Daily Stock Report (NEW + RUNNING + IDLE)
+ * Optimized using Step 2 (load metadata once) and Step 3 (batch multi-floor queries).
  */
 export async function getDailyStockReportDataAction(params: {
   date: string
@@ -112,32 +109,48 @@ export async function getDailyStockReportDataAction(params: {
   }
 
   const allAuthFloors: Floor[] = contextRes.data.floors
-  const targetFloors = params.floorId && params.floorId !== 'all'
-    ? allAuthFloors.filter((f) => f.id === params.floorId)
-    : allAuthFloors
+  const targetFloors =
+    params.floorId && params.floorId !== 'all'
+      ? allAuthFloors.filter((f) => f.id === params.floorId)
+      : allAuthFloors
 
-  const newReports: DailyReportData[] = []
-  const runningReports: DailyReportData[] = []
-  const idleReports: DailyReportData[] = []
+  const targetFloorIds = targetFloors.map((f) => f.id)
+  if (targetFloorIds.length === 0) {
+    return {
+      success: true,
+      data: { newReports: [], runningReports: [], idleReports: [] },
+    }
+  }
 
   const canViewNew = await canViewDailyReport(actor.profile.id, actor.isSiteAdmin, 'NEW')
   const canViewRunning = await canViewDailyReport(actor.profile.id, actor.isSiteAdmin, 'RUNNING')
   const canViewIdle = await canViewDailyReport(actor.profile.id, actor.isSiteAdmin, 'IDLE')
 
-  for (const floor of targetFloors) {
-    if (canViewNew) {
-      const rep = await getDailyReportData({ date: params.date, floorId: floor.id, category: 'NEW' })
-      if (rep.success && rep.data) newReports.push(rep.data)
-    }
-    if (canViewRunning) {
-      const rep = await getDailyReportData({ date: params.date, floorId: floor.id, category: 'RUNNING' })
-      if (rep.success && rep.data) runningReports.push(rep.data)
-    }
-    if (canViewIdle) {
-      const rep = await getDailyReportData({ date: params.date, floorId: floor.id, category: 'IDLE' })
-      if (rep.success && rep.data) idleReports.push(rep.data)
+  const categories: DailyEntryCategory[] = []
+  if (canViewNew) categories.push('NEW')
+  if (canViewRunning) categories.push('RUNNING')
+  if (canViewIdle) categories.push('IDLE')
+
+  if (categories.length === 0) {
+    return {
+      success: true,
+      data: { newReports: [], runningReports: [], idleReports: [] },
     }
   }
+
+  const batchRes = await getBatchDailyReportData({
+    date: params.date,
+    floorIds: targetFloorIds,
+    categories,
+  })
+
+  if (!batchRes.success || !batchRes.data) {
+    return { success: false, error: batchRes.error || 'Failed to load stock reports.' }
+  }
+
+  const newReports = batchRes.data.filter((r) => r.category === 'NEW')
+  const runningReports = batchRes.data.filter((r) => r.category === 'RUNNING')
+  const idleReports = batchRes.data.filter((r) => r.category === 'IDLE')
 
   return {
     success: true,
@@ -145,6 +158,169 @@ export async function getDailyStockReportDataAction(params: {
       newReports,
       runningReports,
       idleReports,
+    },
+  }
+}
+
+/**
+ * Direct Single-Pass Export for Daily Stock Excel
+ * Eliminates duplicate client/server query cycles.
+ */
+export async function exportDailyStockExcelAction(params: {
+  date: string
+  floorId: string
+  category: DailyEntryCategory
+}): Promise<
+  ActionResult<{
+    base64: string
+    filename: string
+    floorItems: FloorProgressItem[]
+  }>
+> {
+  const actor = await requireActiveAccount()
+
+  const permKey =
+    params.category === 'NEW'
+      ? 'broken.daily_report.export_present_excel'
+      : params.category === 'IDLE'
+      ? 'idle.daily_report.export_present_excel'
+      : 'needle.daily_report.export_present_excel'
+
+  const hasPerm =
+    actor.isSiteAdmin ||
+    (await hasPermission(actor.profile.id, permKey)) ||
+    (await hasPermission(actor.profile.id, 'daily_report.export_present_excel')) ||
+    (await hasPermission(actor.profile.id, 'needle.daily_report.export')) ||
+    (await hasPermission(actor.profile.id, 'broken.daily_report.export')) ||
+    (await hasPermission(actor.profile.id, 'idle.daily_report.export'))
+
+  if (!hasPerm) {
+    return { success: false, error: 'Forbidden: Present balance export permission denied.' }
+  }
+
+  let reports: DailyReportData[] = []
+  let filename = `Daily Stock - All Floors - ${params.date}.xlsx`
+
+  if (params.floorId === 'all') {
+    const res = await getAllFloorsDailyReportAction({ date: params.date, category: params.category })
+    if (!res.success || !res.data) {
+      return { success: false, error: res.error || 'Failed to generate report' }
+    }
+    reports = res.data
+  } else {
+    const res = await getDailyReportAction({ date: params.date, floorId: params.floorId, category: params.category })
+    if (!res.success || !res.data) {
+      return { success: false, error: res.error || 'Failed to generate report' }
+    }
+    reports = [res.data]
+    const cleanFloor = (res.data.floorCode || res.data.floorName).replace(/[/\\?*:[\]<>|"]/g, '-').trim()
+    filename = `Daily Stock - ${cleanFloor} - ${params.category} - ${params.date}.xlsx`
+  }
+
+  if (reports.length === 0) {
+    return { success: false, error: 'No data available for export' }
+  }
+
+  const buffer = await generatePresentBalanceWorkbook(reports)
+
+  const floorItems: FloorProgressItem[] = reports.map((r) => ({
+    id: r.floorId,
+    floorName: r.floorName,
+    category: r.category,
+    date: r.date,
+    itemsCount: r.rows.length,
+    presentStock: r.summary.totalPresent,
+    source: r.sourceNote?.includes('Carry') ? 'carry' : 'actual',
+  }))
+
+  return {
+    success: true,
+    data: {
+      base64: Buffer.from(buffer).toString('base64'),
+      filename,
+      floorItems,
+    },
+  }
+}
+
+/**
+ * Direct Single-Pass Export for Closing Stock Excel
+ * Eliminates duplicate client/server query cycles.
+ */
+export async function exportClosingStockExcelAction(params: {
+  date: string
+  floorId: string
+}): Promise<
+  ActionResult<{
+    base64: string
+    filename: string
+    floorItems: FloorProgressItem[]
+  }>
+> {
+  const actor = await requireActiveAccount()
+
+  const hasPerm =
+    actor.isSiteAdmin ||
+    (await hasPermission(actor.profile.id, 'daily_report.export_stock_excel')) ||
+    (await hasPermission(actor.profile.id, 'needle.daily_report.export_stock_excel')) ||
+    (await hasPermission(actor.profile.id, 'broken.daily_report.export_stock_excel')) ||
+    (await hasPermission(actor.profile.id, 'idle.daily_report.export_stock_excel')) ||
+    (await hasPermission(actor.profile.id, 'needle.daily_report.export'))
+
+  if (!hasPerm) {
+    return { success: false, error: 'Forbidden: Stock report export permission denied.' }
+  }
+
+  const stockDataRes = await getDailyStockReportDataAction({ date: params.date, floorId: params.floorId })
+  if (!stockDataRes.success || !stockDataRes.data) {
+    return { success: false, error: stockDataRes.error || 'Failed to generate stock report' }
+  }
+
+  const buffer = await generateDailyStockReportWorkbook({
+    date: params.date,
+    newReports: stockDataRes.data.newReports,
+    runningReports: stockDataRes.data.runningReports,
+    idleReports: stockDataRes.data.idleReports,
+  })
+
+  let floorLabel = 'All Floors'
+  if (params.floorId !== 'all') {
+    const firstRep =
+      stockDataRes.data.runningReports[0] ||
+      stockDataRes.data.newReports[0] ||
+      stockDataRes.data.idleReports[0]
+    floorLabel = firstRep ? (firstRep.floorCode || firstRep.floorName) : 'Floor'
+  }
+  const safeFloor = floorLabel.replace(/[/\\?*:[\]<>|"]/g, '-').trim()
+  const filename = `Closing Stock - ${safeFloor} - ${params.date}.xlsx`
+
+  const floorMap = new Map<string, FloorProgressItem>()
+  const allReps = [
+    ...(stockDataRes.data.runningReports || []),
+    ...(stockDataRes.data.newReports || []),
+    ...(stockDataRes.data.idleReports || []),
+  ]
+  for (const r of allReps) {
+    const existing = floorMap.get(r.floorId) || {
+      id: r.floorId,
+      floorName: r.floorName,
+      date: params.date,
+      itemsCount: 0,
+      presentStock: 0,
+      source: 'actual' as const,
+    }
+    existing.itemsCount += r.rows.length
+    existing.presentStock += r.summary.totalPresent
+    if (r.sourceNote?.includes('Carry')) existing.source = 'carry'
+    floorMap.set(r.floorId, existing)
+  }
+
+  return {
+    success: true,
+    data: {
+      base64: Buffer.from(buffer).toString('base64'),
+      filename,
+      floorItems: Array.from(floorMap.values()),
     },
   }
 }

@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
 import { getCurrentUserFull } from '@/lib/auth'
 import { getAuthorizedContextAction } from '@/app/actions/daily-entry'
-import { getDailyReportAction } from '@/app/actions/reports'
+import { getBatchDailyReportData } from '@/lib/reports/daily-report-service'
 import { buildPresentBalanceSheet } from '@/lib/reports/excel-present-balance'
 import { buildSummarySheet } from '@/lib/reports/excel-summary-sheet'
-import type { DailyEntryCategory, DailyReportData, Floor } from '@/types'
+import type { DailyEntryCategory, Floor } from '@/types'
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUserFull()
@@ -72,20 +72,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'No valid categories selected' }, { status: 400 })
   }
 
-  // Fetch reports for each floor and category combination
-  const reports: DailyReportData[] = []
-  for (const floor of targetFloors) {
-    for (const cat of validCategories) {
-      const repRes = await getDailyReportAction({
-        date,
-        floorId: floor.id,
-        category: cat,
-      })
-      if (repRes.success && repRes.data) {
-        reports.push(repRes.data)
-      }
-    }
+  // Fetch authoritative batch reports in a single bulk query (optimized Steps 1+2+3)
+  const targetFloorIds = targetFloors.map((f) => f.id)
+  const batchRes = await getBatchDailyReportData({
+    date,
+    floorIds: targetFloorIds,
+    categories: validCategories,
+  })
+
+  if (!batchRes.success || !batchRes.data) {
+    return NextResponse.json(
+      { error: batchRes.error || 'Failed to fetch report data' },
+      { status: 500 }
+    )
   }
+
+  const reports = batchRes.data
 
   if (reports.length === 0) {
     return NextResponse.json({ error: 'No report data found for selected criteria' }, { status: 404 })

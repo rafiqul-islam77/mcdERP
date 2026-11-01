@@ -22,7 +22,7 @@ import {
   type ExportProgressState,
   type FloorProgressItem,
 } from '@/components/reports/export-progress-modal'
-import { getDailyReportAction, getDailyStockReportDataAction } from '@/app/actions/reports'
+import { getDailyStockReportDataAction } from '@/app/actions/reports'
 import { generateMultiReportPresentBalancePDF } from '@/lib/reports/pdf-multi-generator'
 import { formatFloorDisplayName } from '@/lib/reports/report-utils'
 import type { DailyEntryCategory, DailyReportData, Floor } from '@/types'
@@ -36,7 +36,7 @@ interface RegularReportClientProps {
 export function RegularReportClient({
   initialFloors,
   allowedCategories,
-  isSiteAdmin,
+  isSiteAdmin: _isSiteAdmin,
 }: RegularReportClientProps) {
   const todayStr = new Date().toISOString().slice(0, 10)
 
@@ -143,6 +143,7 @@ export function RegularReportClient({
       ? 'All Floors'
       : `${dsSelectedFloorIds.length} Floor${dsSelectedFloorIds.length > 1 ? 's' : ''}`
     const filename = `Daily Stock - ${dsDate}.xlsx`
+    const selectedFloors = initialFloors.filter((f) => dsSelectedFloorIds.includes(f.id))
 
     setIsExporting(true)
     setProgressModalState({
@@ -155,65 +156,20 @@ export function RegularReportClient({
       status: 'running',
       statusMessage: 'Preparing Daily Stock report...',
       currentStep: 1,
-      totalSteps: dsSelectedFloorIds.length + 3,
+      totalSteps: 4,
       progressPercent: 5,
-      itemsLabel: `0 / ${dsSelectedFloorIds.length} Floors`,
+      itemsLabel: `${selectedFloors.length} Floor${selectedFloors.length > 1 ? 's' : ''}`,
       floorItems: [],
       downloadFilename: filename,
     })
 
     try {
-      const selectedFloors = initialFloors.filter((f) => dsSelectedFloorIds.includes(f.id))
-      const floorItems: FloorProgressItem[] = []
-
-      // Fetch preview metadata floor-by-floor for visible progress
-      for (let i = 0; i < selectedFloors.length; i++) {
-        const floor = selectedFloors[i]
-        const pct = Math.round(5 + ((i + 1) / selectedFloors.length) * 65)
-
-        setProgressModalState((prev) => ({
-          ...prev,
-          statusMessage: `Processing ${i + 1} / ${selectedFloors.length} Floors (${floor.name})...`,
-          progressPercent: pct,
-          itemsLabel: `${i + 1} / ${selectedFloors.length} Floors`,
-        }))
-
-        let floorItemsCount = 0
-        let floorPresentTotal = 0
-
-        for (const cat of dsSelectedCategories) {
-          const repRes = await getDailyReportAction({
-            date: dsDate,
-            floorId: floor.id,
-            category: cat,
-          })
-          if (repRes.success && repRes.data) {
-            floorItemsCount += repRes.data.rows.length
-            floorPresentTotal += repRes.data.summary.totalPresent
-          }
-        }
-
-        floorItems.push({
-          id: floor.id,
-          floorName: formatFloorDisplayName(floor.name, floor.floor_locations?.name),
-          date: dsDate,
-          itemsCount: floorItemsCount,
-          presentStock: floorPresentTotal,
-          source: 'actual',
-        })
-
-        setProgressModalState((prev) => ({
-          ...prev,
-          floorItems: [...floorItems],
-        }))
-      }
-
-      // Step: Requesting workbook generation from server
+      // Direct single-pass generation via batch API endpoint (Steps 1+2+3)
       setProgressModalState((prev) => ({
         ...prev,
         statusMessage: 'Generating multi-sheet Excel workbook...',
-        progressPercent: 85,
-        currentStep: selectedFloors.length + 1,
+        progressPercent: 45,
+        currentStep: 2,
       }))
 
       const floorIdsQuery = isAll ? 'all' : dsSelectedFloorIds.join(',')
@@ -238,7 +194,7 @@ export function RegularReportClient({
         ...prev,
         statusMessage: 'Finalizing file...',
         progressPercent: 95,
-        currentStep: selectedFloors.length + 2,
+        currentStep: 3,
       }))
 
       const blob = await res.blob()
@@ -303,7 +259,6 @@ export function RegularReportClient({
 
     setIsExporting(true)
     const selectedFloors = initialFloors.filter((f) => dsSelectedFloorIds.includes(f.id))
-    const totalCombos = selectedFloors.length * dsSelectedCategories.length
 
     setProgressModalState({
       isOpen: true,
@@ -315,71 +270,70 @@ export function RegularReportClient({
       status: 'running',
       statusMessage: 'Preparing PDF reports...',
       currentStep: 1,
-      totalSteps: totalCombos + 3,
+      totalSteps: 4,
       progressPercent: 5,
-      itemsLabel: `0 / ${totalCombos} sections`,
+      itemsLabel: `${selectedFloors.length} Floors (${dsSelectedCategories.length} categories)`,
       floorItems: [],
       downloadFilename: filename,
     })
 
     try {
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: 'Fetching report data in batch...',
+        progressPercent: 30,
+        currentStep: 2,
+      }))
+
+      const repRes = await getDailyStockReportDataAction({ date: dsDate })
+      if (!repRes.success || !repRes.data) {
+        throw new Error(repRes.error || 'Failed to fetch report data.')
+      }
+
       const reports: DailyReportData[] = []
-      const floorItems: FloorProgressItem[] = []
-      let comboIndex = 0
-
       for (const floor of selectedFloors) {
-        let floorItemsCount = 0
-        let floorPresentTotal = 0
-
         for (const cat of dsSelectedCategories) {
-          comboIndex++
-          const pct = Math.round(5 + (comboIndex / totalCombos) * 65)
+          let pool: DailyReportData[] = []
+          if (cat === 'RUNNING') pool = repRes.data.runningReports || []
+          else if (cat === 'NEW') pool = repRes.data.newReports || []
+          else if (cat === 'IDLE') pool = repRes.data.idleReports || []
 
-          setProgressModalState((prev) => ({
-            ...prev,
-            statusMessage: `Fetching section ${comboIndex} / ${totalCombos}: ${floor.name} (${cat})...`,
-            progressPercent: pct,
-            itemsLabel: `${comboIndex} / ${totalCombos} sections`,
-          }))
-
-          const repRes = await getDailyReportAction({
-            date: dsDate,
-            floorId: floor.id,
-            category: cat,
-          })
-
-          if (repRes.success && repRes.data) {
-            reports.push(repRes.data)
-            floorItemsCount += repRes.data.rows.length
-            floorPresentTotal += repRes.data.summary.totalPresent
+          const match = pool.find((r) => r.floorId === floor.id)
+          if (match) {
+            reports.push(match)
           }
         }
-
-        floorItems.push({
-          id: floor.id,
-          floorName: formatFloorDisplayName(floor.name, floor.floor_locations?.name),
-          date: dsDate,
-          itemsCount: floorItemsCount,
-          presentStock: floorPresentTotal,
-          source: 'actual',
-        })
-
-        setProgressModalState((prev) => ({
-          ...prev,
-          floorItems: [...floorItems],
-        }))
       }
 
       if (reports.length === 0) {
         throw new Error('No report data found for the selected criteria.')
       }
 
+      const floorItems: FloorProgressItem[] = selectedFloors.map((floor) => {
+        const floorReps = reports.filter((r) => r.floorId === floor.id)
+        const itemsCount = floorReps.reduce((sum, r) => sum + r.rows.length, 0)
+        const presentStock = floorReps.reduce((sum, r) => sum + r.summary.totalPresent, 0)
+        return {
+          id: floor.id,
+          floorName: formatFloorDisplayName(floor.name, floor.floor_locations?.name),
+          date: dsDate,
+          itemsCount,
+          presentStock,
+          source: 'actual' as const,
+        }
+      })
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        floorItems,
+      }))
+
       // Step: Rendering PDF
       setProgressModalState((prev) => ({
         ...prev,
         statusMessage: `Rendering ${reports.length} report section(s) to PDF...`,
         progressPercent: 85,
-        currentStep: totalCombos + 1,
+        currentStep: 3,
       }))
 
       await new Promise((r) => setTimeout(r, 60))
@@ -393,7 +347,7 @@ export function RegularReportClient({
         ...prev,
         statusMessage: 'Finalizing PDF file...',
         progressPercent: 95,
-        currentStep: totalCombos + 2,
+        currentStep: 4,
       }))
 
       await new Promise((r) => setTimeout(r, 60))
@@ -459,67 +413,20 @@ export function RegularReportClient({
       status: 'running',
       statusMessage: 'Preparing Closing Stock report...',
       currentStep: 1,
-      totalSteps: selectedFloors.length + 3,
+      totalSteps: 4,
       progressPercent: 5,
-      itemsLabel: `0 / ${selectedFloors.length} Floors`,
+      itemsLabel: `${selectedFloors.length} Floor${selectedFloors.length > 1 ? 's' : ''}`,
       floorItems: [],
       downloadFilename: filename,
     })
 
     try {
-      const floorItems: FloorProgressItem[] = []
-
-      for (let i = 0; i < selectedFloors.length; i++) {
-        const floor = selectedFloors[i]
-        const pct = Math.round(5 + ((i + 1) / selectedFloors.length) * 65)
-
-        setProgressModalState((prev) => ({
-          ...prev,
-          statusMessage: `Processing ${i + 1} / ${selectedFloors.length} Floors (${floor.name})...`,
-          progressPercent: pct,
-          itemsLabel: `${i + 1} / ${selectedFloors.length} Floors`,
-        }))
-
-        const repRes = await getDailyStockReportDataAction({
-          date: csDate,
-          floorId: floor.id,
-        })
-
-        let itemsCount = 0
-        let presentTotal = 0
-        if (repRes.success && repRes.data) {
-          const allReps = [
-            ...(csSelectedCategories.includes('RUNNING') ? repRes.data.runningReports || [] : []),
-            ...(csSelectedCategories.includes('NEW') ? repRes.data.newReports || [] : []),
-            ...(csSelectedCategories.includes('IDLE') ? repRes.data.idleReports || [] : []),
-          ]
-          for (const r of allReps) {
-            itemsCount += r.rows.length
-            presentTotal += r.summary.totalPresent
-          }
-        }
-
-        floorItems.push({
-          id: floor.id,
-          floorName: formatFloorDisplayName(floor.name, floor.floor_locations?.name),
-          date: csDate,
-          itemsCount,
-          presentStock: presentTotal,
-          source: 'actual',
-        })
-
-        setProgressModalState((prev) => ({
-          ...prev,
-          floorItems: [...floorItems],
-        }))
-      }
-
-      // Step: Requesting workbook generation from server
+      // Direct single-pass generation via batch API endpoint (Steps 1+2+3)
       setProgressModalState((prev) => ({
         ...prev,
         statusMessage: 'Generating Closing Stock workbook...',
-        progressPercent: 85,
-        currentStep: selectedFloors.length + 1,
+        progressPercent: 45,
+        currentStep: 2,
       }))
 
       const floorIdsQuery = isAll ? 'all' : csSelectedFloorIds.join(',')
@@ -544,7 +451,7 @@ export function RegularReportClient({
         ...prev,
         statusMessage: 'Finalizing file...',
         progressPercent: 95,
-        currentStep: selectedFloors.length + 2,
+        currentStep: 3,
       }))
 
       const blob = await res.blob()
