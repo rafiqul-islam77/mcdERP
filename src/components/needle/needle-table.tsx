@@ -66,7 +66,14 @@ export function NeedleTable({
   }, [])
 
   // Filter states
+  const [searchInput, setSearchInput] = React.useState('')
   const [search, setSearch] = React.useState('')
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    setSearch(searchInput.trim())
+  }
+
   const [floorFilter, setFloorFilter] = React.useState('')
   const [brandFilter, setBrandFilter] = React.useState('')
   const [needleTypeFilter, setNeedleTypeFilter] = React.useState('')
@@ -437,6 +444,7 @@ export function NeedleTable({
   const isFiltered = Boolean(search || floorFilter || brandFilter || needleTypeFilter)
 
   const clearFilters = () => {
+    setSearchInput('')
     setSearch('')
     setFloorFilter('')
     setBrandFilter('')
@@ -535,24 +543,34 @@ export function NeedleTable({
       {/* Filter and Search Bar */}
       <div className="flex flex-wrap items-center gap-2.5 p-3 bg-surface-card border border-surface-border rounded-erp shadow-sm">
         {/* Search Input */}
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted" />
+        <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
           <input
             type="text"
             placeholder="Search code, type, brand, size..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                handleSearchSubmit()
+              }
+            }}
             className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-surface-border rounded-erp text-ink focus:outline-none focus:ring-1 focus:ring-brand"
           />
-          {search && (
+          {(searchInput || search) && (
             <button
-              onClick={() => setSearch('')}
+              type="button"
+              onClick={() => {
+                setSearchInput('')
+                setSearch('')
+              }}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
-        </div>
+        </form>
 
         {/* Floor Filter */}
         <select

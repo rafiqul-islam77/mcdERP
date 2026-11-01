@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { AlertCircle, ArrowRightLeft, Layers, WifiOff } from 'lucide-react'
+import { AlertCircle, ArrowRightLeft, Calendar, Layers, WifiOff } from 'lucide-react'
 import type { DailyEntryRowItem } from '@/types'
 
 const EDITABLE_FIELDS = ['received', 'delivery', 'bnr'] as const
@@ -260,6 +260,20 @@ export function DailyEntryTable({
           </p>
           <p className="text-[11px] text-slate-400">
             Stock history for this date is not completely available offline.
+          </p>
+        </div>
+      )
+    }
+
+    if (!sheetKey) {
+      return (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-erp p-8 text-center text-slate-500 space-y-1.5">
+          <Calendar className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-700" />
+          <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            Please select a date to view daily entry sheet.
+          </p>
+          <p className="text-[11px] text-slate-400">
+            Choose a date from the date selector above to begin needle management.
           </p>
         </div>
       )

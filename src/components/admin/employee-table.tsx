@@ -86,7 +86,15 @@ export function EmployeeTable({
     [floors]
   )
 
+  const [searchInput, setSearchInput] = React.useState('')
   const [search, setSearch] = React.useState('')
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    setSearch(searchInput)
+    setCurrentPage(1)
+  }
+
   const [selectedFloor, setSelectedFloor] = React.useState('ALL')
   const [selectedDesignation, setSelectedDesignation] = React.useState('ALL')
   const [selectedRole, setSelectedRole] = React.useState('ALL')
@@ -242,21 +250,24 @@ export function EmployeeTable({
       <div className="bg-white p-4 rounded-erp-lg border border-surface-border shadow-xs space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
           {/* Search bar */}
-          <div className="relative lg:col-span-2">
+          <form onSubmit={handleSearchSubmit} className="relative lg:col-span-2">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-ink-light">
               <Search className="w-4 h-4" />
             </span>
             <input
               type="text"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value)
-                setCurrentPage(1)
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleSearchSubmit()
+                }
               }}
               placeholder="Search ID, name, email..."
               className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-surface-border rounded-erp text-ink placeholder:text-ink-light focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand"
             />
-          </div>
+          </form>
 
           {/* Floor filter */}
           <div>

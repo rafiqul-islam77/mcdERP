@@ -41,18 +41,23 @@ export function DailyReportClient({
   isSiteAdmin,
 }: DailyReportClientProps) {
   // 1. Initial State
-  const [date, setDate] = React.useState<string>(() => {
-    return new Date().toISOString().slice(0, 10)
-  })
+  const [date, setDate] = React.useState<string>('')
 
   const [selectedFloorId, setSelectedFloorId] = React.useState<string>(() => {
     return initialFloors[0]?.id || ''
   })
 
   const [selectedCategory, setSelectedCategory] = React.useState<DailyEntryCategory>(defaultCategory)
+  const [searchInputValue, setSearchInputValue] = React.useState<string>('')
   const [searchQuery, setSearchQuery] = React.useState<string>('')
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    setSearchQuery(searchInputValue)
+  }
+
   const [reportData, setReportData] = React.useState<DailyReportData | null>(null)
-  const [loading, setLoading] = React.useState<boolean>(true)
+  const [loading, setLoading] = React.useState<boolean>(false)
   const [error, setError] = React.useState<string | null>(null)
 
   // Export action progress states
@@ -116,7 +121,11 @@ export function DailyReportClient({
 
   // 3. Fetch authoritative report data
   const loadReport = React.useCallback(async () => {
-    if (!selectedFloorId) return
+    if (!selectedFloorId || !date) {
+      setLoading(false)
+      setReportData(null)
+      return
+    }
     setLoading(true)
     setError(null)
 
@@ -163,7 +172,7 @@ export function DailyReportClient({
 
   // 4. Export handlers with progress states and duplicate-click prevention
   const handleExportStockExcel = async () => {
-    if (isAnyExporting) return
+    if (!date || isAnyExporting) return
     const isAll = selectedFloorId === 'all'
     let floorLabel = 'All Floors'
     if (!isAll) {
@@ -312,7 +321,7 @@ export function DailyReportClient({
   }
 
   const handleExportPresentExcel = async () => {
-    if (isAnyExporting) return
+    if (!date || isAnyExporting) return
     const isAll = selectedFloorId === 'all'
     let floorLabel = 'All Floors'
     if (!isAll) {
@@ -463,7 +472,7 @@ export function DailyReportClient({
   }
 
   const handleExportPdf = async () => {
-    if (!reportData || isAnyExporting) return
+    if (!date || !reportData || isAnyExporting) return
     const cleanFloor = (reportData.floorCode || reportData.floorName).replace(/\s+/g, '-')
     const filename = `GMS-Needle-PresentBalance-${cleanFloor}-${reportData.category}-${reportData.date}.pdf`
     const totalRows = reportData.rows.length
@@ -569,6 +578,7 @@ export function DailyReportClient({
   }
 
   const handlePrint = () => {
+    if (!date || !reportData) return
     window.print()
   }
 
@@ -600,7 +610,7 @@ export function DailyReportClient({
                   size="sm"
                   variant="outline"
                   onClick={handleExportStockExcel}
-                  disabled={isAnyExporting}
+                  disabled={isAnyExporting || !date}
                   loading={exportingStock}
                   loadingText="Generating Excel..."
                   className="text-xs border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
@@ -657,7 +667,7 @@ export function DailyReportClient({
                 size="sm"
                 variant="ghost"
                 onClick={loadReport}
-                disabled={loading}
+                disabled={loading || !date}
                 title="Refresh Report"
                 className="px-2"
               >
@@ -668,22 +678,6 @@ export function DailyReportClient({
 
           {/* Filters Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-surface-border/60">
-            {/* Date Picker */}
-            <div>
-              <label className="block text-[11px] font-semibold text-ink-muted uppercase tracking-wider mb-1">
-                Report Date
-              </label>
-              <div className="relative">
-                <Calendar className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full text-xs font-medium pl-8 pr-3 py-1.5 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand"
-                />
-              </div>
-            </div>
-
             {/* Floor Selection */}
             <div>
               <label className="block text-[11px] font-semibold text-ink-muted uppercase tracking-wider mb-1">
@@ -726,21 +720,43 @@ export function DailyReportClient({
               </div>
             </div>
 
+            {/* Date Picker */}
+            <div>
+              <label className="block text-[11px] font-semibold text-ink-muted uppercase tracking-wider mb-1">
+                Report Date
+              </label>
+              <div className="relative">
+                <Calendar className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full text-xs font-medium pl-8 pr-3 py-1.5 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand"
+                />
+              </div>
+            </div>
+
             {/* Quick Search */}
             <div>
               <label className="block text-[11px] font-semibold text-ink-muted uppercase tracking-wider mb-1">
                 Quick Search
               </label>
-              <div className="relative">
+              <form onSubmit={handleSearchSubmit} className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Code, Type, Brand, Req..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={searchInputValue}
+                  onChange={(e) => setSearchInputValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleSearchSubmit()
+                    }
+                  }}
                   className="w-full text-xs pl-8 pr-3 py-1.5 rounded-erp border border-surface-border bg-surface text-ink placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-brand"
                 />
-              </div>
+              </form>
             </div>
           </div>
         </div>
@@ -787,7 +803,7 @@ export function DailyReportClient({
           <PresentBalanceTable report={reportData} searchQuery={searchQuery} />
         ) : (
           <div className="border border-surface-border rounded-erp bg-surface p-12 text-center text-ink-muted">
-            No report data available.
+            {date ? 'No report data available.' : 'Please select a date to view the daily report.'}
           </div>
         )}
       </div>

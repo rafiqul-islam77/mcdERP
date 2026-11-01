@@ -61,11 +61,7 @@ export function DailyEntryShell({
   const { toast } = useToast()
 
   // Form selections
-  const [date, setDate] = React.useState<string>(() => {
-    // Current local ISO date string: YYYY-MM-DD
-    const today = new Date()
-    return today.toISOString().slice(0, 10)
-  })
+  const [date, setDate] = React.useState<string>('')
   const [category, setCategory] = React.useState<DailyEntryCategory>(defaultCategory)
   const [floorId, setFloorId] = React.useState<string>('')
 
@@ -105,7 +101,7 @@ export function DailyEntryShell({
   const [offlineNoCache, setOfflineNoCache] = React.useState<boolean>(false)
   const [coverageIncomplete, setCoverageIncomplete] = React.useState<boolean>(false)
   const [coverageError, setCoverageError] = React.useState<string | null>(null)
-  const [loading, setLoading] = React.useState(true)
+  const [loading, setLoading] = React.useState(false)
   const [dbReady, setDbReady] = React.useState(true)
   const [searchTerm, setSearchTerm] = React.useState('')
   const [sheetReqNo, setSheetReqNo] = React.useState<string | null>(null)
@@ -396,7 +392,12 @@ export function DailyEntryShell({
   const loadSheetDataRef = React.useRef<() => Promise<void>>(async () => {})
 
   const loadSheetData = React.useCallback(async () => {
-    if (!floorId || !category || !date) return
+    if (!floorId || !category || !date) {
+      setLoading(false)
+      setRows([])
+      setSheetReqNo(null)
+      return
+    }
     setLoading(true)
     setSaveError(null)
     setRows([]) // Reset state when date/floor/category changes to avoid stale carryover (Section 20)
@@ -594,8 +595,9 @@ export function DailyEntryShell({
   }, [loadSheetData])
 
   const handleReload = React.useCallback(async () => {
+    if (!date) return
     await loadSheetData()
-  }, [loadSheetData])
+  }, [loadSheetData, date])
 
 
   // ─── Supabase Realtime Multi-Device Sync (Sections 1-30) ──────────────────
@@ -1329,7 +1331,7 @@ export function DailyEntryShell({
           <button
             type="button"
             onClick={loadSheetData}
-            disabled={loading}
+            disabled={loading || !date}
             title="Reload sheet data"
             className="p-1 rounded-full text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
           >
