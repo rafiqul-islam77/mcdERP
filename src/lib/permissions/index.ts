@@ -1,11 +1,13 @@
+import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import type { PermissionKey } from './keys'
 
 /**
  * Retrieve all active permission keys for a given profile ID.
+ * Request-scoped deduplication via React cache().
  */
-export async function getUserPermissions(profileId: string): Promise<string[]> {
+export const getUserPermissions = cache(async (profileId: string): Promise<string[]> => {
   const supabase = await createClient()
 
   // First fetch the user's role
@@ -50,7 +52,7 @@ export async function getUserPermissions(profileId: string): Promise<string[]> {
   }
 
   return perms
-}
+})
 
 /**
  * Check if a profile holds a specific permission key.
@@ -62,8 +64,9 @@ export async function hasPermission(profileId: string, key: PermissionKey | stri
 
 /**
  * Check if the profile is assigned to the protected Site Admin role.
+ * Request-scoped deduplication via React cache().
  */
-export async function isSiteAdmin(profileId: string): Promise<boolean> {
+export const isSiteAdmin = cache(async (profileId: string): Promise<boolean> => {
   const supabase = await createClient()
   const { data: profile } = await supabase
     .from('profiles')
@@ -73,7 +76,7 @@ export async function isSiteAdmin(profileId: string): Promise<boolean> {
 
   const role = (profile?.roles as unknown) as { is_system: boolean; name: string } | null
   return Boolean(role?.is_system && role?.name === 'Site Admin')
-}
+})
 
 /**
  * Guard: throws redirect to /unauthorized if the user lacks the required permission.

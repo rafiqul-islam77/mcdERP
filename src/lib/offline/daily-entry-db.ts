@@ -802,6 +802,9 @@ export async function saveSheetSnapshotToCache(params: {
     if (existingStores.contains(STORE_DAILY_SNAPSHOTS)) {
       storesToOpen.push(STORE_DAILY_SNAPSHOTS)
     }
+    if (existingStores.contains(STORE_COVERAGE)) {
+      storesToOpen.push(STORE_COVERAGE)
+    }
 
     const tx = db.transaction(storesToOpen, 'readwrite')
 
@@ -812,6 +815,9 @@ export async function saveSheetSnapshotToCache(params: {
     const metaStore = tx.objectStore(STORE_META)
     const dailySnapStore = existingStores.contains(STORE_DAILY_SNAPSHOTS)
       ? tx.objectStore(STORE_DAILY_SNAPSHOTS)
+      : null
+    const covStore = existingStores.contains(STORE_COVERAGE)
+      ? tx.objectStore(STORE_COVERAGE)
       : null
 
     // Save snapshot
@@ -895,6 +901,38 @@ export async function saveSheetSnapshotToCache(params: {
         meta.cached_combinations.push(comboKey)
       }
       metaStore.put(meta)
+    }
+
+    // Save stock cache coverage for this sheet so it can be loaded offline
+    if (covStore) {
+      const covId = `${params.userId}:${params.floorId}:${params.category}`
+      const covReq = covStore.get(covId)
+      covReq.onsuccess = () => {
+        const existing = covReq.result as StockCacheCoverageRecord | undefined
+        const finalStart =
+          existing && existing.coverage_start <= params.date
+            ? existing.coverage_start
+            : params.date
+        const finalEnd =
+          existing && existing.coverage_end >= params.date
+            ? existing.coverage_end
+            : params.date
+
+        const cov: StockCacheCoverageRecord = {
+          id: covId,
+          user_id: params.userId,
+          floor_id: params.floorId,
+          category: params.category,
+          coverage_start: finalStart,
+          coverage_end: finalEnd,
+          sync_batch_id: 'live_snapshot',
+          record_count: (existing?.record_count || 0) + params.rows.length,
+          needle_count: params.rows.length,
+          last_successful_sync_at: now,
+          sync_status: 'complete',
+        }
+        covStore.put(cov)
+      }
     }
 
     tx.oncomplete = () => {
@@ -1331,14 +1369,17 @@ export async function getCachedNeedleSheet(params: {
           matchedItems.sort((a, b) => a.item_code.localeCompare(b.item_code))
 
           // 3. COVERAGE VALIDATION GUARD
-          // Offline stock calculation is allowed ONLY when coverage is complete for this date!
+          // Offline stock calculation is allowed ONLY when coverage is complete for this date
+          // or an authoritative sheet snapshot exists for this sheet!
           const covStore = existingStores.contains(STORE_COVERAGE)
             ? tx.objectStore(STORE_COVERAGE)
             : null
           const covId = `${params.userId}:${params.floorId}:${params.category}`
+          const sheetKey = generateSheetKey(params.userId, params.date, params.floorId, params.category)
 
           const checkCoverageAndProceed = (
-            covRecord: StockCacheCoverageRecord | null | undefined
+            covRecord: StockCacheCoverageRecord | null | undefined,
+            hasCachedSnapshot: boolean
           ) => {
             const showCoverageIncomplete = () => {
               // Stock history is incomplete for this date!
@@ -1370,7 +1411,7 @@ export async function getCachedNeedleSheet(params: {
               })
             }
 
-            const hasCompleteCoverage = isDateWithinCoverage(covRecord, params.date)
+            const hasCompleteCoverage = hasCachedSnapshot || isDateWithinCoverage(covRecord, params.date)
 
             if (!hasCompleteCoverage) {
               // Section 2: If user creates future-date data locally while offline, continue using existing local draft/stock-chain
@@ -1400,12 +1441,49 @@ export async function getCachedNeedleSheet(params: {
             gatherSupportingDataAndCalculate()
           }
 
+          let covRecord: StockCacheCoverageRecord | null | undefined = null
+          let hasCachedSnapshot = false
+          let covDone = false
+          let snapDone = false
+
+          const checkBothDone = () => {
+            if (covDone && snapDone) {
+              checkCoverageAndProceed(covRecord, hasCachedSnapshot)
+            }
+          }
+
           if (covStore) {
             const covReq = covStore.get(covId)
-            covReq.onsuccess = () => checkCoverageAndProceed(covReq.result)
-            covReq.onerror = () => checkCoverageAndProceed(null)
+            covReq.onsuccess = () => {
+              covRecord = covReq.result || null
+              covDone = true
+              checkBothDone()
+            }
+            covReq.onerror = () => {
+              covRecord = null
+              covDone = true
+              checkBothDone()
+            }
           } else {
-            checkCoverageAndProceed(null)
+            covDone = true
+            checkBothDone()
+          }
+
+          if (snapStore) {
+            const snapReq = snapStore.get(sheetKey)
+            snapReq.onsuccess = () => {
+              hasCachedSnapshot = Boolean(snapReq.result && snapReq.result.rows && snapReq.result.rows.length > 0)
+              snapDone = true
+              checkBothDone()
+            }
+            snapReq.onerror = () => {
+              hasCachedSnapshot = false
+              snapDone = true
+              checkBothDone()
+            }
+          } else {
+            snapDone = true
+            checkBothDone()
           }
 
           function gatherSupportingDataAndCalculate() {
@@ -1694,43 +1772,23 @@ export async function getCachedNeedleSheet(params: {
                     }
                   }
 
-                  // Future date or date without snapshot: carry forward from latest known snapshot or baseline
-                  const priorDaily = floorDailySnaps
-                    .filter((s) => s.needle_item_id === item.id && s.date < params.date)
-                    .sort((a, b) => b.date.localeCompare(a.date))
-                  const priorLeg = floorSnapshots
-                    .filter((s) => s.entry_date < params.date && s.rows?.some((r) => r.needle_item_id === item.id))
-                    .sort((a, b) => b.entry_date.localeCompare(a.entry_date))
-
-                  let prev = 0
-                  if (priorDaily.length > 0 && priorLeg.length > 0) {
-                    prev = priorDaily[0].date >= priorLeg[0].entry_date
-                      ? priorDaily[0].present
-                      : priorLeg[0].rows.find((r) => r.needle_item_id === item.id)!.present
-                  } else if (priorDaily.length > 0) {
-                    prev = priorDaily[0].present
-                  } else if (priorLeg.length > 0) {
-                    prev = priorLeg[0].rows.find((r) => r.needle_item_id === item.id)!.present
-                  } else if (baselineMap.has(item.id)) {
-                    prev = baselineMap.get(item.id)!.balance
-                  }
-
+                  // Date without authoritative snapshot: do NOT guess stock or reuse other dates
                   return {
                     needle_item_id: item.id,
                     item_code: item.item_code,
                     needle_type: item.needle_type,
                     size_dia: item.size_dia,
                     brand: item.brand,
-                    previous: prev,
+                    previous: 0,
                     received: 0,
                     delivery: 0,
-                    present: prev,
+                    present: 0,
                     bnr: 0,
                     req_no: null,
                     transfer_in: 0,
                     transfer_out: 0,
                     last_transfer_note: null,
-                    is_stock_known: true,
+                    is_stock_known: false,
                   }
                 }
 

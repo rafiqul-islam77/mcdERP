@@ -29,18 +29,12 @@ import {
   getCachedMasterMeta,
   saveAuthorizedMasterCatalogToCache,
   saveSheetSnapshotToCache,
-  saveOfflineStockHistoryToCache,
-  cleanExpiredStockCache,
-  getAllStockCacheCoverage,
-  getOfflineRollingWindow,
-  isWholeUserOfflineReady,
 } from '@/lib/offline/daily-entry-db'
 import {
   batchSyncDailyEntryAction,
   getAuthorizedContextAction,
   getAuthorizedNeedleMasterCacheAction,
   getDailyEntrySheetAction,
-  getOfflineStockHistorySyncAction,
   transferFloorStockAction,
   updateSheetRequisitionNoAction,
   updateRowRequisitionNoAction,
@@ -105,7 +99,6 @@ export function DailyEntryShell({
   }, [allowedCategories])
 
   // Offline Ready state (Section 8)
-  const [offlineReadiness, setOfflineReadiness] = React.useState<'idle' | 'preparing' | 'ready'>('idle')
 
   // Sheet data
   const [rows, setRows] = React.useState<DailyEntryRowItem[]>([])
@@ -184,19 +177,6 @@ export function DailyEntryShell({
 
       // 2. Fetch fresh context online if network is available
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        if (user?.profile?.id) {
-          getCachedMasterMeta(user.profile.id).then((meta) => {
-            if (meta && meta.floors && meta.allowed_categories) {
-              isWholeUserOfflineReady({
-                userId: user.profile.id,
-                authorizedFloorIds: meta.floors.map((f: any) => f.id),
-                allowedCategories: meta.allowed_categories,
-              }).then((ready) => {
-                if (isMounted) setOfflineReadiness(ready ? 'ready' : 'idle')
-              })
-            }
-          })
-        }
         return
       }
 
@@ -228,16 +208,7 @@ export function DailyEntryShell({
             })
             .catch(() => {})
 
-          // Pre-check readiness
-          isWholeUserOfflineReady({
-            userId: user.profile.id,
-            authorizedFloorIds: ctxData.floors.map((f) => f.id),
-            allowedCategories: ctxData.allowedCategories,
-          }).then((ready) => {
-            if (isMounted) setOfflineReadiness(ready ? 'ready' : 'idle')
-          })
 
-          triggerBackgroundStockSync()
         } else {
           setAuthorizedFloors((prev) => {
             if (prev.length === 0) {
@@ -422,89 +393,8 @@ export function DailyEntryShell({
     }
   }, [currentSheetKey, date, floorId, category])
 
-  const isStockSyncingRef = React.useRef(false)
   const loadSheetDataRef = React.useRef<() => Promise<void>>(async () => {})
 
-  const triggerBackgroundStockSync = React.useCallback(
-    async (opts?: { floorIds?: string[]; categories?: DailyEntryCategory[]; forceFull?: boolean }) => {
-      if (typeof navigator !== 'undefined' && !navigator.onLine) return
-      if (!user?.profile?.id) return
-      if (isStockSyncingRef.current) return
-
-      isStockSyncingRef.current = true
-      setOfflineReadiness('preparing')
-      try {
-        let since: number | undefined
-        if (!opts?.forceFull) {
-          const allCoverage = await getAllStockCacheCoverage(user.profile.id)
-          const { windowStartDate } = getOfflineRollingWindow()
-          const relevantCoverage = opts?.floorIds && opts.floorIds.length > 0
-            ? allCoverage.filter((c) => opts.floorIds!.includes(c.floor_id))
-            : allCoverage
-
-          const isWindowCurrent =
-            relevantCoverage.length > 0 &&
-            relevantCoverage.every(
-              (c) =>
-                c.sync_status === 'complete' &&
-                c.coverage_start <= windowStartDate
-            )
-          if (isWindowCurrent) {
-            const timestamps = relevantCoverage.map((c) => c.last_successful_sync_at)
-            if (timestamps.length > 0) {
-              since = Math.min(...timestamps)
-            }
-          }
-        }
-
-        const res = await getOfflineStockHistorySyncAction({
-          floorIds: opts?.floorIds,
-          categories: opts?.categories,
-          since,
-        })
-
-        if (res.success && res.data) {
-          await saveOfflineStockHistoryToCache(res.data)
-          await cleanExpiredStockCache()
-
-          // Immediately refresh/recalculate visible PREV/PRESENT from updated cache (Section 21)
-          await loadSheetDataRef.current()
-
-          // Check whole user offline readiness (Section 11)
-          const allFloorIds = authorizedFloorsRef.current.map((f) => f.id)
-          const isReady = await isWholeUserOfflineReady({
-            userId: user.profile.id,
-            authorizedFloorIds: allFloorIds.length > 0 ? allFloorIds : res.data.targetFloorIds,
-            allowedCategories: allowedCategoriesRef.current.length > 0 ? allowedCategoriesRef.current : res.data.categories,
-          })
-          setOfflineReadiness(isReady ? 'ready' : 'idle')
-        } else {
-          const allFloorIds = authorizedFloorsRef.current.map((f) => f.id)
-          const isReady = await isWholeUserOfflineReady({
-            userId: user.profile.id,
-            authorizedFloorIds: allFloorIds,
-            allowedCategories: allowedCategoriesRef.current,
-          })
-          setOfflineReadiness(isReady ? 'ready' : 'idle')
-        }
-      } catch (err) {
-        console.warn('[triggerBackgroundStockSync] error:', err)
-        const allFloorIds = authorizedFloorsRef.current.map((f) => f.id)
-        const isReady = await isWholeUserOfflineReady({
-          userId: user.profile.id,
-          authorizedFloorIds: allFloorIds,
-          allowedCategories: allowedCategoriesRef.current,
-        })
-        setOfflineReadiness(isReady ? 'ready' : 'idle')
-      } finally {
-        isStockSyncingRef.current = false
-      }
-    },
-    [user?.profile?.id]
-  )
-
-
-  // 2. Fetch sheet rows and recover unsynced local drafts
   const loadSheetData = React.useCallback(async () => {
     if (!floorId || !category || !date) return
     setLoading(true)
@@ -705,17 +595,7 @@ export function DailyEntryShell({
 
   const handleReload = React.useCallback(async () => {
     await loadSheetData()
-    if (typeof navigator !== 'undefined' && navigator.onLine) {
-      triggerBackgroundStockSync({ forceFull: false })
-    }
-  }, [loadSheetData, triggerBackgroundStockSync])
-
-  // Trigger background sync when floor or category changes
-  React.useEffect(() => {
-    if (floorId && category && typeof navigator !== 'undefined' && navigator.onLine) {
-      triggerBackgroundStockSync({ floorIds: [floorId], categories: [category] })
-    }
-  }, [floorId, category, triggerBackgroundStockSync])
+  }, [loadSheetData])
 
 
   // ─── Supabase Realtime Multi-Device Sync (Sections 1-30) ──────────────────
@@ -960,21 +840,10 @@ export function DailyEntryShell({
             }
           })
           .catch(() => {})
-
-        triggerBackgroundStockSync({ forceFull: false })
       }
     }
     const handleOffline = () => {
       setSaveStatus('offline')
-      if (user?.profile?.id) {
-        isWholeUserOfflineReady({
-          userId: user.profile.id,
-          authorizedFloorIds: authorizedFloorsRef.current.map((f) => f.id),
-          allowedCategories: allowedCategoriesRef.current,
-        }).then((ready) => {
-          setOfflineReadiness(ready ? 'ready' : 'idle')
-        })
-      }
     }
 
     window.addEventListener('online', handleOnline)
@@ -1491,7 +1360,6 @@ export function DailyEntryShell({
         user={user}
         onReload={handleReload}
         disabled={loading}
-        offlineReadiness={offlineReadiness}
       />
 
       {/* Database Warning Banner (if tables awaiting migration) */}
