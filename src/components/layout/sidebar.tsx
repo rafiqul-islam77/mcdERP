@@ -90,14 +90,7 @@ export function Sidebar({
   const has = (perm?: string) => {
     if (!perm) return true
     if (user.isSiteAdmin) return true
-    if (permissions.includes(perm)) return true
-    if (
-      perm.startsWith('needle_management.') &&
-      (permissions.includes('needle.daily_entry.view') || permissions.includes('admin.floors.view'))
-    ) {
-      return true
-    }
-    return false
+    return permissions.includes(perm)
   }
 
   // Define modules according to Specification §31 & Phase 1.2

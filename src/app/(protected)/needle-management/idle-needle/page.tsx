@@ -14,10 +14,7 @@ export default async function IdleNeedlePage() {
 
   const canView =
     actor.isSiteAdmin ||
-    (await hasPermission(actor.profile.id, 'needle_management.ideal_needle.view')) ||
-    (await hasPermission(actor.profile.id, 'idle.daily_entry.view')) ||
-    (await hasPermission(actor.profile.id, 'needle.daily_entry.view')) ||
-    (await hasPermission(actor.profile.id, 'admin.floors.view'))
+    (await hasPermission(actor.profile.id, 'needle_management.ideal_needle.view'))
 
   if (!canView) {
     redirect('/unauthorized')
@@ -25,18 +22,15 @@ export default async function IdleNeedlePage() {
 
   const canCreate =
     actor.isSiteAdmin ||
-    (await hasPermission(actor.profile.id, 'needle_management.ideal_needle.create')) ||
-    (await hasPermission(actor.profile.id, 'needle.daily_entry.create'))
+    (await hasPermission(actor.profile.id, 'needle_management.ideal_needle.create'))
 
   const canEdit =
     actor.isSiteAdmin ||
-    (await hasPermission(actor.profile.id, 'needle_management.ideal_needle.edit')) ||
-    (await hasPermission(actor.profile.id, 'needle.daily_entry.edit'))
+    (await hasPermission(actor.profile.id, 'needle_management.ideal_needle.edit'))
 
   const canDelete =
     actor.isSiteAdmin ||
-    (await hasPermission(actor.profile.id, 'needle_management.ideal_needle.delete')) ||
-    (await hasPermission(actor.profile.id, 'needle.daily_entry.delete'))
+    (await hasPermission(actor.profile.id, 'needle_management.ideal_needle.delete'))
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-full">

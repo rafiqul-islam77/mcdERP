@@ -30,7 +30,7 @@ const MODULE_GROUPS = [
   {
     id: 'needle',
     moduleKey: 'needle',
-    label: 'NEEDLE (TRANSACTIONS)',
+    label: 'RUNNING NEEDLE',
     pages: [
       { pageKey: 'daily_entry', label: 'Daily Entry', actions: ['view', 'create', 'edit', 'delete', 'export', 'print'] },
       { pageKey: 'daily_report', label: 'Daily Report', actions: ['view', 'export', 'print'] },
@@ -40,11 +40,11 @@ const MODULE_GROUPS = [
   {
     id: 'broken',
     moduleKey: 'broken',
-    label: 'BROKEN NEEDLE',
+    label: 'NEW NEEDLE',
     pages: [
-      { pageKey: 'daily_entry', label: 'Broken Daily Entry', actions: ['view', 'create', 'edit', 'delete', 'export', 'print'] },
-      { pageKey: 'daily_report', label: 'Broken Daily Report', actions: ['view', 'export', 'print'] },
-      { pageKey: 'monthly_report', label: 'Broken Monthly Report', actions: ['view', 'export', 'print'] },
+      { pageKey: 'daily_entry', label: 'Daily Entry', actions: ['view', 'create', 'edit', 'delete', 'export', 'print'] },
+      { pageKey: 'daily_report', label: 'Daily Report', actions: ['view', 'export', 'print'] },
+      { pageKey: 'monthly_report', label: 'Monthly Report', actions: ['view', 'export', 'print'] },
     ],
   },
   {
@@ -52,9 +52,9 @@ const MODULE_GROUPS = [
     moduleKey: 'idle',
     label: 'IDLE NEEDLE',
     pages: [
-      { pageKey: 'daily_entry', label: 'Idle Daily Entry', actions: ['view', 'create', 'edit', 'delete', 'export', 'print'] },
-      { pageKey: 'daily_report', label: 'Idle Daily Report', actions: ['view', 'export', 'print'] },
-      { pageKey: 'monthly_report', label: 'Idle Monthly Report', actions: ['view', 'export', 'print'] },
+      { pageKey: 'daily_entry', label: 'Daily Entry', actions: ['view', 'create', 'edit', 'delete', 'export', 'print'] },
+      { pageKey: 'daily_report', label: 'Daily Report', actions: ['view', 'export', 'print'] },
+      { pageKey: 'monthly_report', label: 'Monthly Report', actions: ['view', 'export', 'print'] },
     ],
   },
   {
@@ -83,6 +83,7 @@ const MODULE_GROUPS = [
       { pageKey: 'users', label: 'Employees & Users', actions: ['view', 'create', 'edit', 'disable', 'reset_credentials', 'view_token'] },
       { pageKey: 'roles', label: 'Roles & Permissions', actions: ['view', 'create', 'edit', 'delete'] },
       { pageKey: 'designations', label: 'Designations Master', actions: ['view', 'create', 'edit'] },
+      { pageKey: 'settings', label: 'System Settings', actions: ['view', 'edit'] },
       { pageKey: 'audit', label: 'Audit Log Trail', actions: ['view'] },
     ],
   },
@@ -97,6 +98,10 @@ const MODULE_GROUPS = [
 ]
 
 const STANDARD_ACTIONS = ['view', 'create', 'edit', 'delete', 'approve', 'export', 'print']
+
+function getMatrixPermissionKey(moduleKey: string, pageKey: string, action: string): string {
+  return moduleKey === pageKey ? `${moduleKey}.${action}` : `${moduleKey}.${pageKey}.${action}`
+}
 
 export function RoleEditor({
   role,
@@ -144,7 +149,7 @@ export function RoleEditor({
       const next = new Set(prev)
       for (const p of group.pages) {
         for (const action of p.actions) {
-          const key = `${group.moduleKey}.${p.pageKey}.${action}`
+          const key = getMatrixPermissionKey(group.moduleKey, p.pageKey, action)
           if (selectAll) {
             next.add(key)
           } else {
@@ -359,7 +364,7 @@ export function RoleEditor({
                           <td className="px-5 py-3 font-semibold text-ink">{p.label}</td>
                           {STANDARD_ACTIONS.map((action) => {
                             const isSupported = p.actions.includes(action)
-                            const key = `${group.moduleKey}.${p.pageKey}.${action}`
+                            const key = getMatrixPermissionKey(group.moduleKey, p.pageKey, action)
                             const isChecked = isProtectedSystem || selectedKeys.has(key)
 
                             if (!isSupported) {
