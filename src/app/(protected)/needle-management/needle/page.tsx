@@ -13,9 +13,7 @@ export default async function NeedlePage() {
 
   const canView =
     actor.isSiteAdmin ||
-    (await hasPermission(actor.profile.id, 'needle_management.needle.view')) ||
-    (await hasPermission(actor.profile.id, 'needle.daily_entry.view')) ||
-    (await hasPermission(actor.profile.id, 'admin.floors.view'))
+    (await hasPermission(actor.profile.id, 'needle_management.needle.view'))
 
   if (!canView) {
     redirect('/unauthorized')
@@ -23,18 +21,15 @@ export default async function NeedlePage() {
 
   const canCreate =
     actor.isSiteAdmin ||
-    (await hasPermission(actor.profile.id, 'needle_management.needle.create')) ||
-    (await hasPermission(actor.profile.id, 'needle.daily_entry.create'))
+    (await hasPermission(actor.profile.id, 'needle_management.needle.create'))
 
   const canEdit =
     actor.isSiteAdmin ||
-    (await hasPermission(actor.profile.id, 'needle_management.needle.edit')) ||
-    (await hasPermission(actor.profile.id, 'needle.daily_entry.edit'))
+    (await hasPermission(actor.profile.id, 'needle_management.needle.edit'))
 
   const canDelete =
     actor.isSiteAdmin ||
-    (await hasPermission(actor.profile.id, 'needle_management.needle.delete')) ||
-    (await hasPermission(actor.profile.id, 'needle.daily_entry.delete'))
+    (await hasPermission(actor.profile.id, 'needle_management.needle.delete'))
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-full">

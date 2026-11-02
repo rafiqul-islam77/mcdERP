@@ -12,14 +12,12 @@ import type { ActionResult, DailyEntryCategory, DailyReportData, Floor } from '@
 /**
  * Check if the user is authorized to view daily reports for a given category.
  */
-async function canViewDailyReport(
+export async function canViewDailyReport(
   actorId: string,
   isSiteAdmin: boolean,
   category: DailyEntryCategory
 ): Promise<boolean> {
   if (isSiteAdmin) return true
-  const generalView = await hasPermission(actorId, 'daily_report.view')
-  if (generalView) return true
 
   switch (category) {
     case 'RUNNING':
@@ -28,6 +26,49 @@ async function canViewDailyReport(
       return await hasPermission(actorId, 'broken.daily_report.view')
     case 'IDLE':
       return await hasPermission(actorId, 'idle.daily_report.view')
+  }
+}
+
+/**
+ * Get authorized categories for Daily Report based on role permissions.
+ */
+export async function getAuthorizedDailyReportCategories(
+  actorId: string,
+  isSiteAdmin: boolean
+): Promise<DailyEntryCategory[]> {
+  if (isSiteAdmin) {
+    return ['RUNNING', 'NEW', 'IDLE']
+  }
+  const categories: DailyEntryCategory[] = []
+  if (await canViewDailyReport(actorId, isSiteAdmin, 'RUNNING')) categories.push('RUNNING')
+  if (await canViewDailyReport(actorId, isSiteAdmin, 'NEW')) categories.push('NEW')
+  if (await canViewDailyReport(actorId, isSiteAdmin, 'IDLE')) categories.push('IDLE')
+  return categories
+}
+
+/**
+ * Get authorized floors and categories specifically for Daily Report.
+ */
+export async function getAuthorizedDailyReportContextAction(): Promise<
+  ActionResult<{
+    floors: Floor[]
+    allowedCategories: DailyEntryCategory[]
+  }>
+> {
+  const actor = await requireActiveAccount()
+  const entryContextRes = await getAuthorizedContextAction()
+  if (!entryContextRes.success || !entryContextRes.data) {
+    return { success: false, error: entryContextRes.error || 'Failed to load authorized floors.' }
+  }
+
+  const allowedCategories = await getAuthorizedDailyReportCategories(actor.profile.id, actor.isSiteAdmin)
+
+  return {
+    success: true,
+    data: {
+      floors: entryContextRes.data.floors,
+      allowedCategories,
+    },
   }
 }
 

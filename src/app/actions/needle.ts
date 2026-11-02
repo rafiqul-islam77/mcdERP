@@ -52,9 +52,7 @@ export async function getNeedleMasterDataAction(params: {
 
   const canView =
     actor.isSiteAdmin ||
-    (await hasPermission(actor.profile.id, permKey)) ||
-    (await hasPermission(actor.profile.id, 'needle.daily_entry.view')) ||
-    (await hasPermission(actor.profile.id, 'admin.floors.view'))
+    (await hasPermission(actor.profile.id, permKey))
 
   if (!canView) {
     return {
@@ -297,8 +295,7 @@ export async function toggleNeedleFloorAction(params: {
 
   const canEdit =
     actor.isSiteAdmin ||
-    (await hasPermission(actor.profile.id, permKey)) ||
-    (await hasPermission(actor.profile.id, 'needle.daily_entry.edit'))
+    (await hasPermission(actor.profile.id, permKey))
 
   if (!canEdit) {
     return {
@@ -423,8 +420,7 @@ export async function bulkSetNeedleFloorsAction(params: {
 
   const canEdit =
     actor.isSiteAdmin ||
-    (await hasPermission(actor.profile.id, permKey)) ||
-    (await hasPermission(actor.profile.id, 'needle.daily_entry.edit'))
+    (await hasPermission(actor.profile.id, permKey))
 
   if (!canEdit) {
     return {
@@ -532,8 +528,7 @@ export async function inlineUpdateNeedleCellAction(params: {
 
   const canEdit =
     actor.isSiteAdmin ||
-    (await hasPermission(actor.profile.id, permKey)) ||
-    (await hasPermission(actor.profile.id, 'needle.daily_entry.edit'))
+    (await hasPermission(actor.profile.id, permKey))
 
   if (!canEdit) {
     return {
@@ -651,8 +646,7 @@ export async function createNeedleAction(payload: {
 
   const canCreate =
     actor.isSiteAdmin ||
-    (await hasPermission(actor.profile.id, permKey)) ||
-    (await hasPermission(actor.profile.id, 'needle.daily_entry.create'))
+    (await hasPermission(actor.profile.id, permKey))
 
   if (!canCreate) {
     return {
@@ -814,8 +808,7 @@ export async function deleteNeedleAction(params: {
 
   const canDelete =
     actor.isSiteAdmin ||
-    (await hasPermission(actor.profile.id, permKey)) ||
-    (await hasPermission(actor.profile.id, 'needle.daily_entry.delete'))
+    (await hasPermission(actor.profile.id, permKey))
 
   if (!canDelete) {
     return {

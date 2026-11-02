@@ -24,7 +24,14 @@ function moduleFrom(file, deps = {}) {
 function setupMock({
   isSiteAdmin = false,
   userFloorIds = ['floor-1'],
-  userPerms = ['needle.daily_entry.running', 'needle.daily_entry.new', 'needle.daily_entry.idle'],
+  userPerms = [
+    'needle.daily_entry.view',
+    'broken.daily_entry.view',
+    'idle.daily_entry.view',
+    'needle.daily_entry.running',
+    'needle.daily_entry.new',
+    'needle.daily_entry.idle',
+  ],
 } = {}) {
   const calls = []
   const floors = [

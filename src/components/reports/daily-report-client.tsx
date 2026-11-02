@@ -50,7 +50,10 @@ export function DailyReportClient({
     return initialFloors[0]?.id || ''
   })
 
-  const [selectedCategory, setSelectedCategory] = React.useState<DailyEntryCategory>(defaultCategory)
+  const [selectedCategory, setSelectedCategory] = React.useState<DailyEntryCategory>(() => {
+    if (allowedCategories.includes(defaultCategory)) return defaultCategory
+    return allowedCategories[0] || defaultCategory
+  })
   const [searchInputValue, setSearchInputValue] = React.useState<string>('')
   const [searchQuery, setSearchQuery] = React.useState<string>('')
 
