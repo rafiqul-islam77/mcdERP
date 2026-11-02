@@ -51,11 +51,15 @@ import { Database, RefreshCw } from 'lucide-react'
 
 interface DailyEntryShellProps {
   defaultCategory: DailyEntryCategory
+  initialAllowedCategories?: DailyEntryCategory[]
+  initialFloors?: Floor[]
   user: CurrentUser
 }
 
 export function DailyEntryShell({
   defaultCategory,
+  initialAllowedCategories,
+  initialFloors,
   user,
 }: DailyEntryShellProps) {
   const { toast } = useToast()
@@ -63,7 +67,7 @@ export function DailyEntryShell({
   // Form selections
   const [date, setDate] = React.useState<string>('')
   const [category, setCategory] = React.useState<DailyEntryCategory>(defaultCategory)
-  const [floorId, setFloorId] = React.useState<string>('')
+  const [floorId, setFloorId] = React.useState<string>(() => initialFloors?.[0]?.id || '')
 
   React.useEffect(() => {
     setCategory(defaultCategory)
@@ -79,9 +83,11 @@ export function DailyEntryShell({
   }, [])
 
   // Context data
-  const [authorizedFloors, setAuthorizedFloors] = React.useState<Floor[]>([])
-  const [allowedCategories, setAllowedCategories] = React.useState<DailyEntryCategory[]>([])
-  const [allActiveFloors, setAllActiveFloors] = React.useState<Floor[]>([])
+  const [authorizedFloors, setAuthorizedFloors] = React.useState<Floor[]>(initialFloors || [])
+  const [allowedCategories, setAllowedCategories] = React.useState<DailyEntryCategory[]>(
+    initialAllowedCategories || [defaultCategory]
+  )
+  const [allActiveFloors, setAllActiveFloors] = React.useState<Floor[]>(initialFloors || [])
 
   const authorizedFloorsRef = React.useRef<Floor[]>([])
   const allowedCategoriesRef = React.useRef<DailyEntryCategory[]>([])
@@ -157,16 +163,20 @@ export function DailyEntryShell({
       try {
         const cachedMeta = await getCachedMasterMeta(user?.profile?.id)
         if (isMounted && cachedMeta && cachedMeta.floors && cachedMeta.floors.length > 0) {
-          setAuthorizedFloors(cachedMeta.floors)
-          setAllowedCategories(cachedMeta.allowed_categories || [])
-          setAllActiveFloors(cachedMeta.all_active_floors || cachedMeta.floors)
-          setFloorId((prev) => prev || cachedMeta.floors[0].id)
-          if (
-            cachedMeta.allowed_categories &&
-            cachedMeta.allowed_categories.length > 0 &&
-            !cachedMeta.allowed_categories.includes(defaultCategory)
-          ) {
-            setCategory(cachedMeta.allowed_categories[0])
+          if (!initialFloors || initialFloors.length === 0) {
+            setAuthorizedFloors(cachedMeta.floors)
+            setAllActiveFloors(cachedMeta.all_active_floors || cachedMeta.floors)
+            setFloorId((prev) => prev || cachedMeta.floors[0].id)
+          }
+          if (!initialAllowedCategories || initialAllowedCategories.length === 0) {
+            setAllowedCategories(cachedMeta.allowed_categories || [])
+            if (
+              cachedMeta.allowed_categories &&
+              cachedMeta.allowed_categories.length > 0 &&
+              !cachedMeta.allowed_categories.includes(defaultCategory)
+            ) {
+              setCategory(cachedMeta.allowed_categories[0])
+            }
           }
         }
       } catch {}
@@ -191,8 +201,11 @@ export function DailyEntryShell({
           }
 
           // Ensure selected category is permitted
-          if (ctxData.allowedCategories.length > 0 && !ctxData.allowedCategories.includes(defaultCategory)) {
-            setCategory(ctxData.allowedCategories[0])
+          if (ctxData.allowedCategories.length > 0) {
+            setCategory((prev) => {
+              if (ctxData.allowedCategories.includes(prev)) return prev
+              return ctxData.allowedCategories[0]
+            })
           }
 
           // In background, populate the broader authorized master catalog cache and 1-month stock history

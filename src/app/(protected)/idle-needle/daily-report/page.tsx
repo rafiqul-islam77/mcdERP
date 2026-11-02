@@ -1,6 +1,6 @@
 import { requireActiveAccount } from '@/lib/auth'
 import { requirePermission } from '@/lib/permissions'
-import { getAuthorizedContextAction } from '@/app/actions/daily-entry'
+import { getAuthorizedDailyReportContextAction } from '@/app/actions/reports'
 import { DailyReportClient } from '@/components/reports/daily-report-client'
 import { Metadata } from 'next'
 import type { DailyEntryCategory } from '@/types'
@@ -15,7 +15,7 @@ export default async function IdleNeedleDailyReportPage() {
     await requirePermission(user.profile.id, 'idle.daily_report.view')
   }
 
-  const contextRes = await getAuthorizedContextAction()
+  const contextRes = await getAuthorizedDailyReportContextAction()
   const floors = contextRes.success && contextRes.data ? contextRes.data.floors : []
   const allowedCategories: DailyEntryCategory[] =
     contextRes.success && contextRes.data ? contextRes.data.allowedCategories : ['IDLE']

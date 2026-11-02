@@ -74,20 +74,11 @@ async function canAccessCategory(actorId: string, isSiteAdmin: boolean, category
   if (isSiteAdmin) return true
   switch (category) {
     case 'RUNNING':
-      return (
-        (await hasPermission(actorId, 'needle.daily_entry.running')) ||
-        (await hasPermission(actorId, 'needle.daily_entry.view'))
-      )
+      return await hasPermission(actorId, 'needle.daily_entry.view')
     case 'NEW':
-      return (
-        (await hasPermission(actorId, 'needle.daily_entry.new')) ||
-        (await hasPermission(actorId, 'broken.daily_entry.view'))
-      )
+      return await hasPermission(actorId, 'broken.daily_entry.view')
     case 'IDLE':
-      return (
-        (await hasPermission(actorId, 'needle.daily_entry.idle')) ||
-        (await hasPermission(actorId, 'idle.daily_entry.view'))
-      )
+      return await hasPermission(actorId, 'idle.daily_entry.view')
   }
 }
 
