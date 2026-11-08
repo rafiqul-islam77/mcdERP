@@ -117,7 +117,7 @@ export function SaveStatusIndicator({
     )
   }
 
-  if (status === 'saved' || (status === 'idle' && lastSavedAt)) {
+  if (status === 'saved') {
     return (
       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 transition-opacity duration-300 select-none">
         <Check className="w-3 h-3 text-emerald-600 stroke-[2.5]" />

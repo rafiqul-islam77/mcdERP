@@ -390,6 +390,60 @@ export async function updateOperationsStatus(
 }
 
 /**
+ * Recover abandoned or interrupted in-flight sync operations.
+ * If an operation was marked 'syncing' but never confirmed within timeout (e.g. browser suspended, tab closed),
+ * resets status from 'syncing' to 'pending' so it can be safely retried.
+ * Preserves the original client_operation_id for server-side idempotency.
+ */
+export async function recoverStuckSyncingOps(userId?: string): Promise<number> {
+  const db = await openDB()
+  const STUCK_TIMEOUT_MS = 60_000 // 60 seconds
+  const cutoff = Date.now() - STUCK_TIMEOUT_MS
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_QUEUE, 'readwrite')
+    const store = tx.objectStore(STORE_QUEUE)
+    const request = store.getAll()
+
+    request.onsuccess = () => {
+      const allOps: PendingSyncOperation[] = request.result || []
+      let recoveredCount = 0
+      const now = Date.now()
+
+      allOps.forEach((op) => {
+        if (op.status === 'syncing') {
+          // If userId is provided, ensure user isolation
+          if (userId && op.user_id && op.user_id !== userId) return
+
+          const lastAttempt = op.last_attempt_at || op.updated_at || 0
+          if (lastAttempt < cutoff) {
+            op.status = 'pending'
+            op.updated_at = now
+            store.put(op)
+            recoveredCount++
+          }
+        }
+      })
+
+      tx.oncomplete = () => {
+        db.close()
+        resolve(recoveredCount)
+      }
+    }
+
+    request.onerror = () => {
+      db.close()
+      reject(request.error || new Error('Failed to query operations for recovery.'))
+    }
+
+    tx.onerror = () => {
+      db.close()
+      reject(tx.error || new Error('Failed to recover stuck operations.'))
+    }
+  })
+}
+
+/**
  * Mark a specific operation as conflicted (e.g. stock was depleted by another user).
  */
 export async function markOperationConflict(

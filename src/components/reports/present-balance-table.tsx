@@ -72,8 +72,8 @@ export function PresentBalanceTable({ report, searchQuery = '' }: PresentBalance
               <th className="py-2.5 px-3 text-right w-28 border-r border-slate-800 bg-slate-800 text-amber-300">
                 PRESENT BALANCE
               </th>
-              <th className="py-2.5 px-3 text-right w-16 border-r border-slate-800">BNR</th>
-              <th className="py-2.5 px-3">NOTE / SOURCE</th>
+              <th className="py-2.5 px-3 text-right w-24 border-r border-slate-800">Missing broken needle</th>
+              <th className="py-2.5 px-3">Remarks</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-border">
@@ -112,7 +112,7 @@ export function PresentBalanceTable({ report, searchQuery = '' }: PresentBalance
                   {row.req_no || '—'}
                 </td>
                 <td className="py-2 px-3 text-right font-mono font-medium text-danger border-r border-surface-border/60">
-                  {row.delivery > 0 ? `-${row.delivery.toLocaleString()}` : '0'}
+                  {row.delivery > 0 ? row.delivery.toLocaleString() : '0'}
                 </td>
                 <td className="py-2 px-3 text-right font-mono font-bold text-amber-800 dark:text-amber-300 bg-amber-50/80 dark:bg-amber-950/30 border-r border-surface-border/60">
                   {row.present.toLocaleString()}

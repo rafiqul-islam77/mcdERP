@@ -75,9 +75,9 @@ export function buildPresentBalanceSheet(
     18, // H: REQ NO
     10, // I: DELIVERY
     15, // J: PRESENT BALANCE
-    10, // K: BNR
+    15, // K: Missing broken needle
     8,  // L: CUSTOM
-    26, // M: NOTE
+    26, // M: Remarks
   ]
 
   columnWidths.forEach((width, index) => {
@@ -160,9 +160,9 @@ export function buildPresentBalanceSheet(
     'REQ NO',
     'DELIVERY',
     'PRESENT BALANCE',
-    'BNR',
+    'Missing broken needle',
     'CUSTOM',
-    'NOTE',
+    'Remarks',
   ]
 
   headers.forEach((h, idx) => {
