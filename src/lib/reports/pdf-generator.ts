@@ -93,9 +93,9 @@ export function generatePresentBalancePDF(report: DailyReportData): jsPDF {
     'REQ NO',
     'DELIVERY',
     'PRESENT BALANCE',
-    'BNR',
+    'Missing broken needle',
     'CUSTOM',
-    'NOTE',
+    'Remarks',
   ]
 
   const tableBody = report.rows.map((r, i) => [
@@ -166,9 +166,9 @@ export function generatePresentBalancePDF(report: DailyReportData): jsPDF {
       7: { halign: 'center', cellWidth: 25 },  // REQ NO
       8: { halign: 'right', cellWidth: 15 },   // DELIVERY
       9: { halign: 'right', cellWidth: 25, fontStyle: 'bold', fillColor: [255, 243, 214], textColor: [146, 64, 14] }, // PRESENT
-      10: { halign: 'right', cellWidth: 14 },  // BNR
+      10: { halign: 'right', cellWidth: 18 },  // Missing broken needle
       11: { halign: 'center', cellWidth: 14 }, // CUSTOM
-      12: { halign: 'left', cellWidth: 'auto' }, // NOTE
+      12: { halign: 'left', cellWidth: 'auto' }, // Remarks
     },
     didParseCell: (data) => {
       // Style Total Row: entire row has dark navy background, white bold text, and aligned cells

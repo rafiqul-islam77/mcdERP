@@ -759,8 +759,8 @@ export function DailyReportClient({
                   <th className="border border-black p-1 text-right w-20 bg-slate-800 text-amber-300">
                     PRESENT BALANCE
                   </th>
-                  <th className="border border-black p-1 text-right w-12">BNR</th>
-                  <th className="border border-black p-1 text-left">NOTE</th>
+                  <th className="border border-black p-1 text-right w-16">Missing broken needle</th>
+                  <th className="border border-black p-1 text-left">Remarks</th>
                 </tr>
               </thead>
               <tbody>

@@ -100,6 +100,8 @@ test('Phase 3: Present Balance Excel matches reference workbook structure', asyn
   assert.equal(ws.getCell('A2').value, 'SHARDAGONJ, KASHIMPUR, GAZIPUR')
   assert.equal(ws.getCell('A3').value, 'ACCESSORIES MCD')
   assert.equal(ws.getCell('A4').value, 'DAILY SEWING NEEDLE PRESENT BALANCE REPORT')
+  assert.equal(ws.getCell('K7').value, 'Missing broken needle')
+  assert.equal(ws.getCell('M7').value, 'Remarks')
   assert.ok(String(ws.getCell('I1').value).includes('QA/03/310'))
   assert.ok(String(ws.getCell('I1').value).includes('01/2026'))
 
@@ -190,6 +192,8 @@ test('Phase 3: PDF generator generates valid Present Balance document', async ()
   assert.equal(output.includes('Source:'), false, 'Source must NOT appear in PDF')
   assert.ok(output.includes('(TOTAL)'), 'TOTAL must appear in PDF text stream')
   assert.equal(output.includes('T O T A L'), false, 'TOTAL must NOT have broken character spacing')
+  assert.ok(output.includes('Missing') && output.includes('broken needle'), 'PDF must include "Missing broken needle" header')
+  assert.ok(output.includes('Remarks'), 'PDF must include "Remarks" header')
 })
 
 test('Phase 3: Parity validation between Daily Entry and Present Balance rows', () => {

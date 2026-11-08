@@ -29,6 +29,7 @@ import {
   getCachedMasterMeta,
   saveAuthorizedMasterCatalogToCache,
   saveSheetSnapshotToCache,
+  recoverStuckSyncingOps,
 } from '@/lib/offline/daily-entry-db'
 import {
   batchSyncDailyEntryAction,
@@ -138,6 +139,16 @@ export function DailyEntryShell({
   rowsRef.current = rows
   const sheetReqNoRef = React.useRef(sheetReqNo)
   sheetReqNoRef.current = sheetReqNo
+  const lastSavedAtRef = React.useRef<Date | null>(null)
+  React.useEffect(() => {
+    lastSavedAtRef.current = lastSavedAt
+  }, [lastSavedAt])
+
+  // Clear lastSavedAt and reset status when sheet context changes so previous sheet's Saved state does not bleed over
+  React.useEffect(() => {
+    setLastSavedAt(null)
+    setSaveStatus('idle')
+  }, [currentSheetKey])
 
   // Scroll tracking for floating status indicator (following Needle Master page, Image 4)
   const [isScrolled, setIsScrolled] = React.useState(false)
@@ -259,7 +270,7 @@ export function DailyEntryShell({
       } else if (pending.length > 0) {
         setSaveStatus('syncing')
       } else {
-        setSaveStatus('saved')
+        setSaveStatus(lastSavedAtRef.current ? 'saved' : 'idle')
       }
     } catch {}
   }, [currentSheetKey])
@@ -283,7 +294,7 @@ export function DailyEntryShell({
           setSaveStatus('conflict')
         } else {
           setPendingCount(0)
-          setSaveStatus('saved')
+          setSaveStatus(lastSavedAtRef.current ? 'saved' : 'idle')
           await clearSyncedDraftIfClean(currentSheetKey)
         }
         return
@@ -401,6 +412,84 @@ export function DailyEntryShell({
       isSyncingRef.current = false
     }
   }, [currentSheetKey, date, floorId, category])
+
+  // Synchronize pending operations for other sheets (belonging to current user)
+  const isSyncingOtherSheetsRef = React.useRef(false)
+  const drainAllUserPendingOps = React.useCallback(async () => {
+    if (isSyncingOtherSheetsRef.current || !user?.profile?.id) return
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return
+
+    try {
+      isSyncingOtherSheetsRef.current = true
+      const allOps = await getPendingOperations()
+      // Group by sheet_key, filtering only pending or failed operations belonging to current user
+      const otherSheetMap = new Map<string, PendingSyncOperation[]>()
+      for (const op of allOps) {
+        if (op.sheet_key === currentSheetKey) continue // Current sheet is handled by drainPendingQueue
+        if (op.user_id && op.user_id !== user.profile.id) continue
+        if (op.status === 'pending' || op.status === 'failed') {
+          const list = otherSheetMap.get(op.sheet_key) || []
+          list.push(op)
+          otherSheetMap.set(op.sheet_key, list)
+        }
+      }
+
+      for (const [sKey, sOps] of otherSheetMap.entries()) {
+        if (sOps.length === 0) continue
+        const opIds = sOps.map((o) => o.id)
+        await updateOperationsStatus(opIds, 'syncing')
+
+        const firstOp = sOps[0]
+        const targetDate = firstOp.entry_date
+        const targetFloorId = firstOp.floor_id
+        const targetCategory = firstOp.category
+
+        if (!targetDate || !targetFloorId || !targetCategory) continue
+
+        try {
+          const res = await batchSyncDailyEntryAction({
+            date: targetDate,
+            floorId: targetFloorId,
+            category: targetCategory,
+            operations: sOps.map((o) => ({
+              id: o.id,
+              client_operation_id: o.client_operation_id,
+              needle_item_id: o.needle_item_id,
+              field: o.field,
+              value: o.value,
+              req_no: o.req_no,
+            })),
+          })
+
+          if (res.success && res.data) {
+            const confirmedIds: string[] = []
+            for (const r of res.data.results) {
+              if (r.success) {
+                confirmedIds.push(r.id)
+              } else if (r.isConflict) {
+                await markOperationConflict(r.id, r.error || 'Stock conflict detected.', r.availableStock)
+              } else {
+                await updateOperationsStatus([r.id], 'failed', r.error)
+              }
+            }
+
+            if (confirmedIds.length > 0) {
+              await removeConfirmedOperations(confirmedIds)
+            }
+            await clearSyncedDraftIfClean(sKey)
+          } else {
+            await updateOperationsStatus(opIds, 'failed', res.error)
+          }
+        } catch (sErr: any) {
+          await updateOperationsStatus(opIds, 'failed', sErr.message || 'Sync error')
+        }
+      }
+    } catch (err) {
+      console.warn('[drainAllUserPendingOps] error:', err)
+    } finally {
+      isSyncingOtherSheetsRef.current = false
+    }
+  }, [currentSheetKey, user?.profile?.id])
 
   const loadSheetDataRef = React.useRef<() => Promise<void>>(async () => {})
 
@@ -842,10 +931,65 @@ export function DailyEntryShell({
     onReconnect: handleRealtimeReconnect,
   })
 
-  // Connectivity detection & multi-tab recovery
+  // Initial mount: recover any abandoned in-flight operations from a previous crash/refresh
+  React.useEffect(() => {
+    if (!user?.profile?.id) return
+    recoverStuckSyncingOps(user.profile.id)
+      .then((count) => {
+        if (count > 0) {
+          isSyncingRef.current = false
+          if (typeof navigator !== 'undefined' && navigator.onLine) {
+            drainPendingQueue()
+          }
+        }
+      })
+      .catch(() => {})
+  }, [user?.profile?.id, drainPendingQueue])
+
+  // Periodic background retry scheduler (runs every 30s while page active and online)
+  React.useEffect(() => {
+    const retryInterval = setInterval(async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return
+      if (isSyncingRef.current) return
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+
+      if (user?.profile?.id) {
+        await recoverStuckSyncingOps(user.profile.id)
+      }
+
+      if (currentSheetKey) {
+        try {
+          const ops = await getPendingOperations(currentSheetKey)
+          const failedOps = ops.filter((o: PendingSyncOperation) => o.status === 'failed')
+          const pendingOps = ops.filter((o: PendingSyncOperation) => o.status === 'pending')
+
+          if (failedOps.length > 0) {
+            await updateOperationsStatus(failedOps.map((o: PendingSyncOperation) => o.id), 'pending')
+          }
+
+          if (failedOps.length > 0 || pendingOps.length > 0) {
+            drainPendingQueue()
+          }
+        } catch {}
+      }
+
+      drainAllUserPendingOps()
+    }, 30_000)
+
+    return () => {
+      clearInterval(retryInterval)
+    }
+  }, [currentSheetKey, drainPendingQueue, drainAllUserPendingOps, user?.profile?.id])
+
+  // Connectivity detection, visibility resume & multi-tab recovery
   React.useEffect(() => {
     const handleOnline = async () => {
+      if (user?.profile?.id) {
+        await recoverStuckSyncingOps(user.profile.id)
+      }
+      isSyncingRef.current = false
       await drainPendingQueue()
+      drainAllUserPendingOps()
       await loadSheetDataRef.current()
       if (user?.profile?.id) {
         getAuthorizedNeedleMasterCacheAction()
@@ -857,12 +1001,42 @@ export function DailyEntryShell({
           .catch(() => {})
       }
     }
+
     const handleOffline = () => {
       setSaveStatus('offline')
     }
 
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'hidden') {
+        // App backgrounded or tab hidden on mobile: flush pending debounce immediately
+        if (syncDebounceTimer.current) {
+          clearTimeout(syncDebounceTimer.current)
+          syncDebounceTimer.current = null
+        }
+        drainPendingQueue()
+      } else if (document.visibilityState === 'visible') {
+        // App restored to foreground: recover interrupted in-flight ops, then auto-sync
+        if (user?.profile?.id) {
+          await recoverStuckSyncingOps(user.profile.id)
+        }
+        isSyncingRef.current = false
+        if (typeof navigator !== 'undefined' && navigator.onLine) {
+          drainPendingQueue()
+          drainAllUserPendingOps()
+        }
+      }
+    }
+
+    const handleFocus = () => {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        drainPendingQueue()
+      }
+    }
+
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
 
     // Unload warning if changes are pending
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -876,9 +1050,11 @@ export function DailyEntryShell({
     return () => {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
       window.removeEventListener('beforeunload', handleBeforeUnload)
     }
-  }, [drainPendingQueue, pendingCount, user?.profile?.id, loadSheetData])
+  }, [drainPendingQueue, drainAllUserPendingOps, pendingCount, user?.profile?.id])
 
   // 3. Handle cell changes: Instant React state -> Immediate IndexedDB draft -> Debounced sync
   const handleCellChange = React.useCallback(
