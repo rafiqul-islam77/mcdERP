@@ -20,6 +20,7 @@ interface DailyEntryTableProps {
     value: number
   ) => void
   onOpenTransfer: (item: DailyEntryRowItem) => void
+  onOpenTransferDetails?: (item: DailyEntryRowItem) => void
   onEditReqNo?: (item: DailyEntryRowItem) => void
 }
 
@@ -32,6 +33,7 @@ export function DailyEntryTable({
   sheetKey,
   onCellChange,
   onOpenTransfer,
+  onOpenTransferDetails,
   onEditReqNo,
 }: DailyEntryTableProps) {
   // Local state for snappy typing before debounced/blur server save
@@ -478,8 +480,8 @@ export function DailyEntryTable({
                   )}
                 </td>
 
-                {/* DVLD (Editable input) */}
-                <td className="py-0.5 px-0.5 text-center border-r border-slate-200 dark:border-slate-800">
+                {/* DVLD (Editable input + clickable transfer indicator below) */}
+                <td className="py-0.5 px-0.5 text-center border-r border-slate-200 dark:border-slate-800 align-top">
                   <input
                     type="number"
                     min="0"
@@ -511,6 +513,38 @@ export function DailyEntryTable({
                       Max: {Math.max(0, (row.previous || 0) + (row.received || 0) + (row.transfer_in || 0) - (row.transfer_out || 0))}
                     </span>
                   )}
+                  {(row.transfer_out > 0 || row.transfer_in > 0) && (
+                    <div className="mt-0.5 flex flex-col items-center justify-center gap-0.5">
+                      {row.transfer_out > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onOpenTransferDetails?.(row)
+                          }}
+                          title="Inspect / Edit / Delete transfer (-T)"
+                          aria-label={`Inspect outgoing transfer -T:${row.transfer_out} for ${row.item_code}`}
+                          className="w-full inline-flex items-center justify-center px-1 py-0.5 min-h-[22px] sm:min-h-[16px] rounded text-[7.5px] sm:text-[8px] font-sans text-purple-600 dark:text-purple-400 font-bold hover:bg-purple-50 dark:hover:bg-purple-950/40 active:bg-purple-100 underline decoration-purple-400/70 underline-offset-2 touch-manipulation leading-none cursor-pointer transition-colors"
+                        >
+                          -T:{row.transfer_out}
+                        </button>
+                      )}
+                      {row.transfer_in > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onOpenTransferDetails?.(row)
+                          }}
+                          title="Inspect / Edit / Delete transfer (+T)"
+                          aria-label={`Inspect incoming transfer +T:${row.transfer_in} for ${row.item_code}`}
+                          className="w-full inline-flex items-center justify-center px-1 py-0.5 min-h-[22px] sm:min-h-[16px] rounded text-[7.5px] sm:text-[8px] font-sans text-purple-600 dark:text-purple-400 font-bold hover:bg-purple-50 dark:hover:bg-purple-950/40 active:bg-purple-100 underline decoration-purple-400/70 underline-offset-2 touch-manipulation leading-none cursor-pointer transition-colors"
+                        >
+                          +T:{row.transfer_in}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </td>
 
                 {/* PRESENT (Read-only calculated) */}
@@ -522,16 +556,6 @@ export function DailyEntryTable({
                   }`}
                 >
                   <span>{coverageIncomplete || row.is_stock_known === false ? '—' : row.present}</span>
-                  {row.transfer_out > 0 && (
-                    <span className="block text-[6.5px] sm:text-[7.5px] font-sans text-purple-600 dark:text-purple-400 font-bold truncate leading-none">
-                      -T:{row.transfer_out}
-                    </span>
-                  )}
-                  {row.transfer_in > 0 && (
-                    <span className="block text-[6.5px] sm:text-[7.5px] font-sans text-purple-600 dark:text-purple-400 font-bold truncate leading-none">
-                      +T:{row.transfer_in}
-                    </span>
-                  )}
                 </td>
 
                 {/* BNR (Editable Broken Needle Record) */}

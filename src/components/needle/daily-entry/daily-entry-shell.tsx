@@ -4,6 +4,7 @@ import * as React from 'react'
 import { DailyEntryHeader } from './daily-entry-header'
 import { DailyEntryTable } from './daily-entry-table'
 import { TransferModal } from './transfer-modal'
+import { TransferDetailsModal } from './transfer-details-modal'
 import { RequisitionModal } from './requisition-modal'
 import { ConflictResolutionModal } from './conflict-resolution-modal'
 import {
@@ -30,6 +31,8 @@ import {
   saveAuthorizedMasterCatalogToCache,
   saveSheetSnapshotToCache,
   recoverStuckSyncingOps,
+  reconcileTransferCacheInIndexedDB,
+  saveOfflineStockHistoryToCache,
 } from '@/lib/offline/daily-entry-db'
 import {
   batchSyncDailyEntryAction,
@@ -37,15 +40,23 @@ import {
   getAuthorizedNeedleMasterCacheAction,
   getDailyEntrySheetAction,
   transferFloorStockAction,
+  getOfflineStockHistorySyncAction,
   updateSheetRequisitionNoAction,
   updateRowRequisitionNoAction,
 } from '@/app/actions/daily-entry'
+import {
+  getFloorTransfersForRowAction,
+  editFloorTransferAction,
+  deleteFloorTransferAction,
+} from '@/app/actions/floor-transfers'
 import { SaveStatusIndicator, type SaveStatus } from '@/components/needle/save-status-indicator'
+import { PERMISSIONS } from '@/lib/permissions/keys'
 import type {
   CurrentUser,
   DailyEntryCategory,
   DailyEntryRowItem,
   Floor,
+  FloorTransferDetail,
   PendingSyncOperation,
 } from '@/types'
 import { Database, RefreshCw } from 'lucide-react'
@@ -163,8 +174,28 @@ export function DailyEntryShell({
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Transfer modal
+  // Connectivity tracking
+  const [isOnline, setIsOnline] = React.useState<boolean>(() =>
+    typeof navigator === 'undefined' ? true : navigator.onLine
+  )
+
+  // Transfer modals
   const [transferItem, setTransferItem] = React.useState<DailyEntryRowItem | null>(null)
+  const [transferDetailsItem, setTransferDetailsItem] = React.useState<DailyEntryRowItem | null>(null)
+  const [transferDetailsList, setTransferDetailsList] = React.useState<FloorTransferDetail[]>([])
+  const [transferDetailsLoading, setTransferDetailsLoading] = React.useState(false)
+  const [transferDetailsError, setTransferDetailsError] = React.useState<string | null>(null)
+  const transferDetailsItemRef = React.useRef<DailyEntryRowItem | null>(null)
+  transferDetailsItemRef.current = transferDetailsItem
+
+  const canEditTransfer = React.useMemo(
+    () => Boolean(user?.isSiteAdmin || user?.permissions?.includes(PERMISSIONS.FLOOR_TRANSFER.EDIT)),
+    [user]
+  )
+  const canDeleteTransfer = React.useMemo(
+    () => Boolean(user?.isSiteAdmin || user?.permissions?.includes(PERMISSIONS.FLOOR_TRANSFER.DELETE)),
+    [user]
+  )
 
   // 1. Initial load of authorized floors & categories
   React.useEffect(() => {
@@ -702,6 +733,10 @@ export function DailyEntryShell({
   }, [loadSheetData, date])
 
 
+  const loadTransferDetailsForItemRef = React.useRef<(item: DailyEntryRowItem) => Promise<void>>(
+    async () => {}
+  )
+
   // ─── Supabase Realtime Multi-Device Sync (Sections 1-30) ──────────────────
   const handleRealtimeTransactionChange = React.useCallback(
     async (payload: RealtimePostgresChangesPayload<RealtimeTransactionRecord>) => {
@@ -721,6 +756,42 @@ export function DailyEntryShell({
       if (txDate === date) {
         const field: 'received' | 'delivery' | null =
           txType === 'RECEIVE' ? 'received' : txType === 'ISSUE' ? 'delivery' : null
+
+        // For transfer transactions on the current date, compute exact quantity delta so multiple
+        // same-day transfers and deletions preserve existing totals.
+        let transferDelta: number | null = null
+        let needsAuthoritativeReload = false
+        if (txType === 'TRANSFER_IN' || txType === 'TRANSFER_OUT') {
+          const oldRecord = payload.old as Partial<RealtimeTransactionRecord> | undefined
+          const hasOldQty = oldRecord && oldRecord.quantity !== undefined && oldRecord.quantity !== null
+          const oldQty = hasOldQty ? Number(oldRecord.quantity) || 0 : 0
+
+          if (payload.eventType === 'INSERT') {
+            transferDelta = txQty
+          } else if (payload.eventType === 'UPDATE') {
+            if (oldRecord?.floor_id && oldRecord.floor_id !== floorId) {
+              transferDelta = txQty
+            } else if (hasOldQty) {
+              transferDelta = txQty - oldQty
+            } else {
+              needsAuthoritativeReload = true
+            }
+          } else if (payload.eventType === 'DELETE') {
+            if (hasOldQty) {
+              transferDelta = -oldQty
+            } else {
+              needsAuthoritativeReload = true
+            }
+          }
+        }
+
+        if (needsAuthoritativeReload) {
+          loadSheetDataRef.current().catch(() => {})
+          if (transferDetailsItemRef.current?.needle_item_id === needleItemId) {
+            loadTransferDetailsForItemRef.current(transferDetailsItemRef.current).catch(() => {})
+          }
+          return
+        }
 
         // Check if current device has uncommitted local pending draft for this cell (Section 10)
         let hasLocalPending = false
@@ -760,10 +831,10 @@ export function DailyEntryShell({
               if (!hasLocalPending) {
                 dvld = txQty
               }
-            } else if (txType === 'TRANSFER_IN') {
-              trfIn = txQty
-            } else if (txType === 'TRANSFER_OUT') {
-              trfOut = txQty
+            } else if (txType === 'TRANSFER_IN' && transferDelta !== null) {
+              trfIn = Math.max(0, r.transfer_in + transferDelta)
+            } else if (txType === 'TRANSFER_OUT' && transferDelta !== null) {
+              trfOut = Math.max(0, r.transfer_out + transferDelta)
             }
 
             const present = r.previous + rcvd + trfIn - dvld - trfOut
@@ -797,6 +868,13 @@ export function DailyEntryShell({
         if (record.req_no && txType === 'RECEIVE' && !hasLocalPending) {
           setSheetReqNo(record.req_no)
         }
+
+        if (
+          (txType === 'TRANSFER_IN' || txType === 'TRANSFER_OUT') &&
+          transferDetailsItemRef.current?.needle_item_id === needleItemId
+        ) {
+          loadTransferDetailsForItemRef.current(transferDetailsItemRef.current).catch(() => {})
+        }
       } else if (txDate && txDate < date) {
         // Historical change on earlier date (Section 8)
         let delta = 0
@@ -808,8 +886,13 @@ export function DailyEntryShell({
           if (payload.eventType === 'INSERT') {
             delta = mult * txQty
           } else if (payload.eventType === 'UPDATE') {
-            const oldQty = Number((payload.old as any)?.quantity) || 0
-            delta = mult * (txQty - oldQty)
+            const oldRecord = payload.old as Partial<RealtimeTransactionRecord> | undefined
+            if (oldRecord?.floor_id && oldRecord.floor_id !== floorId) {
+              delta = mult * txQty
+            } else {
+              const oldQty = Number(oldRecord?.quantity) || 0
+              delta = mult * (txQty - oldQty)
+            }
           } else if (payload.eventType === 'DELETE') {
             const oldQty = Number((payload.old as any)?.quantity) || 0
             delta = -mult * oldQty
@@ -845,7 +928,7 @@ export function DailyEntryShell({
         }
       }
     },
-    [date, floorId, currentSheetKey, user?.profile?.id]
+    [date, floorId, category, currentSheetKey, user?.profile?.id]
   )
 
   const handleRealtimeBnrChange = React.useCallback(
@@ -984,6 +1067,7 @@ export function DailyEntryShell({
   // Connectivity detection, visibility resume & multi-tab recovery
   React.useEffect(() => {
     const handleOnline = async () => {
+      setIsOnline(true)
       if (user?.profile?.id) {
         await recoverStuckSyncingOps(user.profile.id)
       }
@@ -1003,6 +1087,7 @@ export function DailyEntryShell({
     }
 
     const handleOffline = () => {
+      setIsOnline(false)
       setSaveStatus('offline')
     }
 
@@ -1482,6 +1567,161 @@ export function DailyEntryShell({
     return res
   }
 
+  // 6. Inspect / Edit / Delete Floor Transfers
+  const loadTransferDetailsForItem = React.useCallback(
+    async (item: DailyEntryRowItem) => {
+      setTransferDetailsLoading(true)
+      setTransferDetailsError(null)
+      try {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          setTransferDetailsList([])
+          setTransferDetailsError('Offline mode: connect to the internet to inspect or manage transfers.')
+          return
+        }
+        const res = await getFloorTransfersForRowAction({
+          date,
+          floorId,
+          category,
+          needleItemId: item.needle_item_id,
+          needleName: `${item.item_code} — ${item.needle_type} (${item.size_dia})`,
+        })
+        if (res.success && res.data) {
+          setTransferDetailsList(res.data.transfers)
+        } else {
+          setTransferDetailsList([])
+          setTransferDetailsError(res.error || 'Failed to load transfer records.')
+        }
+      } catch (err: unknown) {
+        setTransferDetailsList([])
+        setTransferDetailsError(
+          err instanceof Error ? err.message : 'Network error loading transfer details.'
+        )
+      } finally {
+        setTransferDetailsLoading(false)
+      }
+    },
+    [date, floorId, category]
+  )
+
+  loadTransferDetailsForItemRef.current = loadTransferDetailsForItem
+
+  const handleOpenTransferDetails = React.useCallback(
+    (item: DailyEntryRowItem) => {
+      setTransferDetailsItem(item)
+      setTransferDetailsList([])
+      loadTransferDetailsForItem(item)
+    },
+    [loadTransferDetailsForItem]
+  )
+
+  const reconcileAfterTransferMutation = React.useCallback(
+    async (params: {
+      transferDate: string
+      needleItemId: string
+      affectedFloorIds: string[]
+      removedTransactionIds?: string[]
+    }) => {
+      if (user?.profile?.id) {
+        await reconcileTransferCacheInIndexedDB({
+          userId: user.profile.id,
+          category,
+          needleItemId: params.needleItemId,
+          transferDate: params.transferDate,
+          affectedFloorIds: params.affectedFloorIds,
+          removedTransactionIds: params.removedTransactionIds,
+        }).catch(() => {})
+      }
+
+      await loadSheetData()
+
+      if (typeof navigator === 'undefined' || navigator.onLine) {
+        getOfflineStockHistorySyncAction({
+          categories: [category],
+          floorIds: params.affectedFloorIds,
+        })
+          .then((syncRes) => {
+            if (syncRes.success && syncRes.data) {
+              saveOfflineStockHistoryToCache(syncRes.data).catch(() => {})
+            }
+          })
+          .catch(() => {})
+      }
+    },
+    [user?.profile?.id, category, loadSheetData]
+  )
+
+  const handleTransferEditConfirm = async (params: {
+    transfer: FloorTransferDetail
+    newToFloorId: string
+    newQuantity: number
+    newReceiverName: string
+    newReqNo: string
+    operationId: string
+  }) => {
+    const res = await editFloorTransferAction({
+      category: params.transfer.category,
+      transferId: params.transfer.transferId,
+      newToFloorId: params.newToFloorId,
+      newQuantity: params.newQuantity,
+      newReceiverName: params.newReceiverName,
+      newReqNo: params.newReqNo,
+      operationId: params.operationId,
+    })
+
+    if (!res.success || !res.data) {
+      return { success: false, error: res.error || 'Failed to update transfer.' }
+    }
+
+    toast('Floor transfer updated successfully.', 'success')
+
+    const affectedFloorIds = Array.from(
+      new Set([res.data.fromFloorId, res.data.oldToFloorId, res.data.newToFloorId])
+    )
+    const removedIds =
+      res.data.oldToFloorId !== res.data.newToFloorId && params.transfer.transferInId
+        ? [params.transfer.transferInId]
+        : []
+
+    await reconcileAfterTransferMutation({
+      transferDate: res.data.transferDate,
+      needleItemId: res.data.needleItemId,
+      affectedFloorIds,
+      removedTransactionIds: removedIds,
+    })
+
+    return { success: true }
+  }
+
+  const handleTransferDeleteConfirm = async (params: {
+    transfer: FloorTransferDetail
+    operationId: string
+  }) => {
+    const res = await deleteFloorTransferAction({
+      category: params.transfer.category,
+      transferId: params.transfer.transferId,
+      operationId: params.operationId,
+    })
+
+    if (!res.success || !res.data) {
+      return { success: false, error: res.error || 'Failed to delete transfer.' }
+    }
+
+    toast('Floor transfer deleted and stock reversed across both floors.', 'success')
+
+    const removedIds = [
+      res.data.transferOutId,
+      ...(res.data.transferInId ? [res.data.transferInId] : []),
+    ]
+    await reconcileAfterTransferMutation({
+      transferDate: res.data.transferDate,
+      needleItemId: res.data.needleItemId,
+      affectedFloorIds: [res.data.fromFloorId, res.data.toFloorId],
+      removedTransactionIds: removedIds,
+    })
+
+    return { success: true }
+  }
+
   // Filter rows by search term
   const filteredRows = React.useMemo(() => {
     if (!searchTerm.trim()) return rows
@@ -1583,6 +1823,7 @@ export function DailyEntryShell({
         coverageMessage={coverageError}
         onCellChange={handleCellChange}
         onOpenTransfer={setTransferItem}
+        onOpenTransferDetails={handleOpenTransferDetails}
         onEditReqNo={setEditingRowReqNo}
       />
 
@@ -1605,6 +1846,29 @@ export function DailyEntryShell({
         currentFloor={currentFloorObj}
         activeFloors={allActiveFloors}
         onConfirm={handleTransferConfirm}
+      />
+
+      {/* Transfer Details / Edit / Delete Modal */}
+      <TransferDetailsModal
+        isOpen={Boolean(transferDetailsItem)}
+        onClose={() => setTransferDetailsItem(null)}
+        item={transferDetailsItem}
+        floorId={floorId}
+        floorName={currentFloorObj?.name || 'Floor'}
+        floors={allActiveFloors}
+        date={date}
+        category={category}
+        transfers={transferDetailsList}
+        loadingTransfers={transferDetailsLoading}
+        loadError={transferDetailsError}
+        isOnline={isOnline}
+        canEditTransfer={canEditTransfer}
+        canDeleteTransfer={canDeleteTransfer}
+        onEditConfirm={handleTransferEditConfirm}
+        onDeleteConfirm={handleTransferDeleteConfirm}
+        onReloadTransfers={() => {
+          if (transferDetailsItem) loadTransferDetailsForItem(transferDetailsItem)
+        }}
       />
 
       {/* Conflict Resolution Modal */}

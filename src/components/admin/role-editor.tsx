@@ -95,6 +95,14 @@ const MODULE_GROUPS = [
       { pageKey: 'profile', label: 'Personal Profile', actions: ['view', 'edit'] },
     ],
   },
+  {
+    id: 'floor_transfer',
+    moduleKey: 'floor_transfer',
+    label: 'FLOOR TRANSFER MANAGEMENT',
+    pages: [
+      { pageKey: 'floor_transfer', label: 'Floor Transfers', actions: ['edit', 'delete'] },
+    ],
+  },
 ]
 
 const STANDARD_ACTIONS = ['view', 'create', 'edit', 'delete', 'approve', 'export', 'print']

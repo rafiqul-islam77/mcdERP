@@ -2203,3 +2203,107 @@ export async function clearStaleMasterCacheForUser(userId: string): Promise<void
     }
   })
 }
+
+/**
+ * Invalidate stale IndexedDB cached snapshots and transfer movements for affected floors
+ * from `transferDate` onwards after a Floor Transfer Edit or Delete is confirmed online.
+ * Preserves local unsynced drafts (`STORE_DRAFTS`) and sync queue (`STORE_QUEUE`) intact.
+ */
+export async function reconcileTransferCacheInIndexedDB(params: {
+  userId: string
+  category: DailyEntryCategory
+  needleItemId: string
+  transferDate: string
+  affectedFloorIds: string[]
+  removedTransactionIds?: string[]
+}): Promise<void> {
+  if (typeof window === 'undefined' || !('indexedDB' in window)) return
+
+  const db = await openDB()
+  const floorSet = new Set(params.affectedFloorIds.filter(Boolean))
+  const removedIdSet = new Set((params.removedTransactionIds || []).filter(Boolean))
+
+  return new Promise((resolve, reject) => {
+    const existing = db.objectStoreNames
+    const stores: string[] = []
+    if (existing.contains(STORE_SNAPSHOTS)) stores.push(STORE_SNAPSHOTS)
+    if (existing.contains(STORE_DAILY_SNAPSHOTS)) stores.push(STORE_DAILY_SNAPSHOTS)
+    if (existing.contains(STORE_STOCK_MOVEMENTS)) stores.push(STORE_STOCK_MOVEMENTS)
+
+    if (stores.length === 0) {
+      db.close()
+      resolve()
+      return
+    }
+
+    const tx = db.transaction(stores, 'readwrite')
+
+    if (existing.contains(STORE_SNAPSHOTS)) {
+      const snapStore = tx.objectStore(STORE_SNAPSHOTS)
+      const req = snapStore.getAll()
+      req.onsuccess = () => {
+        const list: CachedSheetSnapshot[] = req.result || []
+        for (const item of list) {
+          if (
+            item.user_id === params.userId &&
+            item.category === params.category &&
+            floorSet.has(item.floor_id) &&
+            item.entry_date >= params.transferDate
+          ) {
+            snapStore.delete(item.sheet_key)
+          }
+        }
+      }
+    }
+
+    if (existing.contains(STORE_DAILY_SNAPSHOTS)) {
+      const dailyStore = tx.objectStore(STORE_DAILY_SNAPSHOTS)
+      const req = dailyStore.getAll()
+      req.onsuccess = () => {
+        const list: DailyStockSnapshotRecord[] = req.result || []
+        for (const item of list) {
+          if (
+            item.category === params.category &&
+            item.needle_item_id === params.needleItemId &&
+            floorSet.has(item.floor_id) &&
+            item.date >= params.transferDate
+          ) {
+            dailyStore.delete(item.id)
+          }
+        }
+      }
+    }
+
+    if (existing.contains(STORE_STOCK_MOVEMENTS)) {
+      const moveStore = tx.objectStore(STORE_STOCK_MOVEMENTS)
+      const req = moveStore.getAll()
+      req.onsuccess = () => {
+        const list: StockMovementRecord[] = req.result || []
+        for (const item of list) {
+          if (removedIdSet.has(item.id)) {
+            moveStore.delete(item.id)
+            continue
+          }
+          if (
+            item.category === params.category &&
+            item.needle_item_id === params.needleItemId &&
+            item.transaction_date === params.transferDate &&
+            floorSet.has(item.floor_id) &&
+            (item.transaction_type === 'TRANSFER_IN' || item.transaction_type === 'TRANSFER_OUT')
+          ) {
+            moveStore.delete(item.id)
+          }
+        }
+      }
+    }
+
+    tx.oncomplete = () => {
+      db.close()
+      resolve()
+    }
+    tx.onerror = () => {
+      db.close()
+      reject(tx.error || new Error('Failed to reconcile transfer cache.'))
+    }
+  })
+}
