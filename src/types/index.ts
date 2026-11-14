@@ -289,6 +289,8 @@ export type AuditEventType =
   | 'NEEDLE_DAILY_ISSUE_SAVED'
   | 'NEEDLE_DAILY_BNR_SAVED'
   | 'NEEDLE_DAILY_TRANSFER_EXECUTED'
+  | 'TRANSFER_EDIT'
+  | 'TRANSFER_DELETE'
   | 'NEEDLE_DAILY_SHEET_CREATED'
   | 'SYSTEM_SETTING_UPDATED'
 
@@ -604,6 +606,31 @@ export interface DailyReportData {
     totalPresent: number
     totalBnr: number
   }
+}
+
+// ─── Floor Transfer Management Types ─────────────────────────────────────────
+
+export type FloorTransferDirection = 'OUT' | 'IN'
+
+export interface FloorTransferDetail {
+  transferId: string // Canonical TRANSFER_OUT transaction UUID
+  transferOutId: string
+  transferInId: string | null
+  transferGroupId: string | null
+  direction: FloorTransferDirection // Relative to the inspected Daily Entry floor
+  category: DailyEntryCategory
+  transactionDate: string
+  needleItemId: string
+  needleName: string
+  fromFloorId: string
+  fromFloorName: string
+  toFloorId: string
+  toFloorName: string
+  quantity: number
+  receiverName: string | null
+  reqNo: string | null
+  notes: string | null
+  createdAt: string
 }
 
 

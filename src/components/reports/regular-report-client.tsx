@@ -285,7 +285,11 @@ export function RegularReportClient({
         currentStep: 2,
       }))
 
-      const repRes = await getDailyStockReportDataAction({ date: dsDate })
+      const repRes = await getDailyStockReportDataAction({
+        date: dsDate,
+        floorIds: dsSelectedFloorIds,
+        categories: dsSelectedCategories,
+      })
       if (!repRes.success || !repRes.data) {
         throw new Error(repRes.error || 'Failed to fetch report data.')
       }

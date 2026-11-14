@@ -301,6 +301,37 @@ export async function getDailyReportData(params: {
 }
 
 /**
+ * Generic helper to fetch all rows using Supabase range pagination.
+ * Ensures queries returning >1000 rows (PostgREST max_rows default) are not truncated.
+ * pageSize defaults to 500 records.
+ */
+export async function fetchAllRowsPaginated<T>(
+  buildQuery: () => any,
+  pageSize = 500
+): Promise<T[]> {
+  const allRows: T[] = []
+  let from = 0
+
+  while (true) {
+    const to = from + pageSize - 1
+    const { data, error } = await buildQuery().range(from, to)
+    if (error) {
+      throw error
+    }
+    if (!data || data.length === 0) {
+      break
+    }
+    allRows.push(...data)
+    if (data.length < pageSize) {
+      break
+    }
+    from += pageSize
+  }
+
+  return allRows
+}
+
+/**
  * HIGH-PERFORMANCE BATCH REPORT SERVICE (Steps 1 + 2 + 3)
  * Fetches all requested floors and categories in bulk queries, groups in-memory,
  * and calculates identical stock balances without repeated N+1 DB loops.
@@ -363,24 +394,28 @@ export async function getBatchDailyReportData(params: {
 
     const normalItemsMap = new Map<string, any>()
     if (needsNormal) {
-      const { data: nItems } = await admin
-        .from('normal_needle_items')
-        .select('id, item_code, needle_type, size_dia, brand, unit_price_usd, active')
-        .order('item_code', { ascending: true })
+      const nItems = await fetchAllRowsPaginated<any>(() =>
+        admin
+          .from('normal_needle_items')
+          .select('id, item_code, needle_type, size_dia, brand, unit_price_usd, active')
+          .order('id', { ascending: true })
+      )
 
-      for (const it of nItems || []) {
+      for (const it of nItems) {
         normalItemsMap.set(it.id, it)
       }
     }
 
     const idleItemsMap = new Map<string, any>()
     if (needsIdle) {
-      const { data: iItems } = await admin
-        .from('idle_needle_items')
-        .select('id, item_code, needle_type, size_dia, brand, unit_price_usd, active')
-        .order('item_code', { ascending: true })
+      const iItems = await fetchAllRowsPaginated<any>(() =>
+        admin
+          .from('idle_needle_items')
+          .select('id, item_code, needle_type, size_dia, brand, unit_price_usd, active')
+          .order('id', { ascending: true })
+      )
 
-      for (const it of iItems || []) {
+      for (const it of iItems) {
         idleItemsMap.set(it.id, it)
       }
     }
@@ -390,29 +425,34 @@ export async function getBatchDailyReportData(params: {
     // ─────────────────────────────────────────────────────────────────────────
     const normalAssignMap = new Map<string, string[]>() // key: `${floor_id}__${category}` -> needle_item_id[]
     if (needsNormal) {
-      const assignQuery = admin
-        .from('normal_needle_floor_assignments')
-        .select('needle_item_id, floor_id, entry_type')
-        .in('floor_id', params.floorIds)
-
-      const assignRes = await assignQuery
-      let nAssign = assignRes.data
-      const nAssignErr = assignRes.error
-
-      if (nAssignErr && (nAssignErr.code === '42703' || nAssignErr.message?.includes('entry_type'))) {
-        const fb = await admin
-          .from('normal_needle_floor_assignments')
-          .select('needle_item_id, floor_id')
-          .in('floor_id', params.floorIds)
-        if (fb.data) {
+      let nAssign: any[] = []
+      try {
+        nAssign = await fetchAllRowsPaginated<any>(() =>
+          admin
+            .from('normal_needle_floor_assignments')
+            .select('id, needle_item_id, floor_id, entry_type')
+            .in('floor_id', params.floorIds)
+            .order('id', { ascending: true })
+        )
+      } catch (nAssignErr: any) {
+        if (nAssignErr.code === '42703' || nAssignErr.message?.includes('entry_type')) {
+          const fb = await fetchAllRowsPaginated<any>(() =>
+            admin
+              .from('normal_needle_floor_assignments')
+              .select('id, needle_item_id, floor_id')
+              .in('floor_id', params.floorIds)
+              .order('id', { ascending: true })
+          )
           nAssign = [
-            ...fb.data.map((a: any) => ({ ...a, entry_type: 'new' })),
-            ...fb.data.map((a: any) => ({ ...a, entry_type: 'running' })),
+            ...fb.map((a: any) => ({ ...a, entry_type: 'new' })),
+            ...fb.map((a: any) => ({ ...a, entry_type: 'running' })),
           ]
+        } else {
+          throw nAssignErr
         }
       }
 
-      for (const a of nAssign || []) {
+      for (const a of nAssign) {
         const entryType = (a.entry_type || '').toUpperCase()
         if (entryType === 'NEW') {
           const key = `${a.floor_id}__NEW`
@@ -441,12 +481,15 @@ export async function getBatchDailyReportData(params: {
 
     const idleAssignMap = new Map<string, string[]>() // key: `${floor_id}__IDLE` -> needle_item_id[]
     if (needsIdle) {
-      const { data: iAssign } = await admin
-        .from('idle_needle_floor_assignments')
-        .select('needle_item_id, floor_id')
-        .in('floor_id', params.floorIds)
+      const iAssign = await fetchAllRowsPaginated<any>(() =>
+        admin
+          .from('idle_needle_floor_assignments')
+          .select('id, needle_item_id, floor_id')
+          .in('floor_id', params.floorIds)
+          .order('id', { ascending: true })
+      )
 
-      for (const a of iAssign || []) {
+      for (const a of iAssign) {
         const key = `${a.floor_id}__IDLE`
         const list = idleAssignMap.get(key) || []
         list.push(a.needle_item_id)
@@ -457,24 +500,27 @@ export async function getBatchDailyReportData(params: {
     // ─────────────────────────────────────────────────────────────────────────
     // STEP 3B: Batch Daily Sheet Headers & Operator Profiles
     // ─────────────────────────────────────────────────────────────────────────
-    const { data: sheetRows } = await admin
-      .from('needle_daily_sheets')
-      .select('id, floor_id, category, status, req_no, entry_date, created_by, profiles!needle_daily_sheets_created_by_fkey(name)')
-      .eq('entry_date', params.date)
-      .in('floor_id', params.floorIds)
-      .in('category', params.categories)
+    const sheetRows = await fetchAllRowsPaginated<any>(() =>
+      admin
+        .from('needle_daily_sheets')
+        .select('id, floor_id, category, status, entry_date, created_by, profiles!needle_daily_sheets_created_by_fkey(name)')
+        .eq('entry_date', params.date)
+        .in('floor_id', params.floorIds)
+        .in('category', params.categories)
+        .order('id', { ascending: true })
+    )
 
     const sheetMap = new Map<
       string,
-      { id: string; status: 'draft' | 'posted' | 'closed'; req_no: string | null; operatorName: string | null }
+      { id: string; status: 'draft' | 'posted' | 'closed'; req_no?: string | null; operatorName: string | null }
     >()
-    for (const s of sheetRows || []) {
+    for (const s of sheetRows) {
       const cat = (s.category || '').toUpperCase()
       const key = `${s.floor_id}__${cat}`
       sheetMap.set(key, {
         id: s.id,
         status: s.status || 'draft',
-        req_no: s.req_no || null,
+        req_no: null,
         operatorName: (s.profiles as any)?.name || null,
       })
     }
@@ -485,60 +531,57 @@ export async function getBatchDailyReportData(params: {
     const txMap = new Map<string, any[]>() // key: `${floor_id}__${category}__${needle_item_id}`
 
     if (params.categories.includes('NEW')) {
-      try {
-        const { data: newTxRows, error: newTxErr } = await admin
+      const newTxRows = await fetchAllRowsPaginated<any>(() =>
+        admin
           .from('needle_new_transactions')
-          .select('needle_item_id, floor_id, transaction_date, transaction_type, quantity, req_no, notes')
+          .select('id, needle_item_id, floor_id, transaction_date, transaction_type, quantity, req_no, notes')
           .in('floor_id', params.floorIds)
           .lte('transaction_date', params.date)
+          .order('id', { ascending: true })
+      )
 
-        if (!newTxErr && newTxRows) {
-          for (const tx of newTxRows) {
-            const key = `${tx.floor_id}__NEW__${tx.needle_item_id}`
-            const list = txMap.get(key) || []
-            list.push(tx)
-            txMap.set(key, list)
-          }
-        }
-      } catch {}
+      for (const tx of newTxRows) {
+        const key = `${tx.floor_id}__NEW__${tx.needle_item_id}`
+        const list = txMap.get(key) || []
+        list.push(tx)
+        txMap.set(key, list)
+      }
     }
 
     if (params.categories.includes('RUNNING')) {
-      try {
-        const { data: runTxRows, error: runTxErr } = await admin
+      const runTxRows = await fetchAllRowsPaginated<any>(() =>
+        admin
           .from('needle_running_transactions')
-          .select('needle_item_id, floor_id, transaction_date, transaction_type, quantity, req_no, notes')
+          .select('id, needle_item_id, floor_id, transaction_date, transaction_type, quantity, req_no, notes')
           .in('floor_id', params.floorIds)
           .lte('transaction_date', params.date)
+          .order('id', { ascending: true })
+      )
 
-        if (!runTxErr && runTxRows) {
-          for (const tx of runTxRows) {
-            const key = `${tx.floor_id}__RUNNING__${tx.needle_item_id}`
-            const list = txMap.get(key) || []
-            list.push(tx)
-            txMap.set(key, list)
-          }
-        }
-      } catch {}
+      for (const tx of runTxRows) {
+        const key = `${tx.floor_id}__RUNNING__${tx.needle_item_id}`
+        const list = txMap.get(key) || []
+        list.push(tx)
+        txMap.set(key, list)
+      }
     }
 
     if (params.categories.includes('IDLE')) {
-      try {
-        const { data: idleTxRows, error: idleTxErr } = await admin
+      const idleTxRows = await fetchAllRowsPaginated<any>(() =>
+        admin
           .from('needle_idle_transactions')
-          .select('needle_item_id, floor_id, transaction_date, transaction_type, quantity, req_no, notes')
+          .select('id, needle_item_id, floor_id, transaction_date, transaction_type, quantity, req_no, notes')
           .in('floor_id', params.floorIds)
           .lte('transaction_date', params.date)
+          .order('id', { ascending: true })
+      )
 
-        if (!idleTxErr && idleTxRows) {
-          for (const tx of idleTxRows) {
-            const key = `${tx.floor_id}__IDLE__${tx.needle_item_id}`
-            const list = txMap.get(key) || []
-            list.push(tx)
-            txMap.set(key, list)
-          }
-        }
-      } catch {}
+      for (const tx of idleTxRows) {
+        const key = `${tx.floor_id}__IDLE__${tx.needle_item_id}`
+        const list = txMap.get(key) || []
+        list.push(tx)
+        txMap.set(key, list)
+      }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -546,21 +589,28 @@ export async function getBatchDailyReportData(params: {
     // ─────────────────────────────────────────────────────────────────────────
     const bnrMap = new Map<string, number>() // key: `${floor_id}__${category}__${needle_item_id}`
     try {
-      const { data: bnrRows, error: bnrErr } = await admin
-        .from('needle_bnr_records')
-        .select('needle_item_id, floor_id, category, quantity')
-        .eq('record_date', params.date)
-        .in('floor_id', params.floorIds)
-        .in('category', params.categories)
+      const bnrRows = await fetchAllRowsPaginated<any>(() =>
+        admin
+          .from('needle_bnr_records')
+          .select('id, needle_item_id, floor_id, category, quantity')
+          .eq('record_date', params.date)
+          .in('floor_id', params.floorIds)
+          .in('category', params.categories)
+          .order('id', { ascending: true })
+      )
 
-      if (!bnrErr && bnrRows) {
-        for (const b of bnrRows) {
-          const cat = (b.category || '').toUpperCase()
-          const key = `${b.floor_id}__${cat}__${b.needle_item_id}`
-          bnrMap.set(key, Number(b.quantity) || 0)
-        }
+      for (const b of bnrRows) {
+        const cat = (b.category || '').toUpperCase()
+        const key = `${b.floor_id}__${cat}__${b.needle_item_id}`
+        bnrMap.set(key, Number(b.quantity) || 0)
       }
-    } catch {}
+    } catch (bnrErr: any) {
+      if (bnrErr?.code === '42P01' || bnrErr?.code === 'PGRST205' || bnrErr?.message?.includes('does not exist')) {
+        // Missing table fallback: treat as 0 BNR
+      } else {
+        throw bnrErr
+      }
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // STEP 3E: In-Memory Assembly & Exact Stock Balance Calculation

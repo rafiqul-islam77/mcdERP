@@ -181,6 +181,11 @@ export const PERMISSIONS = {
     VIEW: 'profile.view',
     EDIT: 'profile.edit',
   },
+
+  FLOOR_TRANSFER: {
+    EDIT: 'floor_transfer.edit',
+    DELETE: 'floor_transfer.delete',
+  },
 } as const
 
 type LeafValues<T> = T extends string

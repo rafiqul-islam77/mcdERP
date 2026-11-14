@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUserFull } from '@/lib/auth'
 import { getDailyStockReportDataAction } from '@/app/actions/reports'
 import { generateDailyStockReportWorkbook } from '@/lib/reports/excel-stock-report'
+import type { DailyEntryCategory } from '@/types'
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUserFull()
@@ -31,8 +32,25 @@ export async function GET(request: NextRequest) {
   const floorIdsParam = searchParams.get('floorIds') || 'all'
   const categoriesParam = searchParams.get('categories') || 'RUNNING,NEW,IDLE'
 
-  // Fetch full stock report datasets
-  const stockDataRes = await getDailyStockReportDataAction({ date })
+  const requestedFloorIds =
+    floorIdsParam !== 'all'
+      ? floorIdsParam
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean)
+      : undefined
+
+  const requestedCategories = categoriesParam
+    .split(',')
+    .map((c) => c.trim().toUpperCase())
+    .filter((c): c is DailyEntryCategory => ['RUNNING', 'NEW', 'IDLE'].includes(c as any))
+
+  // Fetch stock report datasets
+  const stockDataRes = await getDailyStockReportDataAction({
+    date,
+    floorIds: requestedFloorIds,
+    categories: requestedCategories.length > 0 ? requestedCategories : undefined,
+  })
   if (!stockDataRes.success || !stockDataRes.data) {
     return NextResponse.json(
       { error: stockDataRes.error || 'Failed to generate stock report data' },

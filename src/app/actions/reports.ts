@@ -136,6 +136,8 @@ export async function getAllFloorsDailyReportAction(params: {
 export async function getDailyStockReportDataAction(params: {
   date: string
   floorId?: string
+  floorIds?: string[]
+  categories?: DailyEntryCategory[]
 }): Promise<
   ActionResult<{
     newReports: DailyReportData[]
@@ -150,10 +152,14 @@ export async function getDailyStockReportDataAction(params: {
   }
 
   const allAuthFloors: Floor[] = contextRes.data.floors
-  const targetFloors =
-    params.floorId && params.floorId !== 'all'
-      ? allAuthFloors.filter((f) => f.id === params.floorId)
-      : allAuthFloors
+
+  let targetFloors: Floor[] = allAuthFloors
+  if (params.floorIds && params.floorIds.length > 0) {
+    const allowedSet = new Set(params.floorIds)
+    targetFloors = allAuthFloors.filter((f) => allowedSet.has(f.id))
+  } else if (params.floorId && params.floorId !== 'all') {
+    targetFloors = allAuthFloors.filter((f) => f.id === params.floorId)
+  }
 
   const targetFloorIds = targetFloors.map((f) => f.id)
   if (targetFloorIds.length === 0) {
@@ -167,12 +173,18 @@ export async function getDailyStockReportDataAction(params: {
   const canViewRunning = await canViewDailyReport(actor.profile.id, actor.isSiteAdmin, 'RUNNING')
   const canViewIdle = await canViewDailyReport(actor.profile.id, actor.isSiteAdmin, 'IDLE')
 
-  const categories: DailyEntryCategory[] = []
-  if (canViewNew) categories.push('NEW')
-  if (canViewRunning) categories.push('RUNNING')
-  if (canViewIdle) categories.push('IDLE')
+  const authorizedCategories: DailyEntryCategory[] = []
+  if (canViewNew) authorizedCategories.push('NEW')
+  if (canViewRunning) authorizedCategories.push('RUNNING')
+  if (canViewIdle) authorizedCategories.push('IDLE')
 
-  if (categories.length === 0) {
+  let categoriesToFetch = authorizedCategories
+  if (params.categories && params.categories.length > 0) {
+    const requested = new Set(params.categories)
+    categoriesToFetch = authorizedCategories.filter((c) => requested.has(c))
+  }
+
+  if (categoriesToFetch.length === 0) {
     return {
       success: true,
       data: { newReports: [], runningReports: [], idleReports: [] },
@@ -182,7 +194,7 @@ export async function getDailyStockReportDataAction(params: {
   const batchRes = await getBatchDailyReportData({
     date: params.date,
     floorIds: targetFloorIds,
-    categories,
+    categories: categoriesToFetch,
   })
 
   if (!batchRes.success || !batchRes.data) {
