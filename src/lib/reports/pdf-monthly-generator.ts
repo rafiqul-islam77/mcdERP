@@ -114,7 +114,7 @@ function renderMonthlySummarySection(
     return [
       (i + 1).toString(),
       formatFloorDisplayName(r.floorName, r.locationName),
-      r.category,
+      r.category === 'RUNNING' ? 'REGULAR' : r.category,
       r.summary.totalPrevious.toLocaleString(),
       r.summary.totalReceived.toLocaleString(),
       r.summary.totalDelivery.toLocaleString(),
@@ -275,7 +275,7 @@ function renderSingleMonthlyReport(doc: jsPDF, report: MonthlyReportData): void 
   doc.setTextColor(51, 65, 85)
 
   const floorLabel = formatFloorDisplayName(report.floorName, report.locationName)
-  const metaText = `Floor: ${floorLabel}   |   Month: ${report.monthLabel}   |   Category: ${report.category}`
+  const metaText = `Floor: ${floorLabel}   |   Month: ${report.monthLabel}   |   Category: ${report.category === 'RUNNING' ? 'REGULAR' : report.category}`
   doc.text(metaText, leftMargin + 3, metaY + 3.8)
 
   // 2. Prepare 11-column Table (REQ NO and UNIT PRICE omitted)

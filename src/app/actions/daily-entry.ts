@@ -801,6 +801,7 @@ export async function saveDailyEntryCellAction(params: {
       throw new Error('Needle row not found after update')
     }
 
+    revalidatePath('/regular-needle/daily-entry')
     revalidatePath('/running-needle/daily-entry')
     revalidatePath('/new-needle/daily-entry')
     revalidatePath('/idle-needle/daily-entry')
@@ -972,6 +973,7 @@ export async function transferFloorStockAction(params: {
       },
     })
 
+    revalidatePath('/regular-needle/daily-entry')
     revalidatePath('/running-needle/daily-entry')
     revalidatePath('/new-needle/daily-entry')
     revalidatePath('/idle-needle/daily-entry')
@@ -1051,6 +1053,7 @@ export async function updateSheetRequisitionNoAction(params: {
       .eq('transaction_date', params.date)
       .eq('transaction_type', 'RECEIVE')
 
+    revalidatePath('/regular-needle/daily-entry')
     revalidatePath('/running-needle/daily-entry')
     revalidatePath('/new-needle/daily-entry')
     revalidatePath('/idle-needle/daily-entry')
@@ -1125,6 +1128,7 @@ export async function updateRowRequisitionNoAction(params: {
         .eq('transaction_type', 'RECEIVE')
     }
 
+    revalidatePath('/regular-needle/daily-entry')
     revalidatePath('/running-needle/daily-entry')
     revalidatePath('/new-needle/daily-entry')
     revalidatePath('/idle-needle/daily-entry')
@@ -1457,6 +1461,7 @@ export async function batchSyncDailyEntryAction(params: {
       category: params.category,
     })
 
+    revalidatePath('/regular-needle/daily-entry')
     revalidatePath('/running-needle/daily-entry')
     revalidatePath('/new-needle/daily-entry')
     revalidatePath('/idle-needle/daily-entry')

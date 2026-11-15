@@ -126,13 +126,13 @@ export function SystemSettingsClient({ initialSettings, canEdit }: SystemSetting
         </div>
 
         <div className="p-6 space-y-6 divide-y divide-surface-border">
-          {/* RUNNING NEEDLE */}
+          {/* REGULAR NEEDLE */}
           <div className="space-y-4 pt-1 first:pt-0">
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 rounded text-[11px] font-bold tracking-wide bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                RUNNING
+                REGULAR
               </span>
-              <span className="text-xs font-semibold text-ink">Running Needle Present Balance Report</span>
+              <span className="text-xs font-semibold text-ink">Regular Needle Present Balance Report</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

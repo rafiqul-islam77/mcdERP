@@ -139,7 +139,7 @@ export function buildPresentBalanceSheet(
   ws.mergeCells('A5:M5')
   const a5 = ws.getCell('A5')
   const floorDesc = formatFloorDisplayName(report.floorName, report.locationName)
-  a5.value = `Floor: ${floorDesc}   |   Date: ${report.date}   |   Category: ${report.category}`
+  a5.value = `Floor: ${floorDesc}   |   Date: ${report.date}   |   Category: ${report.category === 'RUNNING' ? 'REGULAR' : report.category}`
   a5.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF334155' } }
   a5.alignment = { horizontal: 'left', vertical: 'middle' }
   a5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }

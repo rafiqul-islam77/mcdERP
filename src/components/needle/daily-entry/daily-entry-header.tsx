@@ -162,7 +162,7 @@ export function DailyEntryHeader({
           >
             {allowedCategories.map((cat) => (
               <option key={cat} value={cat}>
-                {cat}
+                {cat === 'RUNNING' ? 'REGULAR' : cat}
               </option>
             ))}
           </select>

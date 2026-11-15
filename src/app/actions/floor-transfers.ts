@@ -84,6 +84,7 @@ function isMissingTableOrRpcError(err: { code?: string; message?: string } | nul
 }
 
 function revalidateDailyEntryRoutes() {
+  revalidatePath('/regular-needle/daily-entry')
   revalidatePath('/running-needle/daily-entry')
   revalidatePath('/new-needle/daily-entry')
   revalidatePath('/broken-needle/daily-entry')

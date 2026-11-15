@@ -150,7 +150,7 @@ export function buildMonthlyBalanceSheet(
   ws.mergeCells('A5:K5')
   const a5 = ws.getCell('A5')
   const floorDesc = formatFloorDisplayName(report.floorName, report.locationName)
-  a5.value = `Floor: ${floorDesc}   |   Month: ${report.monthLabel}   |   Category: ${report.category}`
+  a5.value = `Floor: ${floorDesc}   |   Month: ${report.monthLabel}   |   Category: ${report.category === 'RUNNING' ? 'REGULAR' : report.category}`
   a5.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF334155' } }
   a5.alignment = { horizontal: 'left', vertical: 'middle' }
   a5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }
@@ -526,7 +526,7 @@ export function buildMonthlySummarySheet(
     c2.alignment = { horizontal: 'left', vertical: 'middle' }
 
     const c3 = r.getCell(3)
-    c3.value = rep.category
+    c3.value = rep.category === 'RUNNING' ? 'REGULAR' : rep.category
     c3.alignment = { horizontal: 'center', vertical: 'middle' }
 
     const c4 = r.getCell(4)

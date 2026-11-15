@@ -608,7 +608,7 @@ export function DailyReportClient({
                 >
                   {allowedCategories.map((cat) => (
                     <option key={cat} value={cat}>
-                      {cat} Needle
+                      {cat === 'RUNNING' ? 'Regular' : cat} Needle
                     </option>
                   ))}
                 </select>
@@ -677,7 +677,7 @@ export function DailyReportClient({
               </span>
               <span>•</span>
               <span>
-                <b className="text-ink">Category:</b> {reportData.category}
+                <b className="text-ink">Category:</b> {reportData.category === 'RUNNING' ? 'REGULAR' : reportData.category}
               </span>
             </div>
             <div className="flex items-center gap-2 font-mono text-[11px]">
@@ -740,7 +740,7 @@ export function DailyReportClient({
 
             {/* Metadata Line */}
             <div className="bg-slate-100 border border-slate-300 px-3 py-1 text-[10px] font-bold">
-              Floor: {formatFloorDisplayName(reportData.floorName, reportData.locationName)}   |   Date: {reportData.date}   |   Category: {reportData.category}
+              Floor: {formatFloorDisplayName(reportData.floorName, reportData.locationName)}   |   Date: {reportData.date}   |   Category: {reportData.category === 'RUNNING' ? 'REGULAR' : reportData.category}
             </div>
 
             {/* Formal Table */}

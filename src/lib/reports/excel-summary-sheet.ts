@@ -196,7 +196,7 @@ export function buildSummarySheet(
     floorCell.alignment = { horizontal: 'left', vertical: 'middle' }
 
     const catCell = row.getCell(3)
-    catCell.value = rep.category
+    catCell.value = rep.category === 'RUNNING' ? 'REGULAR' : rep.category
     catCell.alignment = { horizontal: 'center', vertical: 'middle' }
 
     const prevCell = row.getCell(4)

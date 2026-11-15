@@ -89,7 +89,7 @@ export function DailyEntryShell({
     setCategory(newCat)
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href)
-      url.searchParams.set('category', newCat)
+      url.searchParams.set('category', newCat === 'RUNNING' ? 'REGULAR' : newCat)
       window.history.replaceState(null, '', url.pathname + url.search)
     }
   }, [])

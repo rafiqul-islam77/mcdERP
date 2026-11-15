@@ -58,14 +58,17 @@ export function Sidebar({
       if (pathname !== targetPath) {
         return false
       }
+      const normCat = (cat?: string | null) =>
+        cat === 'RUNNING' || cat === 'REGULAR' ? 'REGULAR' : cat || 'REGULAR'
+
       if (targetQuery) {
         const targetParams = new URLSearchParams(targetQuery)
         const targetCat = targetParams.get('category')?.toUpperCase()
         if (targetCat) {
-          return (currentCategory || 'RUNNING') === targetCat
+          return normCat(currentCategory) === normCat(targetCat)
         }
       } else if (targetPath === '/needle/daily-entry') {
-        return !currentCategory || currentCategory === 'RUNNING'
+        return !currentCategory || currentCategory === 'REGULAR' || currentCategory === 'RUNNING'
       }
       return true
     },
@@ -126,12 +129,12 @@ export function Sidebar({
     {
       key: 'needle',
       item: {
-        label: 'Running Needle',
+        label: 'Regular Needle',
         icon: Package,
         children: [
-          { label: 'Daily Entry', href: '/needle/daily-entry?category=RUNNING', permission: 'needle.daily_entry.view' },
-          { label: 'Daily Report', href: '/running-needle/daily-report', permission: 'needle.daily_report.view' },
-          { label: 'Monthly Report', href: '/running-needle/monthly-report', permission: 'needle.monthly_report.view' },
+          { label: 'Daily Entry', href: '/needle/daily-entry?category=REGULAR', permission: 'needle.daily_entry.view' },
+          { label: 'Daily Report', href: '/regular-needle/daily-report', permission: 'needle.daily_report.view' },
+          { label: 'Monthly Report', href: '/regular-needle/monthly-report', permission: 'needle.monthly_report.view' },
         ],
       },
     },

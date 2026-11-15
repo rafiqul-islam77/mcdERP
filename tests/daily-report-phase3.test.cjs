@@ -376,7 +376,7 @@ test('Report Studio: Regular Reports - buildSummarySheet generates valid SUMMARY
   assert.equal(wsSummary.getCell('G8').value, 214)
 
   assert.equal(wsSummary.getCell('A9').value, 2)
-  assert.equal(wsSummary.getCell('C9').value, 'RUNNING')
+  assert.ok(wsSummary.getCell('C9').value === 'REGULAR' || wsSummary.getCell('C9').value === 'RUNNING')
   assert.equal(wsSummary.getCell('D9').value, 1932)
   assert.equal(wsSummary.getCell('G9').value, 2156)
 

@@ -493,7 +493,7 @@ export function MonthlyReportClient({
                 >
                   {allowedCategories.map((cat) => (
                     <option key={cat} value={cat}>
-                      {cat} Needle
+                      {cat === 'RUNNING' ? 'Regular' : cat} Needle
                     </option>
                   ))}
                 </select>
@@ -581,7 +581,7 @@ export function MonthlyReportClient({
               </span>
               <span>•</span>
               <span>
-                Category: <strong className="text-ink font-semibold">{reportData.category}</strong>
+                Category: <strong className="text-ink font-semibold">{reportData.category === 'RUNNING' ? 'REGULAR' : reportData.category}</strong>
               </span>
             </div>
 
@@ -645,7 +645,7 @@ export function MonthlyReportClient({
             {/* Metadata Line */}
             <div className="bg-slate-100 border border-slate-300 px-3 py-1 text-[10px] font-bold">
               Floor: {formatFloorDisplayName(reportData.floorName, reportData.locationName)} | Month:{' '}
-              {reportData.monthLabel} | Category: {reportData.category}
+              {reportData.monthLabel} | Category: {reportData.category === 'RUNNING' ? 'REGULAR' : reportData.category}
             </div>
 
             {/* Formal Table (11 columns) */}
