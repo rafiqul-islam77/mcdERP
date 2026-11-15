@@ -1,17 +1,32 @@
 import { requireActiveAccount } from '@/lib/auth'
 import { requirePermission } from '@/lib/permissions'
-import { ModulePlaceholder } from '@/components/layout/module-placeholder'
+import { getAuthorizedMonthlyReportContextAction } from '@/app/actions/reports'
+import { MonthlyReportClient } from '@/components/reports/monthly-report-client'
+import { Metadata } from 'next'
+import type { DailyEntryCategory } from '@/types'
+
+export const metadata: Metadata = {
+  title: 'Monthly Report (Idle Needle) | GMS ERP',
+}
 
 export default async function IdleNeedleMonthlyReportPage() {
   const user = await requireActiveAccount()
-  await requirePermission(user.profile.id, 'idle.monthly_report.view')
+  if (!user.isSiteAdmin) {
+    await requirePermission(user.profile.id, 'idle.monthly_report.view')
+  }
+
+  const contextRes = await getAuthorizedMonthlyReportContextAction()
+  const floors = contextRes.success && contextRes.data ? contextRes.data.floors : []
+  const allowedCategories: DailyEntryCategory[] =
+    contextRes.success && contextRes.data ? contextRes.data.allowedCategories : ['IDLE']
 
   return (
-    <ModulePlaceholder
-      moduleName="Idle Needle"
-      pageName="Idle Needle Monthly Report"
-      permissionKey="idle.monthly_report.view"
-      description="Monthly idle needle audits and machine utilization reports will be implemented in Phase 2."
+    <MonthlyReportClient
+      defaultCategory="IDLE"
+      initialFloors={floors}
+      allowedCategories={allowedCategories}
+      userPermissions={user.permissions || []}
+      isSiteAdmin={user.isSiteAdmin}
     />
   )
 }
