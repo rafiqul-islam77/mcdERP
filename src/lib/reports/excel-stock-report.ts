@@ -190,7 +190,7 @@ export async function generateDailyStockReportWorkbook(input: StockReportInput):
         const r = wsSewing.getRow(sewingCurrentRow)
         r.height = 18
         r.getCell(1).value = floorLabel
-        r.getCell(2).value = 'RUNNING'
+        r.getCell(2).value = 'REGULAR'
         r.getCell(3).value = item.item_code
         r.getCell(4).value = item.needle_type
         r.getCell(5).value = item.size_dia || ''
@@ -224,7 +224,7 @@ export async function generateDailyStockReportWorkbook(input: StockReportInput):
       const totRow = wsSewing.getRow(sewingCurrentRow)
       totRow.height = 20
       totRow.getCell(1).value = floorLabel
-      totRow.getCell(2).value = 'RUNNING Total'
+      totRow.getCell(2).value = 'REGULAR Total'
       totRow.getCell(9).value = groupStock
       totRow.getCell(9).numFmt = '#,##0'
       totRow.getCell(9).alignment = { horizontal: 'right' }

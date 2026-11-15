@@ -119,7 +119,7 @@ function renderSummarySection(doc: jsPDF, reports: DailyReportData[], date: stri
     return [
       (idx + 1).toString(),
       formatFloorDisplayName(rep.floorName, rep.locationName),
-      rep.category,
+      rep.category === 'RUNNING' ? 'REGULAR' : rep.category,
       prev.toLocaleString(),
       rcv.toLocaleString(),
       del.toLocaleString(),
@@ -304,7 +304,7 @@ function renderReportSection(doc: jsPDF, report: DailyReportData): void {
   doc.setTextColor(51, 65, 85) // #334155
 
   const floorLabel = formatFloorDisplayName(report.floorName, report.locationName)
-  const metaText = `Floor: ${floorLabel}   |   Date: ${report.date}   |   Category: ${report.category}`
+  const metaText = `Floor: ${floorLabel}   |   Date: ${report.date}   |   Category: ${report.category === 'RUNNING' ? 'REGULAR' : report.category}`
   doc.text(metaText, leftMargin + 3, metaY + 3.8)
 
   // 2. Prepare Table Body and Headers

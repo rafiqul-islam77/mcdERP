@@ -30,7 +30,7 @@ const MODULE_GROUPS = [
   {
     id: 'needle',
     moduleKey: 'needle',
-    label: 'RUNNING NEEDLE',
+    label: 'REGULAR NEEDLE',
     pages: [
       { pageKey: 'daily_entry', label: 'Daily Entry', actions: ['view', 'create', 'edit', 'delete', 'export', 'print'] },
       { pageKey: 'daily_report', label: 'Daily Report', actions: ['view', 'export', 'print'] },

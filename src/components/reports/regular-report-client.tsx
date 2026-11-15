@@ -1060,7 +1060,7 @@ export function RegularReportClient({
                       )}`}
                     >
                       {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
-                      {cat} NEEDLE
+                      {cat === 'RUNNING' ? 'REGULAR' : cat} NEEDLE
                     </button>
                   )
                 })}
@@ -1305,7 +1305,7 @@ export function RegularReportClient({
                       }`}
                     >
                       {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
-                      {cat} NEEDLE
+                      {cat === 'RUNNING' ? 'REGULAR' : cat} NEEDLE
                     </button>
                   )
                 })}
@@ -1533,7 +1533,7 @@ export function RegularReportClient({
                       )}`}
                     >
                       {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
-                      {cat} NEEDLE
+                      {cat === 'RUNNING' ? 'REGULAR' : cat} NEEDLE
                     </button>
                   )
                 })}

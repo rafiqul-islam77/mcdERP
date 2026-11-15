@@ -238,7 +238,7 @@ export interface NeedleRowItem {
   active: boolean
   floor_ids: string[] // Array of assigned floor IDs (multiple floor selection, used by Idle Needle)
   new_floor_ids?: string[] // Floors assigned for NEW needle entries (Normal Needle)
-  running_floor_ids?: string[] // Floors assigned for RUNNING needle entries (Normal Needle)
+  running_floor_ids?: string[] // Floors assigned for REGULAR needle entries (Normal Needle)
   floor_id?: string | null // For single floor backwards compatibility
   floor_name?: string | null
   floor_code?: string | null

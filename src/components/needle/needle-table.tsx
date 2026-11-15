@@ -644,11 +644,11 @@ export function NeedleTable({
                 <th className="py-2.5 px-3 min-w-[110px]">Brand</th>
                 <th className="py-2.5 px-3 w-28 text-right">Unit Price BDT</th>
                 <th className="py-2.5 px-3 w-32 text-right">Unit Price USD</th>
-                {/* Floor Column with Multi-Floor Selection Header (NEW & RUNNING for normal needles) */}
+                {/* Floor Column with Multi-Floor Selection Header (NEW & REGULAR for normal needles) */}
                 <th className={`py-2.5 px-3 ${needleGroup === 'needle' ? 'min-w-[460px]' : 'min-w-[210px]'}`}>
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-slate-800">
-                      {needleGroup === 'needle' ? 'Floor Allocation (NEW & RUNNING)' : 'Floor'}
+                      {needleGroup === 'needle' ? 'Floor Allocation (NEW & REGULAR)' : 'Floor'}
                     </span>
                     {needleGroup === 'needle' ? (
                       <div className="flex items-center gap-1.5 text-[9px] font-bold">
@@ -656,7 +656,7 @@ export function NeedleTable({
                           NEW Issue
                         </span>
                         <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wide">
-                          RUNNING Issue
+                          REGULAR Issue
                         </span>
                       </div>
                     ) : (
@@ -838,12 +838,12 @@ export function NeedleTable({
                           </div>
                         </div>
 
-                        {/* RUNNING floors */}
+                        {/* REGULAR floors */}
                         <div className="flex-1 bg-blue-50/40 p-2 rounded border border-blue-200/60">
                           <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1 px-0.5 pb-1 border-b border-blue-200/50">
                             <div className="flex items-center gap-1.5">
                               <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-800 uppercase">
-                                RUNNING
+                                REGULAR
                               </span>
                               <span className="font-mono text-[9px] text-slate-400">
                                 {(draftRow.running_floor_ids || []).length}/{floors.length}
@@ -1242,12 +1242,12 @@ export function NeedleTable({
                               </div>
                             </div>
 
-                            {/* RUNNING Floor Assignment Panel */}
+                            {/* REGULAR Floor Assignment Panel */}
                             <div className="flex-1 bg-blue-50/30 p-2 rounded-erp border border-blue-200/50">
                               <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1.5 px-0.5 pb-1 border-b border-blue-200/50">
                                 <div className="flex items-center gap-1.5">
                                   <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-800 uppercase tracking-wide">
-                                    RUNNING
+                                    REGULAR
                                   </span>
                                   <span className="font-mono text-[9px] text-slate-500 font-semibold">
                                     {(item.running_floor_ids || []).length}/{floors.length}
@@ -1261,7 +1261,7 @@ export function NeedleTable({
                                         handleBulkSetFloors(item.id, floors.map((f) => f.id), 'running')
                                       }
                                       className="text-blue-700 hover:underline font-bold"
-                                      title="Select all floors for RUNNING entry sheet"
+                                      title="Select all floors for REGULAR entry sheet"
                                     >
                                       All
                                     </button>
@@ -1270,7 +1270,7 @@ export function NeedleTable({
                                       type="button"
                                       onClick={() => handleBulkSetFloors(item.id, [], 'running')}
                                       className="text-slate-400 hover:text-rose-600 hover:underline font-medium"
-                                      title="Deselect all floors for RUNNING entry sheet"
+                                      title="Deselect all floors for REGULAR entry sheet"
                                     >
                                       None
                                     </button>
@@ -1290,7 +1290,7 @@ export function NeedleTable({
                                           ? 'bg-blue-100 text-blue-900 border border-blue-300 font-bold'
                                           : 'text-slate-600 hover:bg-white border border-transparent font-medium'
                                       } ${!canEdit ? 'opacity-80 cursor-default' : ''}`}
-                                      title={`RUNNING Issue: ${f.name}${f.location_name ? ` (${f.location_name})` : ''}`}
+                                      title={`REGULAR Issue: ${f.name}${f.location_name ? ` (${f.location_name})` : ''}`}
                                     >
                                       <input
                                         type="checkbox"

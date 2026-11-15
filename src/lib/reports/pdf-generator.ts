@@ -78,7 +78,7 @@ export function generatePresentBalancePDF(report: DailyReportData): jsPDF {
   doc.setTextColor(51, 65, 85) // #334155
 
   const floorLabel = formatFloorDisplayName(report.floorName, report.locationName)
-  const metaText = `Floor: ${floorLabel}   |   Date: ${report.date}   |   Category: ${report.category}`
+  const metaText = `Floor: ${floorLabel}   |   Date: ${report.date}   |   Category: ${report.category === 'RUNNING' ? 'REGULAR' : report.category}`
   doc.text(metaText, leftMargin + 3, metaY + 3.8)
 
   // 2. Prepare Table Body and Headers

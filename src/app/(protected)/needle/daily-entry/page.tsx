@@ -31,9 +31,10 @@ export default async function NeedleDailyEntryPage({ searchParams }: PageProps) 
 
   // Validate requested category against user's permitted categories
   let selectedCategory: DailyEntryCategory = allowedCategories[0]
-  if (rawCat && (rawCat === 'RUNNING' || rawCat === 'NEW' || rawCat === 'IDLE')) {
-    if (allowedCategories.includes(rawCat as DailyEntryCategory)) {
-      selectedCategory = rawCat as DailyEntryCategory
+  if (rawCat && (rawCat === 'RUNNING' || rawCat === 'REGULAR' || rawCat === 'NEW' || rawCat === 'IDLE')) {
+    const targetCat = (rawCat === 'REGULAR' ? 'RUNNING' : rawCat) as DailyEntryCategory
+    if (allowedCategories.includes(targetCat)) {
+      selectedCategory = targetCat
     }
   } else if (allowedCategories.includes('RUNNING')) {
     selectedCategory = 'RUNNING'
