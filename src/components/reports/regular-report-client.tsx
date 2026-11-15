@@ -86,9 +86,9 @@ export function RegularReportClient({
   // Card 3 State: Monthly Stock
   // ---------------------------------------------------------------------------
   const now = new Date()
-  const [mrMonth, setMrMonth] = useState<number>(() => now.getMonth() + 1)
+  const [mrMonth, setMrMonth] = useState<number | null>(null)
   const [mrYear, setMrYear] = useState<number>(() => now.getFullYear())
-  const mrMonthString = `${mrYear}-${String(mrMonth).padStart(2, '0')}`
+  const mrMonthString = mrMonth ? `${mrYear}-${String(mrMonth).padStart(2, '0')}` : ''
 
   const [mrSelectedFloorIds, setMrSelectedFloorIds] = useState<string[]>([])
   const [mrSelectedCategories, setMrSelectedCategories] = useState<DailyEntryCategory[]>(
@@ -548,6 +548,11 @@ export function RegularReportClient({
     if (isExporting) return
     setExportError(null)
 
+    if (!mrMonth || !mrMonthString) {
+      setExportError('Please select a Month for Monthly Stock export.')
+      return
+    }
+
     if (mrSelectedFloorIds.length === 0) {
       setExportError('Please select at least one Floor for Monthly Stock export.')
       return
@@ -659,6 +664,11 @@ export function RegularReportClient({
   const handleExportMonthlyStockPdf = async () => {
     if (isExporting) return
     setExportError(null)
+
+    if (!mrMonth || !mrMonthString) {
+      setExportError('Please select a Month for Monthly Stock PDF export.')
+      return
+    }
 
     if (mrSelectedFloorIds.length === 0) {
       setExportError('Please select at least one Floor for Monthly Stock PDF export.')
@@ -1122,24 +1132,13 @@ export function RegularReportClient({
           className="border-surface-border shadow-erp hover:shadow-erp-md transition-shadow"
         >
           <div className="space-y-4">
-            {/* 1. Month & Year Selector */}
+            {/* 1. Year & Month Selector */}
             <div>
               <label className="block text-xs font-semibold text-ink-muted uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-indigo-600" />
                 Report Month
               </label>
               <div className="grid grid-cols-2 gap-2">
-                <select
-                  value={mrMonth}
-                  onChange={(e) => setMrMonth(Number(e.target.value))}
-                  className="px-3 py-2 text-sm border border-surface-border rounded-erp-md bg-surface-card text-ink focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-                >
-                  {MONTH_OPTIONS.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
                 <input
                   type="number"
                   min="2020"
@@ -1148,6 +1147,18 @@ export function RegularReportClient({
                   onChange={(e) => setMrYear(Number(e.target.value))}
                   className="px-3 py-2 text-sm border border-surface-border rounded-erp-md bg-surface-card text-ink text-center focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                 />
+                <select
+                  value={mrMonth ?? ''}
+                  onChange={(e) => setMrMonth(e.target.value ? Number(e.target.value) : null)}
+                  className="px-3 py-2 text-sm border border-surface-border rounded-erp-md bg-surface-card text-ink focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                >
+                  <option value="">Select Month</option>
+                  {MONTH_OPTIONS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -1325,7 +1336,7 @@ export function RegularReportClient({
               <Button
                 variant="primary"
                 onClick={handleExportMonthlyStockExcel}
-                disabled={isExporting}
+                disabled={isExporting || !mrMonth}
                 className="flex-1 text-xs font-semibold flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 <FileSpreadsheet className="w-4 h-4" />
@@ -1335,7 +1346,7 @@ export function RegularReportClient({
               <Button
                 variant="outline"
                 onClick={handleExportMonthlyStockPdf}
-                disabled={isExporting}
+                disabled={isExporting || !mrMonth}
                 className="flex-1 text-xs font-semibold flex items-center justify-center gap-2 border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
               >
                 <FileText className="w-4 h-4" />

@@ -59,10 +59,12 @@ export function MonthlyReportClient({
 }: MonthlyReportClientProps) {
   // 1. Initial State: Month & Year
   const now = new Date()
-  const [selectedMonth, setSelectedMonth] = React.useState<number>(() => now.getMonth() + 1)
+  const [selectedMonth, setSelectedMonth] = React.useState<number | null>(null)
   const [selectedYear, setSelectedYear] = React.useState<number>(() => now.getFullYear())
 
-  const monthString = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`
+  const monthString = selectedMonth
+    ? `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`
+    : ''
 
   const [selectedFloorId, setSelectedFloorId] = React.useState<string>(() => {
     return initialFloors[0]?.id || ''
@@ -137,7 +139,7 @@ export function MonthlyReportClient({
 
   // 3. Fetch authoritative report data
   const loadReport = React.useCallback(async () => {
-    if (!selectedFloorId || !selectedMonth || !selectedYear) {
+    if (!selectedFloorId || !selectedMonth || !selectedYear || !monthString) {
       setLoading(false)
       setReportData(null)
       return
@@ -498,26 +500,12 @@ export function MonthlyReportClient({
               </div>
             </div>
 
-            {/* Month & Year Selection */}
+            {/* Year & Month Selection */}
             <div>
               <label className="block text-[11px] font-semibold text-ink-muted uppercase tracking-wider mb-1">
                 Report Month
               </label>
               <div className="grid grid-cols-2 gap-1.5">
-                <div className="relative">
-                  <Calendar className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
-                  <select
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                    className="w-full text-xs font-medium pl-7 pr-2 py-1.5 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand"
-                  >
-                    {MONTH_OPTIONS.map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
                 <input
                   type="number"
                   min="2020"
@@ -526,6 +514,21 @@ export function MonthlyReportClient({
                   onChange={(e) => setSelectedYear(Number(e.target.value))}
                   className="w-full text-xs font-medium px-2 py-1.5 rounded-erp border border-surface-border bg-surface text-ink text-center focus:outline-none focus:ring-1 focus:ring-brand"
                 />
+                <div className="relative">
+                  <Calendar className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
+                  <select
+                    value={selectedMonth ?? ''}
+                    onChange={(e) => setSelectedMonth(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full text-xs font-medium pl-7 pr-2 py-1.5 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand"
+                  >
+                    <option value="">Select Month</option>
+                    {MONTH_OPTIONS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 

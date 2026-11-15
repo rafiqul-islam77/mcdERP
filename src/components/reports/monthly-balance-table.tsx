@@ -102,7 +102,7 @@ export function MonthlyBalanceTable({ report, searchQuery = '' }: MonthlyBalance
                   {row.previous.toLocaleString()}
                 </td>
                 <td className="py-2 px-3 text-right font-mono font-medium text-success border-r border-surface-border/60">
-                  {row.received > 0 ? `+${row.received.toLocaleString()}` : '0'}
+                  {row.received.toLocaleString()}
                 </td>
                 <td className="py-2 px-3 text-right font-mono font-medium text-danger border-r border-surface-border/60">
                   {row.delivery > 0 ? row.delivery.toLocaleString() : '0'}

@@ -141,7 +141,16 @@ export async function getBatchMonthlyReportData(params: {
   }
 
   const boundaries = getMonthBoundaries(params.month)
-  const { monthStart, monthEnd, monthLabel, monthString } = boundaries
+  const { monthStart, monthLabel, monthString } = boundaries
+  let { monthEnd } = boundaries
+
+  // Month-to-date handling: if reporting the current calendar month, clamp cutoff to today
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const isOngoingCurrentMonth = today >= monthStart && today <= monthEnd
+  if (isOngoingCurrentMonth) {
+    monthEnd = today
+  }
 
   let actor = params.actor
   if (!actor) {
@@ -228,28 +237,52 @@ export async function getBatchMonthlyReportData(params: {
         nAssign = await fetchAllRowsPaginated<any>(() =>
           admin
             .from('normal_needle_floor_assignments')
-            .select('floor_id, needle_item_id, entry_type')
-            .in('floor_id', params.floorIds)
-            .in('entry_type', params.categories)
-            .order('id', { ascending: true })
-        )
-      } catch {
-        // Fallback without entry_type
-        nAssign = await fetchAllRowsPaginated<any>(() =>
-          admin
-            .from('normal_needle_floor_assignments')
-            .select('floor_id, needle_item_id')
+            .select('id, needle_item_id, floor_id, entry_type')
             .in('floor_id', params.floorIds)
             .order('id', { ascending: true })
         )
+      } catch (nAssignErr: any) {
+        if (nAssignErr.code === '42703' || nAssignErr.message?.includes('entry_type')) {
+          const fb = await fetchAllRowsPaginated<any>(() =>
+            admin
+              .from('normal_needle_floor_assignments')
+              .select('id, needle_item_id, floor_id')
+              .in('floor_id', params.floorIds)
+              .order('id', { ascending: true })
+          )
+          nAssign = [
+            ...fb.map((a: any) => ({ ...a, entry_type: 'new' })),
+            ...fb.map((a: any) => ({ ...a, entry_type: 'running' })),
+          ]
+        } else {
+          throw nAssignErr
+        }
       }
 
       for (const a of nAssign) {
-        const cat = a.entry_type ? (a.entry_type as string).toUpperCase() : 'RUNNING'
-        const key = `${a.floor_id}__${cat}`
-        const list = normalAssignMap.get(key) || []
-        list.push(a.needle_item_id)
-        normalAssignMap.set(key, list)
+        const entryType = (a.entry_type || '').toUpperCase()
+        if (entryType === 'NEW') {
+          const key = `${a.floor_id}__NEW`
+          const list = normalAssignMap.get(key) || []
+          list.push(a.needle_item_id)
+          normalAssignMap.set(key, list)
+        } else if (entryType === 'RUNNING') {
+          const key = `${a.floor_id}__RUNNING`
+          const list = normalAssignMap.get(key) || []
+          list.push(a.needle_item_id)
+          normalAssignMap.set(key, list)
+        } else {
+          // If unassigned or legacy, available to both
+          const kNew = `${a.floor_id}__NEW`
+          const lNew = normalAssignMap.get(kNew) || []
+          lNew.push(a.needle_item_id)
+          normalAssignMap.set(kNew, lNew)
+
+          const kRun = `${a.floor_id}__RUNNING`
+          const lRun = normalAssignMap.get(kRun) || []
+          lRun.push(a.needle_item_id)
+          normalAssignMap.set(kRun, lRun)
+        }
       }
     }
 
@@ -391,11 +424,12 @@ export async function getBatchMonthlyReportData(params: {
 
         const operatorName = actor.profile?.name || 'System Operator'
 
-        // Assigned items
-        const assignedIds =
+        // Assigned items (deduplicated)
+        const rawAssignedIds =
           category === 'IDLE'
             ? idleAssignMap.get(`${floorId}__IDLE`) || []
             : normalAssignMap.get(`${floorId}__${category}`) || []
+        const assignedIds = Array.from(new Set(rawAssignedIds))
 
         const assignedItems = assignedIds
           .map((id) => (category === 'IDLE' ? idleItemsMap.get(id) : normalItemsMap.get(id)))
@@ -422,7 +456,7 @@ export async function getBatchMonthlyReportData(params: {
           for (const tx of itemTx) {
             const qty = Number(tx.quantity) || 0
             const isPrior = tx.transaction_date < monthStart
-            const isCurrentMonth =
+            const isWithinReportingPeriod =
               tx.transaction_date >= monthStart && tx.transaction_date <= monthEnd
 
             if (isPrior) {
@@ -439,7 +473,7 @@ export async function getBatchMonthlyReportData(params: {
                   previous -= qty
                   break
               }
-            } else if (isCurrentMonth) {
+            } else if (isWithinReportingPeriod) {
               switch (tx.transaction_type) {
                 case 'RECEIVE':
                   received += qty
@@ -508,7 +542,10 @@ export async function getBatchMonthlyReportData(params: {
         })
 
         // Source note
-        let sourceNote = `✅ Actual data: ${monthLabel}`
+        let sourceNote = isOngoingCurrentMonth
+          ? `✅ Month-to-date: ${monthLabel} (1–${parseInt(monthEnd.slice(8, 10), 10)})`
+          : `✅ Actual data: ${monthLabel}`
+
         const hasTransactions = rows.some(
           (r) =>
             r.received > 0 ||
@@ -518,7 +555,9 @@ export async function getBatchMonthlyReportData(params: {
             (r.transfer_out ?? 0) > 0
         )
         if (!hasTransactions && rows.some((r) => r.previous > 0)) {
-          sourceNote = `⏪ Carry: ${monthLabel}`
+          sourceNote = isOngoingCurrentMonth
+            ? `⏪ Carry (Month-to-date): ${monthLabel}`
+            : `⏪ Carry: ${monthLabel}`
         } else if (!hasTransactions && rows.length === 0) {
           sourceNote = `ℹ️ No needle items assigned: ${monthLabel}`
         }
