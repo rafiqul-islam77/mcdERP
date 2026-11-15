@@ -1,0 +1,743 @@
+'use client'
+
+import React from 'react'
+import {
+  FileSpreadsheet,
+  FileText,
+  Printer,
+  Search,
+  Calendar,
+  Layers,
+  MapPin,
+  RefreshCw,
+  AlertCircle,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { MonthlyBalanceTable } from '@/components/reports/monthly-balance-table'
+import { ReportSkeleton } from '@/components/reports/report-skeleton'
+import {
+  getMonthlyReportAction,
+  exportMonthlyStockExcelAction,
+} from '@/app/actions/reports'
+import { generateMonthlyBalancePDF } from '@/lib/reports/pdf-monthly-generator'
+import { formatFloorDisplayName } from '@/lib/reports/report-utils'
+import {
+  ExportProgressModal,
+  type ExportProgressState,
+} from '@/components/reports/export-progress-modal'
+import type { DailyEntryCategory, MonthlyReportData, Floor } from '@/types'
+
+const MONTH_OPTIONS = [
+  { value: 1, label: 'January' },
+  { value: 2, label: 'February' },
+  { value: 3, label: 'March' },
+  { value: 4, label: 'April' },
+  { value: 5, label: 'May' },
+  { value: 6, label: 'June' },
+  { value: 7, label: 'July' },
+  { value: 8, label: 'August' },
+  { value: 9, label: 'September' },
+  { value: 10, label: 'October' },
+  { value: 11, label: 'November' },
+  { value: 12, label: 'December' },
+]
+
+interface MonthlyReportClientProps {
+  defaultCategory: DailyEntryCategory
+  initialFloors: Floor[]
+  allowedCategories: DailyEntryCategory[]
+  userPermissions: string[]
+  isSiteAdmin: boolean
+}
+
+export function MonthlyReportClient({
+  defaultCategory,
+  initialFloors,
+  allowedCategories,
+  userPermissions,
+  isSiteAdmin,
+}: MonthlyReportClientProps) {
+  // 1. Initial State: Month & Year
+  const now = new Date()
+  const [selectedMonth, setSelectedMonth] = React.useState<number>(() => now.getMonth() + 1)
+  const [selectedYear, setSelectedYear] = React.useState<number>(() => now.getFullYear())
+
+  const monthString = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`
+
+  const [selectedFloorId, setSelectedFloorId] = React.useState<string>(() => {
+    return initialFloors[0]?.id || ''
+  })
+
+  const [selectedCategory, setSelectedCategory] = React.useState<DailyEntryCategory>(() => {
+    if (allowedCategories.includes(defaultCategory)) return defaultCategory
+    return allowedCategories[0] || defaultCategory
+  })
+  const [searchInputValue, setSearchInputValue] = React.useState<string>('')
+  const [searchQuery, setSearchQuery] = React.useState<string>('')
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    setSearchQuery(searchInputValue)
+  }
+
+  const [reportData, setReportData] = React.useState<MonthlyReportData | null>(null)
+  const [loading, setLoading] = React.useState<boolean>(false)
+  const [error, setError] = React.useState<string | null>(null)
+
+  // Export progress states
+  const [exportingStock, setExportingStock] = React.useState<boolean>(false)
+  const [exportingPdf, setExportingPdf] = React.useState<boolean>(false)
+
+  const [progressModalState, setProgressModalState] = React.useState<ExportProgressState>({
+    isOpen: false,
+    exportType: 'present_excel',
+    exportName: 'Monthly Stock',
+    date: monthString,
+    floorLabel: 'Floor',
+    isAllFloors: false,
+    status: 'idle',
+    statusMessage: '',
+    currentStep: 0,
+    totalSteps: 4,
+    progressPercent: 0,
+    floorItems: [],
+  })
+
+  const lastExportRef = React.useRef<{ blob?: Blob; pdf?: any; filename: string } | null>(null)
+
+  const isAnyExporting = exportingStock || exportingPdf
+
+  // 2. Permission checks
+  const canExportStock =
+    isSiteAdmin ||
+    userPermissions.includes('monthly_report.export_excel') ||
+    userPermissions.includes('needle.monthly_report.export_excel') ||
+    userPermissions.includes('broken.monthly_report.export_excel') ||
+    userPermissions.includes('idle.monthly_report.export_excel') ||
+    userPermissions.includes('needle.monthly_report.export') ||
+    userPermissions.includes('broken.monthly_report.export') ||
+    userPermissions.includes('idle.monthly_report.export')
+
+  const canExportPdf =
+    isSiteAdmin ||
+    userPermissions.includes('monthly_report.export_pdf') ||
+    userPermissions.includes('needle.monthly_report.export_pdf') ||
+    userPermissions.includes('broken.monthly_report.export_pdf') ||
+    userPermissions.includes('idle.monthly_report.export_pdf') ||
+    userPermissions.includes('needle.monthly_report.export') ||
+    userPermissions.includes('broken.monthly_report.export') ||
+    userPermissions.includes('idle.monthly_report.export')
+
+  const canPrint =
+    isSiteAdmin ||
+    userPermissions.includes('monthly_report.print') ||
+    userPermissions.includes('needle.monthly_report.print') ||
+    userPermissions.includes('broken.monthly_report.print') ||
+    userPermissions.includes('idle.monthly_report.print')
+
+  // 3. Fetch authoritative report data
+  const loadReport = React.useCallback(async () => {
+    if (!selectedFloorId || !selectedMonth || !selectedYear) {
+      setLoading(false)
+      setReportData(null)
+      return
+    }
+    setLoading(true)
+    setError(null)
+
+    try {
+      const res = await getMonthlyReportAction({
+        month: monthString,
+        floorId: selectedFloorId,
+        category: selectedCategory,
+      })
+
+      if (!res.success || !res.data) {
+        setError(res.error || 'Failed to load monthly report data.')
+        setReportData(null)
+      } else {
+        setReportData(res.data)
+      }
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred while loading monthly report.')
+      setReportData(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [monthString, selectedFloorId, selectedCategory, selectedMonth, selectedYear])
+
+  React.useEffect(() => {
+    loadReport()
+  }, [loadReport])
+
+  const downloadBlobSafely = (blob: Blob, filename: string) => {
+    const downloadUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.style.display = 'none'
+    a.href = downloadUrl
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => {
+      window.URL.revokeObjectURL(downloadUrl)
+    }, 60000)
+  }
+
+  const base64ToBlob = (base64: string, mimeType: string): Blob => {
+    const binaryString = window.atob(base64)
+    const len = binaryString.length
+    const bytes = new Uint8Array(len)
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i)
+    }
+    return new Blob([bytes], { type: mimeType })
+  }
+
+  // 4. Export Handlers
+  const handleExportStockExcel = async () => {
+    if (!reportData || isAnyExporting) return
+    const curFloor = initialFloors.find((f) => f.id === selectedFloorId)
+    const floorLabel = curFloor ? curFloor.code || curFloor.name : reportData.floorCode || reportData.floorName || 'Floor'
+    const safeFloor = floorLabel.replace(/[/\\?*:[\]<>|"]/g, '-').trim()
+    const filename = `Monthly Stock - ${safeFloor} - ${selectedCategory} - ${monthString}.xlsx`
+
+    setExportingStock(true)
+    setError(null)
+    setProgressModalState({
+      isOpen: true,
+      exportType: 'present_excel',
+      exportName: 'Monthly Stock Excel',
+      date: monthString,
+      floorLabel,
+      isAllFloors: false,
+      status: 'running',
+      statusMessage: 'Generating monthly balance ledger...',
+      currentStep: 1,
+      totalSteps: 4,
+      progressPercent: 20,
+      floorItems: [],
+      downloadFilename: filename,
+    })
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 80))
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: 'Calculating monthly aggregates...',
+        progressPercent: 50,
+        currentStep: 2,
+      }))
+
+      const exportRes = await exportMonthlyStockExcelAction({
+        month: monthString,
+        floorId: selectedFloorId,
+        category: selectedCategory,
+      })
+
+      if (!exportRes.success || !exportRes.data) {
+        throw new Error(exportRes.error || 'Failed to export monthly report to Excel.')
+      }
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: 'Compiling Excel spreadsheet...',
+        progressPercent: 85,
+        currentStep: 3,
+        floorItems: exportRes.data?.floorItems || [],
+      }))
+
+      const blob = base64ToBlob(
+        exportRes.data.base64,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      )
+      lastExportRef.current = { blob, filename }
+
+      downloadBlobSafely(blob, filename)
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        status: 'completed',
+        statusMessage: 'Monthly report downloaded successfully!',
+        progressPercent: 100,
+        currentStep: 4,
+      }))
+    } catch (err: any) {
+      setProgressModalState((prev) => ({
+        ...prev,
+        status: 'failed',
+        errorMessage: err.message || 'An error occurred during Excel export.',
+      }))
+    } finally {
+      setExportingStock(false)
+    }
+  }
+
+  const handleExportPdf = async () => {
+    if (!reportData || isAnyExporting) return
+    const cleanFloor = (reportData.floorCode || reportData.floorName).replace(/\s+/g, '-')
+    const filename = `GMS-Needle-MonthlyBalance-${cleanFloor}-${reportData.category}-${monthString}.pdf`
+    const totalRows = reportData.rows.length
+
+    setExportingPdf(true)
+    setError(null)
+    setProgressModalState({
+      isOpen: true,
+      exportType: 'pdf',
+      exportName: 'Monthly Stock PDF',
+      date: reportData.month,
+      floorLabel: formatFloorDisplayName(reportData.floorName, reportData.locationName),
+      category: reportData.category,
+      isAllFloors: false,
+      status: 'running',
+      statusMessage: 'Preparing PDF document...',
+      currentStep: 1,
+      totalSteps: 4,
+      progressPercent: 15,
+      itemsLabel: `0 / ${totalRows} rows processed`,
+      floorItems: [],
+      downloadFilename: filename,
+    })
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 80))
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: `Processing ${totalRows} / ${totalRows} rows...`,
+        progressPercent: 50,
+        itemsLabel: `${totalRows} / ${totalRows} rows processed`,
+        currentStep: 2,
+      }))
+      await new Promise((resolve) => setTimeout(resolve, 80))
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: 'Generating PDF vector layouts & signatures...',
+        progressPercent: 80,
+        currentStep: 3,
+      }))
+      await new Promise((resolve) => setTimeout(resolve, 80))
+
+      const pdf = generateMonthlyBalancePDF(reportData)
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: 'Finalizing file...',
+        progressPercent: 95,
+        currentStep: 4,
+      }))
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      lastExportRef.current = { pdf, filename }
+      pdf.save(filename)
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        status: 'completed',
+        statusMessage: 'PDF document downloaded successfully!',
+        progressPercent: 100,
+        currentStep: 4,
+      }))
+    } catch (err: any) {
+      setProgressModalState((prev) => ({
+        ...prev,
+        status: 'failed',
+        errorMessage: err.message || 'An error occurred during PDF export.',
+      }))
+    } finally {
+      setExportingPdf(false)
+    }
+  }
+
+  const handleCloseModal = () => {
+    setProgressModalState((prev) => ({ ...prev, isOpen: false }))
+  }
+
+  const handleRetryExport = () => {
+    if (progressModalState.exportType === 'pdf') {
+      handleExportPdf()
+    } else {
+      handleExportStockExcel()
+    }
+  }
+
+  const handleDownloadAgain = () => {
+    if (!lastExportRef.current) return
+    if (lastExportRef.current.blob) {
+      downloadBlobSafely(lastExportRef.current.blob, lastExportRef.current.filename)
+    } else if (lastExportRef.current.pdf && lastExportRef.current.filename) {
+      lastExportRef.current.pdf.save(lastExportRef.current.filename)
+    }
+  }
+
+  const handlePrint = () => {
+    if (!reportData) return
+    window.print()
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* SCREEN UI (Hidden during print) */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      <div className="print:hidden space-y-4">
+        {/* Top Control Header Card */}
+        <div className="bg-surface border border-surface-border rounded-erp p-4 shadow-sm space-y-3">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <h1 className="text-lg font-bold text-ink tracking-tight flex items-center gap-2">
+                <span>Monthly Report</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-brand font-semibold uppercase">
+                  {selectedCategory}
+                </span>
+              </h1>
+              <p className="text-xs text-ink-muted">
+                Official Monthly Present Balance and Stock Summary reporting for verified inventory.
+              </p>
+            </div>
+
+            {/* Action Export Buttons */}
+            <div className="flex flex-wrap items-center gap-2">
+              {canExportStock && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleExportStockExcel}
+                  disabled={isAnyExporting || !reportData}
+                  loading={exportingStock}
+                  loadingText="Generating Excel..."
+                  className="text-xs border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>{exportingStock ? 'Generating Excel...' : 'Monthly Stock'}</span>
+                </Button>
+              )}
+
+              {canExportPdf && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleExportPdf}
+                  disabled={isAnyExporting || !reportData}
+                  loading={exportingPdf}
+                  loadingText="Generating PDF..."
+                  className="text-xs border-red-300 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-700 dark:text-red-400"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>{exportingPdf ? 'Generating PDF...' : 'PDF'}</span>
+                </Button>
+              )}
+
+              {canPrint && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handlePrint}
+                  disabled={!reportData}
+                  className="text-xs"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print</span>
+                </Button>
+              )}
+
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={loadReport}
+                disabled={loading}
+                title="Refresh Report"
+                className="px-2"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          </div>
+
+          {/* Filters Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-surface-border/60">
+            {/* Floor Selection */}
+            <div>
+              <label className="block text-[11px] font-semibold text-ink-muted uppercase tracking-wider mb-1">
+                Floor
+              </label>
+              <div className="relative">
+                <MapPin className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
+                <select
+                  value={selectedFloorId}
+                  onChange={(e) => setSelectedFloorId(e.target.value)}
+                  className="w-full text-xs font-medium pl-8 pr-3 py-1.5 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand"
+                >
+                  {initialFloors.map((floor) => (
+                    <option key={floor.id} value={floor.id}>
+                      {floor.name} {floor.code ? `(${floor.code})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Category Selection */}
+            <div>
+              <label className="block text-[11px] font-semibold text-ink-muted uppercase tracking-wider mb-1">
+                Category
+              </label>
+              <div className="relative">
+                <Layers className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value as DailyEntryCategory)}
+                  className="w-full text-xs font-medium pl-8 pr-3 py-1.5 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand"
+                >
+                  {allowedCategories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat} Needle
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Month & Year Selection */}
+            <div>
+              <label className="block text-[11px] font-semibold text-ink-muted uppercase tracking-wider mb-1">
+                Report Month
+              </label>
+              <div className="grid grid-cols-2 gap-1.5">
+                <div className="relative">
+                  <Calendar className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                    className="w-full text-xs font-medium pl-7 pr-2 py-1.5 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand"
+                  >
+                    {MONTH_OPTIONS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <input
+                  type="number"
+                  min="2020"
+                  max="2099"
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="w-full text-xs font-medium px-2 py-1.5 rounded-erp border border-surface-border bg-surface text-ink text-center focus:outline-none focus:ring-1 focus:ring-brand"
+                />
+              </div>
+            </div>
+
+            {/* Quick Search */}
+            <div>
+              <label className="block text-[11px] font-semibold text-ink-muted uppercase tracking-wider mb-1">
+                Quick Search
+              </label>
+              <form onSubmit={handleSearchSubmit} className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Code, Type, Brand..."
+                  value={searchInputValue}
+                  onChange={(e) => setSearchInputValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleSearchSubmit()
+                    }
+                  }}
+                  className="w-full text-xs pl-8 pr-3 py-1.5 rounded-erp border border-surface-border bg-surface text-ink placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-brand"
+                />
+              </form>
+            </div>
+          </div>
+        </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="p-3 rounded-erp bg-danger/10 border border-danger/30 text-danger text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Report Metadata Banner (When Loaded) */}
+        {!loading && reportData && (
+          <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800/60 border border-surface-border rounded-erp text-xs text-ink-muted font-medium">
+            <div className="flex flex-wrap items-center gap-3">
+              <span>
+                Floor:{' '}
+                <strong className="text-ink font-semibold">
+                  {formatFloorDisplayName(reportData.floorName, reportData.locationName)}
+                </strong>
+              </span>
+              <span>•</span>
+              <span>
+                Month: <strong className="text-ink font-semibold">{reportData.monthLabel}</strong>
+              </span>
+              <span>•</span>
+              <span>
+                Category: <strong className="text-ink font-semibold">{reportData.category}</strong>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="font-mono">{reportData.sourceNote}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content Table / Skeleton */}
+        {loading ? (
+          <ReportSkeleton />
+        ) : reportData ? (
+          <MonthlyBalanceTable report={reportData} searchQuery={searchQuery} />
+        ) : (
+          <div className="border border-surface-border rounded-erp bg-surface p-12 text-center text-ink-muted">
+            Please select a floor and month to view the monthly report.
+          </div>
+        )}
+      </div>
+
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* PRINT-ONLY OFFICIAL REPORT LAYOUT (Visible only when printing)     */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      <div className="hidden print:block font-sans text-black bg-white p-0 m-0">
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+          @page { size: A4 landscape; margin: 6mm; }
+          @media print {
+            header, aside, nav, [role="banner"], [role="navigation"] { display: none !important; }
+            body, html { background: white !important; color: black !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0 !important; padding: 0 !important; }
+            main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
+          }
+        `,
+          }}
+        />
+
+        {reportData && (
+          <div className="space-y-3">
+            {/* Official Header */}
+            <div className="relative text-center border-b pb-2">
+              <h1 className="text-xl font-black underline tracking-wide uppercase">
+                GMS COMPOSITE KNITTING IND LTD
+              </h1>
+              <h2 className="text-xs font-bold text-slate-700">SHARDAGONJ, KASHIMPUR, GAZIPUR</h2>
+              <h3 className="text-xs font-bold text-blue-600">ACCESSORIES MCD</h3>
+
+              {/* Document No box top right */}
+              <div className="absolute top-0 right-0 border border-slate-900 bg-blue-50/50 px-3 py-1.5 text-center text-[10px] font-bold leading-tight">
+                <div>DOCUMENT NO : {reportData.documentNo || 'QA/03/310'}</div>
+                <div>VERSION NO : {reportData.versionNo || '01/2026'}</div>
+              </div>
+            </div>
+
+            {/* Official Title Banner */}
+            <div className="bg-slate-900 text-white text-center py-1 font-bold text-sm tracking-wider uppercase">
+              MONTHLY SEWING NEEDLE PRESENT BALANCE REPORT
+            </div>
+
+            {/* Metadata Line */}
+            <div className="bg-slate-100 border border-slate-300 px-3 py-1 text-[10px] font-bold">
+              Floor: {formatFloorDisplayName(reportData.floorName, reportData.locationName)} | Month:{' '}
+              {reportData.monthLabel} | Category: {reportData.category}
+            </div>
+
+            {/* Formal Table (11 columns) */}
+            <table className="w-full text-[9px] border-collapse border border-black">
+              <thead>
+                <tr className="bg-slate-900 text-white font-bold text-center">
+                  <th className="border border-black p-1 w-8">SL</th>
+                  <th className="border border-black p-1 w-16">CODE</th>
+                  <th className="border border-black p-1 text-left">TYPE</th>
+                  <th className="border border-black p-1 w-10">SIZE</th>
+                  <th className="border border-black p-1 w-16">BRAND</th>
+                  <th className="border border-black p-1 text-right w-16">PREVIOUS</th>
+                  <th className="border border-black p-1 text-right w-16">RECEIVED</th>
+                  <th className="border border-black p-1 text-right w-16">DELIVERY</th>
+                  <th className="border border-black p-1 text-right w-20 bg-slate-800 text-amber-300">
+                    PRESENT BALANCE
+                  </th>
+                  <th className="border border-black p-1 text-right w-16">Missing broken needle</th>
+                  <th className="border border-black p-1 text-left">Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reportData.rows.map((row, i) => (
+                  <tr key={row.needle_item_id} className="text-center">
+                    <td className="border border-black p-1 font-mono">{i + 1}</td>
+                    <td className="border border-black p-1 font-mono font-bold">{row.item_code}</td>
+                    <td className="border border-black p-1 text-left">{row.needle_type}</td>
+                    <td className="border border-black p-1">{row.size_dia || ''}</td>
+                    <td className="border border-black p-1">{row.brand}</td>
+                    <td className="border border-black p-1 text-right font-mono">
+                      {row.previous.toLocaleString()}
+                    </td>
+                    <td className="border border-black p-1 text-right font-mono">
+                      {row.received.toLocaleString()}
+                    </td>
+                    <td className="border border-black p-1 text-right font-mono">
+                      {row.delivery.toLocaleString()}
+                    </td>
+                    <td className="border border-black p-1 text-right font-mono font-bold bg-amber-100/90 text-amber-900">
+                      {row.present.toLocaleString()}
+                    </td>
+                    <td className="border border-black p-1 text-right font-mono">
+                      {row.bnr.toLocaleString()}
+                    </td>
+                    <td className="border border-black p-1 text-left">{row.note || ''}</td>
+                  </tr>
+                ))}
+                {/* Total Row */}
+                <tr className="font-bold bg-slate-100 text-black">
+                  <td colSpan={5} className="border border-black p-1 text-right bg-slate-200">
+                    TOTAL →
+                  </td>
+                  <td className="border border-black p-1 text-right font-mono">
+                    {reportData.summary.totalPrevious.toLocaleString()}
+                  </td>
+                  <td className="border border-black p-1 text-right font-mono">
+                    {reportData.summary.totalReceived.toLocaleString()}
+                  </td>
+                  <td className="border border-black p-1 text-right font-mono">
+                    {reportData.summary.totalDelivery.toLocaleString()}
+                  </td>
+                  <td className="border border-black p-1 text-right font-mono font-bold bg-amber-200 text-amber-900">
+                    {reportData.summary.totalPresent.toLocaleString()}
+                  </td>
+                  <td className="border border-black p-1 text-right font-mono">
+                    {reportData.summary.totalBnr.toLocaleString()}
+                  </td>
+                  <td className="border border-black p-1" />
+                </tr>
+              </tbody>
+            </table>
+
+            {/* Signature Section */}
+            <div className="pt-16 grid grid-cols-3 gap-8 text-center text-xs font-bold">
+              <div>
+                <div className="border-t-2 border-black pt-1">PREPARED BY</div>
+              </div>
+              <div>
+                <div className="border-t-2 border-black pt-1">CHECKED BY</div>
+              </div>
+              <div>
+                <div className="border-t-2 border-black pt-1">AUTHORISED BY</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* EXPORT PROGRESS MODAL */}
+      <ExportProgressModal
+        state={progressModalState}
+        onClose={handleCloseModal}
+        onRetry={handleRetryExport}
+        onDownloadAgain={handleDownloadAgain}
+      />
+    </div>
+  )
+}

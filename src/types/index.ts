@@ -608,6 +608,36 @@ export interface DailyReportData {
   }
 }
 
+// ─── Phase 4 Monthly Report Types ─────────────────────────────────────────────
+
+export interface MonthlyReportRowItem extends Omit<DailyEntryRowItem, 'req_no'> {
+  sl: number
+  custom: string | null
+  note: string | null
+}
+
+export interface MonthlyReportData {
+  month: string // YYYY-MM
+  monthLabel: string // e.g. "October 2026"
+  floorId: string
+  floorName: string
+  floorCode: string | null
+  locationName: string | null
+  category: DailyEntryCategory
+  operatorName: string | null
+  sourceNote: string | null
+  rows: MonthlyReportRowItem[]
+  documentNo: string
+  versionNo: string
+  summary: {
+    totalPrevious: number
+    totalReceived: number
+    totalDelivery: number
+    totalPresent: number
+    totalBnr: number
+  }
+}
+
 // ─── Floor Transfer Management Types ─────────────────────────────────────────
 
 export type FloorTransferDirection = 'OUT' | 'IN'

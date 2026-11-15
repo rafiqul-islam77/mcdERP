@@ -38,6 +38,8 @@ export const PERMISSIONS = {
     MONTHLY_REPORT: {
       VIEW: 'needle.monthly_report.view',
       EXPORT: 'needle.monthly_report.export',
+      EXPORT_EXCEL: 'needle.monthly_report.export_excel',
+      EXPORT_PDF: 'needle.monthly_report.export_pdf',
       PRINT: 'needle.monthly_report.print',
     },
   },
@@ -62,6 +64,8 @@ export const PERMISSIONS = {
     MONTHLY_REPORT: {
       VIEW: 'broken.monthly_report.view',
       EXPORT: 'broken.monthly_report.export',
+      EXPORT_EXCEL: 'broken.monthly_report.export_excel',
+      EXPORT_PDF: 'broken.monthly_report.export_pdf',
       PRINT: 'broken.monthly_report.print',
     },
   },
@@ -86,6 +90,8 @@ export const PERMISSIONS = {
     MONTHLY_REPORT: {
       VIEW: 'idle.monthly_report.view',
       EXPORT: 'idle.monthly_report.export',
+      EXPORT_EXCEL: 'idle.monthly_report.export_excel',
+      EXPORT_PDF: 'idle.monthly_report.export_pdf',
       PRINT: 'idle.monthly_report.print',
     },
   },

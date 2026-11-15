@@ -22,10 +22,29 @@ import {
   type ExportProgressState,
   type FloorProgressItem,
 } from '@/components/reports/export-progress-modal'
-import { getDailyStockReportDataAction } from '@/app/actions/reports'
+import {
+  getDailyStockReportDataAction,
+  getMonthlyStockReportDataAction,
+} from '@/app/actions/reports'
+import { generateMonthlyMultiReportPDF } from '@/lib/reports/pdf-monthly-generator'
 import { generateMultiReportPresentBalancePDF } from '@/lib/reports/pdf-multi-generator'
 import { formatFloorDisplayName } from '@/lib/reports/report-utils'
-import type { DailyEntryCategory, DailyReportData, Floor } from '@/types'
+import type { DailyEntryCategory, DailyReportData, MonthlyReportData, Floor } from '@/types'
+
+const MONTH_OPTIONS = [
+  { value: 1, label: 'January' },
+  { value: 2, label: 'February' },
+  { value: 3, label: 'March' },
+  { value: 4, label: 'April' },
+  { value: 5, label: 'May' },
+  { value: 6, label: 'June' },
+  { value: 7, label: 'July' },
+  { value: 8, label: 'August' },
+  { value: 9, label: 'September' },
+  { value: 10, label: 'October' },
+  { value: 11, label: 'November' },
+  { value: 12, label: 'December' },
+]
 
 interface RegularReportClientProps {
   initialFloors: Floor[]
@@ -64,6 +83,22 @@ export function RegularReportClient({
   const [csFloorSearch, setCsFloorSearch] = useState<string>('')
 
   // ---------------------------------------------------------------------------
+  // Card 3 State: Monthly Stock
+  // ---------------------------------------------------------------------------
+  const now = new Date()
+  const [mrMonth, setMrMonth] = useState<number>(() => now.getMonth() + 1)
+  const [mrYear, setMrYear] = useState<number>(() => now.getFullYear())
+  const mrMonthString = `${mrYear}-${String(mrMonth).padStart(2, '0')}`
+
+  const [mrSelectedFloorIds, setMrSelectedFloorIds] = useState<string[]>([])
+  const [mrSelectedCategories, setMrSelectedCategories] = useState<DailyEntryCategory[]>(
+    allowedCategories.length > 0 ? allowedCategories : ['RUNNING']
+  )
+  const [mrIncludeSummary, setMrIncludeSummary] = useState<boolean>(true)
+  const [mrFloorDropdownOpen, setMrFloorDropdownOpen] = useState<boolean>(false)
+  const [mrFloorSearch, setMrFloorSearch] = useState<string>('')
+
+  // ---------------------------------------------------------------------------
   // Shared Export State & Progress Modal
   // ---------------------------------------------------------------------------
   const [isExporting, setIsExporting] = useState<boolean>(false)
@@ -94,6 +129,7 @@ export function RegularReportClient({
 
   const dsDropdownRef = useRef<HTMLDivElement>(null)
   const csDropdownRef = useRef<HTMLDivElement>(null)
+  const mrDropdownRef = useRef<HTMLDivElement>(null)
 
   // Close floor dropdowns when clicking outside
   useEffect(() => {
@@ -103,6 +139,9 @@ export function RegularReportClient({
       }
       if (csDropdownRef.current && !csDropdownRef.current.contains(event.target as Node)) {
         setCsFloorDropdownOpen(false)
+      }
+      if (mrDropdownRef.current && !mrDropdownRef.current.contains(event.target as Node)) {
+        setMrFloorDropdownOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -120,6 +159,11 @@ export function RegularReportClient({
   const filteredCsFloors = initialFloors.filter((f) => {
     const display = formatFloorDisplayName(f.name, f.floor_locations?.name).toLowerCase()
     return display.includes(csFloorSearch.toLowerCase())
+  })
+
+  const filteredMrFloors = initialFloors.filter((f) => {
+    const display = formatFloorDisplayName(f.name, f.floor_locations?.name).toLowerCase()
+    return display.includes(mrFloorSearch.toLowerCase())
   })
 
   // ---------------------------------------------------------------------------
@@ -497,6 +541,250 @@ export function RegularReportClient({
   }
 
   // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // EXPORT: Monthly Stock Excel
+  // ---------------------------------------------------------------------------
+  const handleExportMonthlyStockExcel = async () => {
+    if (isExporting) return
+    setExportError(null)
+
+    if (mrSelectedFloorIds.length === 0) {
+      setExportError('Please select at least one Floor for Monthly Stock export.')
+      return
+    }
+    if (mrSelectedCategories.length === 0) {
+      setExportError('Please select at least one Category for Monthly Stock export.')
+      return
+    }
+
+    const isAll = mrSelectedFloorIds.length === initialFloors.length
+    const floorLabel = isAll
+      ? 'All Floors'
+      : `${mrSelectedFloorIds.length} Floor${mrSelectedFloorIds.length > 1 ? 's' : ''}`
+    const filename = `Monthly Stock - ${mrMonthString}.xlsx`
+
+    setIsExporting(true)
+    const selectedFloors = initialFloors.filter((f) => mrSelectedFloorIds.includes(f.id))
+
+    setProgressModalState({
+      isOpen: true,
+      exportType: 'present_excel',
+      exportName: 'Monthly Stock Excel',
+      date: mrMonthString,
+      floorLabel,
+      isAllFloors: isAll,
+      status: 'running',
+      statusMessage: 'Preparing Monthly Stock report request...',
+      currentStep: 1,
+      totalSteps: 4,
+      progressPercent: 10,
+      itemsLabel: `${selectedFloors.length} Floors (${mrSelectedCategories.length} categories)`,
+      floorItems: [],
+      downloadFilename: filename,
+    })
+
+    try {
+      const floorIdsParam = isAll ? 'all' : mrSelectedFloorIds.join(',')
+      const categoriesParam = mrSelectedCategories.join(',')
+      const summaryParam = mrIncludeSummary ? 'true' : 'false'
+
+      const url = `/api/reports/regular-monthly-stock-excel?month=${mrMonthString}&floorIds=${encodeURIComponent(
+        floorIdsParam
+      )}&categories=${encodeURIComponent(categoriesParam)}&summary=${summaryParam}`
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: 'Generating monthly workbook on server...',
+        progressPercent: 40,
+        currentStep: 2,
+      }))
+
+      const res = await fetch(url)
+      if (!res.ok) {
+        let errorMsg = 'Failed to export monthly report'
+        try {
+          const errData = await res.json()
+          errorMsg = errData.error || errorMsg
+        } catch {}
+        throw new Error(errorMsg)
+      }
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: 'Downloading Excel spreadsheet...',
+        progressPercent: 90,
+        currentStep: 3,
+      }))
+
+      const blob = await res.blob()
+      const objectUrl = URL.createObjectURL(blob)
+
+      lastExportRef.current = {
+        blob,
+        filename,
+        url: objectUrl,
+      }
+
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        status: 'completed',
+        statusMessage: 'Generation Complete ✓',
+        progressPercent: 100,
+        downloadUrl: objectUrl,
+      }))
+    } catch (err: any) {
+      const msg = err.message || 'Export failed. Please try again.'
+      setExportError(msg)
+      setProgressModalState((prev) => ({
+        ...prev,
+        status: 'failed',
+        statusMessage: 'Export Failed',
+        errorMessage: msg,
+      }))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // EXPORT: Monthly Stock PDF
+  // ---------------------------------------------------------------------------
+  const handleExportMonthlyStockPdf = async () => {
+    if (isExporting) return
+    setExportError(null)
+
+    if (mrSelectedFloorIds.length === 0) {
+      setExportError('Please select at least one Floor for Monthly Stock PDF export.')
+      return
+    }
+    if (mrSelectedCategories.length === 0) {
+      setExportError('Please select at least one Category for Monthly Stock PDF export.')
+      return
+    }
+
+    const isAll = mrSelectedFloorIds.length === initialFloors.length
+    const floorLabel = isAll
+      ? 'All Floors'
+      : `${mrSelectedFloorIds.length} Floor${mrSelectedFloorIds.length > 1 ? 's' : ''}`
+    const filename = `Monthly Stock - ${mrMonthString}.pdf`
+
+    setIsExporting(true)
+    const selectedFloors = initialFloors.filter((f) => mrSelectedFloorIds.includes(f.id))
+
+    setProgressModalState({
+      isOpen: true,
+      exportType: 'pdf',
+      exportName: 'Monthly Stock PDF',
+      date: mrMonthString,
+      floorLabel,
+      isAllFloors: isAll,
+      status: 'running',
+      statusMessage: 'Preparing Monthly PDF reports...',
+      currentStep: 1,
+      totalSteps: 4,
+      progressPercent: 5,
+      itemsLabel: `${selectedFloors.length} Floors (${mrSelectedCategories.length} categories)`,
+      floorItems: [],
+      downloadFilename: filename,
+    })
+
+    try {
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: 'Fetching monthly report data in batch...',
+        progressPercent: 30,
+        currentStep: 2,
+      }))
+
+      const repRes = await getMonthlyStockReportDataAction({
+        month: mrMonthString,
+        floorIds: mrSelectedFloorIds,
+        categories: mrSelectedCategories,
+      })
+      if (!repRes.success || !repRes.data) {
+        throw new Error(repRes.error || 'Failed to fetch monthly report data.')
+      }
+
+      const reports = repRes.data
+
+      if (reports.length === 0) {
+        throw new Error('No report data found for the selected criteria.')
+      }
+
+      const floorItems: FloorProgressItem[] = selectedFloors.map((floor) => {
+        const floorReps = reports.filter((r) => r.floorId === floor.id)
+        const itemsCount = floorReps.reduce((sum, r) => sum + r.rows.length, 0)
+        const presentStock = floorReps.reduce((sum, r) => sum + r.summary.totalPresent, 0)
+        return {
+          id: floor.id,
+          floorName: formatFloorDisplayName(floor.name, floor.floor_locations?.name),
+          date: mrMonthString,
+          itemsCount,
+          presentStock,
+          source: 'actual' as const,
+        }
+      })
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        floorItems,
+      }))
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: `Rendering ${reports.length} report section(s) to PDF...`,
+        progressPercent: 85,
+        currentStep: 3,
+      }))
+
+      await new Promise((r) => setTimeout(r, 60))
+      const pdf = generateMonthlyMultiReportPDF(reports, {
+        includeSummary: mrIncludeSummary,
+        monthLabel: reports[0]?.monthLabel,
+      })
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        statusMessage: 'Finalizing PDF file...',
+        progressPercent: 95,
+        currentStep: 4,
+      }))
+
+      await new Promise((r) => setTimeout(r, 60))
+      pdf.save(filename)
+
+      lastExportRef.current = {
+        pdfDoc: pdf,
+        filename,
+      }
+
+      setProgressModalState((prev) => ({
+        ...prev,
+        status: 'completed',
+        statusMessage: 'PDF Generation Complete ✓',
+        progressPercent: 100,
+      }))
+    } catch (err: any) {
+      const msg = err.message || 'PDF export failed. Please try again.'
+      setExportError(msg)
+      setProgressModalState((prev) => ({
+        ...prev,
+        status: 'failed',
+        statusMessage: 'PDF Export Failed',
+        errorMessage: msg,
+      }))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   // Modal Handlers (Close, Retry, Download Again)
   // ---------------------------------------------------------------------------
   const handleCloseModal = () => {
@@ -504,7 +792,11 @@ export function RegularReportClient({
   }
 
   const handleRetryExport = () => {
-    if (progressModalState.exportType === 'stock_excel') {
+    if (progressModalState.exportName === 'Monthly Stock Excel') {
+      handleExportMonthlyStockExcel()
+    } else if (progressModalState.exportName === 'Monthly Stock PDF') {
+      handleExportMonthlyStockPdf()
+    } else if (progressModalState.exportType === 'stock_excel') {
       handleExportClosingStockExcel()
     } else if (progressModalState.exportType === 'present_excel') {
       handleExportDailyStockExcel()
@@ -810,7 +1102,252 @@ export function RegularReportClient({
         </Card>
 
         {/* =================================================================== */}
-        {/* CARD 2: CLOSING STOCK                                              */}
+        {/* =================================================================== */}
+        {/* CARD 2: MONTHLY STOCK                                               */}
+        {/* =================================================================== */}
+        <Card
+          title={
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-erp-md bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+                🗓️
+              </div>
+              <div>
+                <span className="text-base font-bold text-ink">Monthly Stock</span>
+                <span className="block text-xs font-normal text-ink-muted">
+                  Monthly Present Balance consolidated ledger with opening and closing balances
+                </span>
+              </div>
+            </div>
+          }
+          className="border-surface-border shadow-erp hover:shadow-erp-md transition-shadow"
+        >
+          <div className="space-y-4">
+            {/* 1. Month & Year Selector */}
+            <div>
+              <label className="block text-xs font-semibold text-ink-muted uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                Report Month
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={mrMonth}
+                  onChange={(e) => setMrMonth(Number(e.target.value))}
+                  className="px-3 py-2 text-sm border border-surface-border rounded-erp-md bg-surface-card text-ink focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                >
+                  {MONTH_OPTIONS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="2020"
+                  max="2099"
+                  value={mrYear}
+                  onChange={(e) => setMrYear(Number(e.target.value))}
+                  className="px-3 py-2 text-sm border border-surface-border rounded-erp-md bg-surface-card text-ink text-center focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            {/* 2. Floor Multi-Select */}
+            <div className="relative" ref={mrDropdownRef}>
+              <label className="block text-xs font-semibold text-ink-muted uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+                  Select Floors
+                </span>
+                <span className="text-xs font-normal text-ink-muted">
+                  {mrSelectedFloorIds.length === 0
+                    ? 'None selected'
+                    : mrSelectedFloorIds.length === initialFloors.length
+                    ? 'All Floors selected'
+                    : `${mrSelectedFloorIds.length} of ${initialFloors.length} selected`}
+                </span>
+              </label>
+
+              {/* Toggle Dropdown Button */}
+              <button
+                type="button"
+                onClick={() => setMrFloorDropdownOpen((prev) => !prev)}
+                className="w-full px-3 py-2 text-sm border border-surface-border rounded-erp-md bg-surface-card text-ink flex items-center justify-between hover:bg-surface-elevated focus:outline-none focus:ring-2 focus:ring-brand"
+              >
+                <span className="truncate">
+                  {mrSelectedFloorIds.length === 0
+                    ? 'Select Floors...'
+                    : mrSelectedFloorIds.length === initialFloors.length
+                    ? 'All Floors (Complete Building)'
+                    : `${mrSelectedFloorIds.length} Floor(s) selected`}
+                </span>
+                <ChevronDown className="w-4 h-4 text-ink-muted ml-2 shrink-0" />
+              </button>
+
+              {/* Dropdown Popover */}
+              {mrFloorDropdownOpen && (
+                <div className="absolute z-30 left-0 right-0 mt-1 bg-surface-card border border-surface-border rounded-erp-md shadow-erp-lg p-2 max-h-64 flex flex-col">
+                  {/* Search box & Select all toggle */}
+                  <div className="p-1 border-b border-surface-border mb-1 flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="w-3.5 h-3.5 absolute left-2 top-2 text-ink-muted" />
+                      <input
+                        type="text"
+                        placeholder="Filter floors..."
+                        value={mrFloorSearch}
+                        onChange={(e) => setMrFloorSearch(e.target.value)}
+                        className="w-full pl-7 pr-2 py-1 text-xs border border-surface-border rounded bg-surface-elevated text-ink focus:outline-none"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (mrSelectedFloorIds.length === initialFloors.length) {
+                          setMrSelectedFloorIds([])
+                        } else {
+                          setMrSelectedFloorIds(initialFloors.map((f) => f.id))
+                        }
+                      }}
+                      className="text-xs font-semibold text-brand hover:underline shrink-0 px-1"
+                    >
+                      {mrSelectedFloorIds.length === initialFloors.length
+                        ? 'Deselect All'
+                        : 'Select All'}
+                    </button>
+                  </div>
+
+                  {/* Floor Items List */}
+                  <div className="overflow-y-auto space-y-1 flex-1 pr-1">
+                    {filteredMrFloors.map((floor) => {
+                      const isSelected = mrSelectedFloorIds.includes(floor.id)
+                      const displayName = formatFloorDisplayName(
+                        floor.name,
+                        floor.floor_locations?.name
+                      )
+                      return (
+                        <div
+                          key={floor.id}
+                          onClick={() => {
+                            setMrSelectedFloorIds((prev) =>
+                              isSelected ? prev.filter((id) => id !== floor.id) : [...prev, floor.id]
+                            )
+                          }}
+                          className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-xs transition-colors ${
+                            isSelected
+                              ? 'bg-brand/10 text-brand font-medium'
+                              : 'hover:bg-surface-elevated text-ink'
+                          }`}
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="w-4 h-4 text-brand shrink-0" />
+                          ) : (
+                            <Square className="w-4 h-4 text-ink-muted shrink-0" />
+                          )}
+                          <span className="truncate">{displayName}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Category Multi-Select */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-ink-muted uppercase tracking-wider flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                  Categories
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (mrSelectedCategories.length === allowedCategories.length) {
+                      setMrSelectedCategories([])
+                    } else {
+                      setMrSelectedCategories([...allowedCategories])
+                    }
+                  }}
+                  className="text-xs font-semibold text-brand hover:underline"
+                >
+                  {mrSelectedCategories.length === allowedCategories.length
+                    ? 'Deselect All'
+                    : 'Select All'}
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {allowedCategories.map((cat) => {
+                  const isSelected = mrSelectedCategories.includes(cat)
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => {
+                        setMrSelectedCategories((prev) =>
+                          isSelected ? prev.filter((c) => c !== cat) : [...prev, cat]
+                        )
+                      }}
+                      className={`px-3 py-1.5 rounded-erp-md text-xs font-medium border flex items-center gap-1.5 transition-colors ${
+                        isSelected
+                          ? 'bg-brand text-white border-brand shadow-sm'
+                          : 'bg-surface-elevated text-ink-muted border-surface-border hover:border-brand/40'
+                      }`}
+                    >
+                      {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
+                      {cat} NEEDLE
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* 4. SUMMARY Sheet Checkbox */}
+            <div className="pt-2 border-t border-surface-border">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={mrIncludeSummary}
+                  onChange={(e) => setMrIncludeSummary(e.target.checked)}
+                  className="mt-0.5 rounded border-surface-border text-brand focus:ring-brand"
+                />
+                <div className="text-xs">
+                  <span className="font-semibold text-ink">Include SUMMARY Sheet</span>
+                  <p className="text-ink-muted text-[11px] leading-relaxed mt-0.5">
+                    Generates an aggregated executive summary worksheet as the first tab with monthly grand totals
+                    across all selected floors and categories.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {/* 5. Export Action Buttons */}
+            <div className="pt-3 border-t border-surface-border flex items-center gap-3">
+              <Button
+                variant="primary"
+                onClick={handleExportMonthlyStockExcel}
+                disabled={isExporting}
+                className="flex-1 text-xs font-semibold flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                Export Excel
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={handleExportMonthlyStockPdf}
+                disabled={isExporting}
+                className="flex-1 text-xs font-semibold flex items-center justify-center gap-2 border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
+              >
+                <FileText className="w-4 h-4" />
+                Export PDF
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* =================================================================== */}
+        {/* CARD 3: CLOSING STOCK                                              */}
+        {/* =================================================================== */}
         {/* =================================================================== */}
         <Card
           title={

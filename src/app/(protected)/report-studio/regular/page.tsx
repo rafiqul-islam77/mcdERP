@@ -15,17 +15,23 @@ export default async function ReportStudioRegularPage() {
   const canRunning =
     user.isSiteAdmin ||
     (await hasPermission(user.profile.id, 'needle.daily_report.view')) ||
-    (await hasPermission(user.profile.id, 'daily_report.view'))
+    (await hasPermission(user.profile.id, 'needle.monthly_report.view')) ||
+    (await hasPermission(user.profile.id, 'daily_report.view')) ||
+    (await hasPermission(user.profile.id, 'monthly_report.view'))
 
   const canNew =
     user.isSiteAdmin ||
     (await hasPermission(user.profile.id, 'broken.daily_report.view')) ||
-    (await hasPermission(user.profile.id, 'daily_report.view'))
+    (await hasPermission(user.profile.id, 'broken.monthly_report.view')) ||
+    (await hasPermission(user.profile.id, 'daily_report.view')) ||
+    (await hasPermission(user.profile.id, 'monthly_report.view'))
 
   const canIdle =
     user.isSiteAdmin ||
     (await hasPermission(user.profile.id, 'idle.daily_report.view')) ||
-    (await hasPermission(user.profile.id, 'daily_report.view'))
+    (await hasPermission(user.profile.id, 'idle.monthly_report.view')) ||
+    (await hasPermission(user.profile.id, 'daily_report.view')) ||
+    (await hasPermission(user.profile.id, 'monthly_report.view'))
 
   const allowedCategories: DailyEntryCategory[] = [
     ...(canRunning ? ['RUNNING' as const] : []),

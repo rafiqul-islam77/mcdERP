@@ -1,7 +1,9 @@
 import { requireActiveAccount } from '@/lib/auth'
 import { requirePermission } from '@/lib/permissions'
-import { ModulePlaceholder } from '@/components/layout/module-placeholder'
+import { getAuthorizedMonthlyReportContextAction } from '@/app/actions/reports'
+import { MonthlyReportClient } from '@/components/reports/monthly-report-client'
 import { Metadata } from 'next'
+import type { DailyEntryCategory } from '@/types'
 
 export const metadata: Metadata = {
   title: 'Monthly Report (Running Needle) | GMS ERP',
@@ -9,14 +11,22 @@ export const metadata: Metadata = {
 
 export default async function RunningNeedleMonthlyReportPage() {
   const user = await requireActiveAccount()
-  await requirePermission(user.profile.id, 'needle.monthly_report.view')
+  if (!user.isSiteAdmin) {
+    await requirePermission(user.profile.id, 'needle.monthly_report.view')
+  }
+
+  const contextRes = await getAuthorizedMonthlyReportContextAction()
+  const floors = contextRes.success && contextRes.data ? contextRes.data.floors : []
+  const allowedCategories: DailyEntryCategory[] =
+    contextRes.success && contextRes.data ? contextRes.data.allowedCategories : ['RUNNING']
 
   return (
-    <ModulePlaceholder
-      moduleName="Running Needle"
-      pageName="Monthly Needle Report"
-      permissionKey="needle.monthly_report.view"
-      description="Monthly running needle consolidated statements will be implemented in Phase 2.3."
+    <MonthlyReportClient
+      defaultCategory="RUNNING"
+      initialFloors={floors}
+      allowedCategories={allowedCategories}
+      userPermissions={user.permissions || []}
+      isSiteAdmin={user.isSiteAdmin}
     />
   )
 }
