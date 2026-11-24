@@ -194,7 +194,7 @@ export function ConflictResolutionModal({
                       {floorName}
                     </span>
                     <span className="bg-brand/10 text-brand dark:text-blue-400 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
-                      {op.category}
+                      {op.category === 'RUNNING' ? 'REGULAR' : op.category}
                     </span>
                     <span className="text-slate-400">|</span>
                     <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400">

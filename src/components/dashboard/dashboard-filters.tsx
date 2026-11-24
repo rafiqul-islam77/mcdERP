@@ -118,7 +118,7 @@ export function DashboardFiltersBar({
               <span>GMS MCD ERP DASHBOARD</span>
             </h1>
             <p className="text-xs text-ink-muted">
-              Separated Normal Needle (Running + New) &amp; Idle Needle inventory analytics.
+              Separated Normal Needle (Regular + New) &amp; Idle Needle inventory analytics.
             </p>
           </div>
         </div>
@@ -144,7 +144,7 @@ export function DashboardFiltersBar({
                 }`}
               >
                 <PackageCheck className="w-3.5 h-3.5 shrink-0" />
-                <span>NORMAL NEEDLE (NEW + RUNNING)</span>
+                <span>NORMAL NEEDLE (REGULAR + NEW)</span>
               </button>
             )}
 
@@ -237,9 +237,9 @@ export function DashboardFiltersBar({
                 className="w-full text-xs font-semibold pl-8 pr-2 py-1.5 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand"
               >
                 {hasRunning && hasNew && (
-                  <option value="ALL_NORMAL">All Normal (Running + New)</option>
+                  <option value="ALL_NORMAL">All Normal (Regular + New)</option>
                 )}
-                {hasRunning && <option value="RUNNING">Running (Regular) Only</option>}
+                {hasRunning && <option value="RUNNING">Regular Only</option>}
                 {hasNew && <option value="NEW">New Needle Only</option>}
               </select>
             ) : (

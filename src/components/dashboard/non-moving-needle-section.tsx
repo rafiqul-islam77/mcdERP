@@ -235,7 +235,7 @@ export function NonMovingNeedleSection({
                   className="text-xs font-semibold px-2 py-1 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none"
                 >
                   <option value="ALL">All Normal (Regular + New)</option>
-                  <option value="RUNNING">Regular (Running)</option>
+                  <option value="RUNNING">Regular</option>
                   <option value="NEW">New Needle</option>
                 </select>
               </div>

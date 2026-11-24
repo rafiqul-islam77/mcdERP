@@ -198,7 +198,7 @@ export function TotalMonthlyCombinedSummaryCard({
           <div className="flex items-center justify-between text-xs">
             <span className="flex items-center gap-1.5 text-ink-muted">
               <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-              Regular (Running):
+              Regular:
             </span>
             <span className="font-bold text-ink font-mono">{running.toLocaleString()} PCS</span>
           </div>

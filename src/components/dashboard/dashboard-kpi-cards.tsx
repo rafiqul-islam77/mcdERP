@@ -121,7 +121,7 @@ export function NormalKPICards({
       ? [
           {
             id: 'running-stock',
-            title: 'RUNNING STOCK',
+            title: 'REGULAR STOCK',
             value: kpis.runningStock.toLocaleString(),
             unit: 'PCS',
             icon: Layers,

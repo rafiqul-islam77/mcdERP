@@ -217,13 +217,13 @@ export function DashboardClient({
                     NORMAL NEEDLE DASHBOARD
                   </span>
                   <span className="text-[11px] text-blue-100 hidden sm:inline">
-                    • Running (Regular) &amp; New Needle Stock &amp; Transactions (Excludes Idle)
+                    • Regular &amp; New Needle Stock &amp; Transactions (Excludes Idle)
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] font-bold">
                   {showRunning && (
                     <span className="px-2 py-0.5 rounded-full bg-white/20 text-white">
-                      RUNNING
+                      REGULAR
                     </span>
                   )}
                   {showNew && (
@@ -248,13 +248,13 @@ export function DashboardClient({
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2">
                     <DashboardSection
-                      title="TODAY FLOOR-WISE RECEIVE & DELIVERY (RUNNING NEEDLE)"
+                      title="TODAY FLOOR-WISE RECEIVE & DELIVERY (REGULAR NEEDLE)"
                       subtitle={`Grouped bar comparison for ${filters.date}`}
                       icon={<BarChart3 className="w-4 h-4 text-blue-600" />}
                       accentColor="border-l-blue-600"
                       badge={
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 uppercase">
-                          RUNNING
+                          REGULAR
                         </span>
                       }
                     >
@@ -268,7 +268,7 @@ export function DashboardClient({
 
                   <div>
                     <DashboardSection
-                      title="TOTAL RECEIVE & DELIVERY — RUNNING"
+                      title="TOTAL RECEIVE & DELIVERY — REGULAR"
                       subtitle="Activity mix (Pie Chart)"
                       icon={<PieChart className="w-4 h-4 text-blue-600" />}
                       accentColor="border-l-blue-600"
@@ -330,13 +330,13 @@ export function DashboardClient({
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2">
                     <DashboardSection
-                      title="MONTH & FLOOR-WISE RECEIVE & DELIVERY (RUNNING NEEDLE)"
+                      title="MONTH & FLOOR-WISE RECEIVE & DELIVERY (REGULAR NEEDLE)"
                       subtitle={`Monthly totals for ${selectedMonthLabel}`}
                       icon={<BarChart3 className="w-4 h-4 text-blue-600" />}
                       accentColor="border-l-blue-600"
                       badge={
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 uppercase">
-                          MONTHLY RUNNING
+                          MONTHLY REGULAR
                         </span>
                       }
                     >
@@ -350,7 +350,7 @@ export function DashboardClient({
 
                   <div>
                     <DashboardSection
-                      title="TOTAL MONTHLY RECEIVE & DELIVERY — RUNNING"
+                      title="TOTAL MONTHLY RECEIVE & DELIVERY — REGULAR"
                       subtitle={`${selectedMonthLabel} (Pie Chart)`}
                       icon={<PieChart className="w-4 h-4 text-blue-600" />}
                       accentColor="border-l-blue-600"
@@ -412,7 +412,7 @@ export function DashboardClient({
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2">
                     <DashboardSection
-                      title="FLOOR-WISE STOCK QTY (RUNNING)"
+                      title="FLOOR-WISE STOCK QTY (REGULAR)"
                       subtitle={`Closing balance as of ${filters.date}`}
                       icon={<Boxes className="w-4 h-4 text-blue-600" />}
                       accentColor="border-l-blue-600"
@@ -420,7 +420,7 @@ export function DashboardClient({
                       <FloorStockChart
                         items={dashboardData.normal.floorStock.RUNNING.items}
                         color="#2563EB"
-                        categoryLabel="Running Needle"
+                        categoryLabel="Regular Needle"
                       />
                     </DashboardSection>
                   </div>
@@ -428,13 +428,13 @@ export function DashboardClient({
                   <div>
                     <DashboardSection
                       title="TOTAL FLOOR-WISE STOCK QTY (PCS)"
-                      subtitle="Running stock summary"
+                      subtitle="Regular stock summary"
                       accentColor="border-l-blue-600"
                     >
                       <TotalFloorStockCard
                         totalStock={dashboardData.normal.floorStock.RUNNING.totalStock}
                         floorCount={dashboardData.normal.floorStock.RUNNING.items.length}
-                        categoryLabel="Running Needle"
+                        categoryLabel="Regular Needle"
                         color="text-blue-600"
                         bgColor="bg-blue-50/60"
                         borderColor="border-blue-200"
@@ -486,7 +486,7 @@ export function DashboardClient({
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2">
                     <DashboardSection
-                      title="MONTH-WISE STOCK QTY (RUNNING)"
+                      title="MONTH-WISE STOCK QTY (REGULAR)"
                       subtitle="12-Month closing stock balance trend (Line Graph)"
                       icon={<TrendingUp className="w-4 h-4 text-blue-600" />}
                       accentColor="border-l-blue-600"
@@ -495,7 +495,7 @@ export function DashboardClient({
                         trendPoints={dashboardData.monthlyStockTrend}
                         dataKey="runningStock"
                         color="#2563EB"
-                        categoryLabel="Running Needle"
+                        categoryLabel="Regular Needle"
                       />
                     </DashboardSection>
                   </div>
@@ -509,7 +509,7 @@ export function DashboardClient({
                       <TotalMonthlyStockSummaryCard
                         trendPoints={dashboardData.monthlyStockTrend}
                         dataKey="runningStock"
-                        categoryLabel="Running Needle"
+                        categoryLabel="Regular Needle"
                         color="text-blue-600"
                         bgColor="bg-blue-50/60"
                         borderColor="border-blue-200"
@@ -562,7 +562,7 @@ export function DashboardClient({
                 <div className="lg:col-span-2">
                   <DashboardSection
                     title="TOTAL NORMAL MONTH-WISE STOCK QTY"
-                    subtitle="Stacked comparison of Running + New closing stock (Excludes Idle)"
+                    subtitle="Stacked comparison of Regular + New closing stock (Excludes Idle)"
                     icon={<BarChart3 className="w-4 h-4 text-indigo-600" />}
                     accentColor="border-l-indigo-600"
                   >
@@ -578,7 +578,7 @@ export function DashboardClient({
                 <div>
                   <DashboardSection
                     title="TOTAL NORMAL MONTH-WISE STOCK (PCS)"
-                    subtitle="Running + New combined"
+                    subtitle="Regular + New combined"
                     accentColor="border-l-indigo-600"
                   >
                     <TotalMonthlyCombinedSummaryCard
@@ -607,7 +607,7 @@ export function DashboardClient({
                 </DashboardSection>
 
                 <DashboardSection
-                  title="NORMAL STOCK DISTRIBUTION (RUNNING VS NEW)"
+                  title="NORMAL STOCK DISTRIBUTION (REGULAR VS NEW)"
                   subtitle={`Inventory mix as of ${filters.date} (Donut Chart)`}
                   icon={<PieChart className="w-4 h-4 text-indigo-600" />}
                   accentColor="border-l-indigo-500"

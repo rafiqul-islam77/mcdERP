@@ -161,7 +161,7 @@ export function calculateNormalStockDistribution(
   if (authorizedCategories.includes('RUNNING')) {
     items.push({
       key: 'RUNNING',
-      label: 'Running (Regular)',
+      label: 'Regular',
       quantity: Math.max(0, runningStock),
       percentage: 0,
       color: '#2563EB', // Royal Blue
