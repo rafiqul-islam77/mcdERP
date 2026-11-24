@@ -23,10 +23,11 @@ interface FloorReceiveDeliveryChartProps {
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
+    const fullName = payload[0]?.payload?.fullName || label
     return (
       <div className="bg-slate-900 text-white p-2.5 rounded-erp border border-slate-700 shadow-lg text-xs space-y-1">
         <div className="font-bold border-b border-slate-800 pb-1 text-slate-200">
-          {label}
+          {fullName}
         </div>
         {payload.map((entry: any, index: number) => (
           <div key={`item-${index}`} className="flex items-center justify-between gap-4">
@@ -50,8 +51,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export function FloorReceiveDeliveryChart({
   items,
-  receivedColor = '#10B981', // Emerald green
-  deliveryColor = '#F97316', // Orange
+  receivedColor = '#10B981', // Emerald Green
+  deliveryColor = '#2563EB', // Vibrant Blue
   height = 280,
   emptyMessage = 'No activity recorded for this period',
 }: FloorReceiveDeliveryChartProps) {
@@ -82,38 +83,46 @@ export function FloorReceiveDeliveryChart({
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={chartData}
-          margin={{ top: 10, right: 10, left: -15, bottom: 25 }}
+          barGap={4}
+          barCategoryGap="22%"
+          margin={{ top: 10, right: 12, left: -12, bottom: 25 }}
         >
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
           <XAxis
             dataKey="name"
-            tick={{ fontSize: 11, fill: '#64748B' }}
+            tick={{ fontSize: 11, fill: '#64748B', fontWeight: 500 }}
             interval={0}
             angle={-25}
             textAnchor="end"
-            height={40}
+            height={42}
+            axisLine={{ stroke: '#CBD5E1' }}
+            tickLine={false}
           />
           <YAxis
             tick={{ fontSize: 10, fill: '#64748B' }}
             tickFormatter={(val) => (val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val)}
+            axisLine={false}
+            tickLine={false}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(148, 163, 184, 0.12)' }} />
           <Legend
             verticalAlign="top"
             align="right"
-            wrapperStyle={{ paddingBottom: '10px', fontSize: '11px' }}
+            iconType="circle"
+            iconSize={8}
+            wrapperStyle={{ paddingBottom: '12px', fontSize: '11px', fontWeight: 600 }}
           />
           <Bar
             dataKey="Received"
             fill={receivedColor}
-            radius={[4, 4, 0, 0]}
-            maxBarSize={32}
+            radius={[5, 5, 0, 0]}
+            maxBarSize={28}
           />
           <Bar
             dataKey="Delivered"
             fill={deliveryColor}
-            radius={[4, 4, 0, 0]}
-            maxBarSize={32}
+            radius={[5, 5, 0, 0]}
+            maxBarSize={28}
           />
         </BarChart>
       </ResponsiveContainer>

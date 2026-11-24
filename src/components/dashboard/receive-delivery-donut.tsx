@@ -9,13 +9,14 @@ import {
   Tooltip,
 } from 'recharts'
 
-interface ReceiveDeliveryDonutProps {
+interface ReceiveDeliveryPieChartProps {
   totalReceived: number
   totalDelivery: number
   receivedColor?: string
   deliveryColor?: string
   height?: number
-  title?: string
+  receivedBadgeBg?: string
+  deliveryBadgeBg?: string
 }
 
 const CustomTooltip = ({ active, payload }: any) => {
@@ -39,13 +40,17 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null
 }
 
-export function ReceiveDeliveryDonut({
+/**
+ * Solid Pie Chart representing the relative Receive vs Delivered activity mix.
+ * Visually distinct from Donut charts (solid slices with crisp white borders).
+ */
+export function ReceiveDeliveryPieChart({
   totalReceived,
   totalDelivery,
-  receivedColor = '#10B981', // Green
-  deliveryColor = '#F97316', // Orange
+  receivedColor = '#10B981', // Emerald Green
+  deliveryColor = '#2563EB', // Vibrant Blue
   height = 240,
-}: ReceiveDeliveryDonutProps) {
+}: ReceiveDeliveryPieChartProps) {
   const sum = totalReceived + totalDelivery
   const hasData = sum > 0
 
@@ -72,18 +77,22 @@ export function ReceiveDeliveryDonut({
     )
   }
 
+  const recvPct = chartData[0]?.percentage ?? 0
+  const delPct = chartData[1]?.percentage ?? 0
+
   return (
     <div className="flex flex-col items-center justify-between h-full" style={{ minHeight: height }}>
-      {/* Chart */}
-      <div style={{ width: '100%', height: height - 60 }} className="relative">
+      {/* Solid Pie Chart */}
+      <div style={{ width: '100%', height: height - 64 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Tooltip content={<CustomTooltip />} />
             <Pie
               data={chartData}
-              innerRadius="58%"
+              innerRadius={0}
               outerRadius="82%"
-              paddingAngle={3}
+              stroke="#ffffff"
+              strokeWidth={2}
               dataKey="value"
             >
               {chartData.map((entry, index) => (
@@ -92,41 +101,40 @@ export function ReceiveDeliveryDonut({
             </Pie>
           </PieChart>
         </ResponsiveContainer>
-
-        {/* Center label */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="text-[10px] uppercase font-bold text-ink-muted tracking-wider">
-            Total Activity
-          </span>
-          <span className="text-base font-black text-ink">
-            {sum.toLocaleString()}
-          </span>
-          <span className="text-[9px] font-semibold text-ink-muted">PCS</span>
-        </div>
       </div>
 
-      {/* Legend / Metrics Footer */}
+      {/* Legend / Metrics Footer with Exact Quantities & Percentages */}
       <div className="w-full grid grid-cols-2 gap-2 pt-2 border-t border-surface-border text-center">
-        <div className="p-1.5 rounded-erp bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30">
-          <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>RECEIVED</span>
+        <div className="p-1.5 rounded-erp bg-slate-50 border border-surface-border">
+          <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-ink-muted">
+            <span
+              className="w-2.5 h-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: receivedColor }}
+            />
+            <span>RECEIVED ({recvPct}%)</span>
           </div>
           <div className="text-xs font-black text-ink mt-0.5 font-mono">
-            {totalReceived.toLocaleString()} <span className="text-[9px] font-normal text-ink-muted">PCS</span>
+            {totalReceived.toLocaleString()}{' '}
+            <span className="text-[9px] font-normal text-ink-muted">PCS</span>
           </div>
         </div>
 
-        <div className="p-1.5 rounded-erp bg-orange-50/60 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30">
-          <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-orange-700 dark:text-orange-400">
-            <span className="w-2 h-2 rounded-full bg-orange-500" />
-            <span>DELIVERED</span>
+        <div className="p-1.5 rounded-erp bg-slate-50 border border-surface-border">
+          <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-ink-muted">
+            <span
+              className="w-2.5 h-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: deliveryColor }}
+            />
+            <span>DELIVERED ({delPct}%)</span>
           </div>
           <div className="text-xs font-black text-ink mt-0.5 font-mono">
-            {totalDelivery.toLocaleString()} <span className="text-[9px] font-normal text-ink-muted">PCS</span>
+            {totalDelivery.toLocaleString()}{' '}
+            <span className="text-[9px] font-normal text-ink-muted">PCS</span>
           </div>
         </div>
       </div>
     </div>
   )
 }
+
+export { ReceiveDeliveryPieChart as ReceiveDeliveryDonut }

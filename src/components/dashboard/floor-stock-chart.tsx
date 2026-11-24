@@ -22,10 +22,11 @@ interface FloorStockChartProps {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const entry = payload[0]
+    const fullName = entry?.payload?.fullName || label
     return (
       <div className="bg-slate-900 text-white p-2.5 rounded-erp border border-slate-700 shadow-lg text-xs space-y-1">
         <div className="font-bold border-b border-slate-800 pb-1 text-slate-200">
-          {label}
+          {fullName}
         </div>
         <div className="flex items-center justify-between gap-4">
           <span className="text-slate-300">Closing Stock:</span>
@@ -41,7 +42,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export function FloorStockChart({
   items,
-  color = '#3B82F6', // Blue default
+  color = '#2563EB', // Royal Blue default
   height = 260,
   categoryLabel = 'Needle',
 }: FloorStockChartProps) {
@@ -71,27 +72,31 @@ export function FloorStockChart({
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={chartData}
-          margin={{ top: 10, right: 10, left: -15, bottom: 25 }}
+          margin={{ top: 10, right: 12, left: -12, bottom: 25 }}
         >
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
           <XAxis
             dataKey="name"
-            tick={{ fontSize: 11, fill: '#64748B' }}
+            tick={{ fontSize: 11, fill: '#64748B', fontWeight: 500 }}
             interval={0}
             angle={-25}
             textAnchor="end"
-            height={40}
+            height={42}
+            axisLine={{ stroke: '#CBD5E1' }}
+            tickLine={false}
           />
           <YAxis
             tick={{ fontSize: 10, fill: '#64748B' }}
             tickFormatter={(val) => (val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val)}
+            axisLine={false}
+            tickLine={false}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(148, 163, 184, 0.12)' }} />
           <Bar
             dataKey="Stock"
             fill={color}
-            radius={[4, 4, 0, 0]}
-            maxBarSize={40}
+            radius={[5, 5, 0, 0]}
+            maxBarSize={38}
           />
         </BarChart>
       </ResponsiveContainer>
@@ -130,7 +135,7 @@ export function TotalFloorStockCard({
         </span>
 
         <div className="my-4">
-          <div className="text-3xl font-black text-ink tracking-tight font-mono">
+          <div className={`text-3xl font-black tracking-tight font-mono ${color}`}>
             {totalStock.toLocaleString()}
           </div>
           <span className="text-xs font-bold text-ink-muted">TOTAL PCS</span>

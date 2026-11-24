@@ -6,12 +6,24 @@ import type {
 import type {
   CategoryFloorActivity,
   CategoryFloorStock,
-  DashboardKPIData,
+  DistributionSlice,
   FloorReceiveDeliveryItem,
   FloorStockItem,
+  IdleKPIData,
   NonMovingNeedleItem,
-  StockDistributionItem,
+  NormalKPIData,
 } from './dashboard-types'
+
+const IDLE_FLOOR_PALETTE = [
+  '#0D9488', // Teal
+  '#F59E0B', // Amber
+  '#F97316', // Orange
+  '#10B981', // Emerald
+  '#06B6D4', // Cyan
+  '#EA580C', // Deep Orange
+  '#D97706', // Warm Amber
+  '#64748B', // Slate for "Other"
+]
 
 /**
  * Aggregates floor-wise receive and delivery for a specific category
@@ -36,6 +48,42 @@ export function aggregateCategoryFloorActivity(
 
   return {
     category,
+    items,
+    totalReceived,
+    totalDelivery,
+  }
+}
+
+/**
+ * Combines RUNNING and NEW floor activities into a Normal Needle floor summary.
+ * Never includes IDLE.
+ */
+export function combineNormalFloorActivity(
+  running: CategoryFloorActivity,
+  newCat: CategoryFloorActivity
+): CategoryFloorActivity {
+  const floorMap = new Map<string, FloorReceiveDeliveryItem>()
+
+  for (const item of running.items) {
+    floorMap.set(item.floorId, { ...item })
+  }
+
+  for (const item of newCat.items) {
+    const existing = floorMap.get(item.floorId)
+    if (existing) {
+      existing.received += item.received
+      existing.delivery += item.delivery
+    } else {
+      floorMap.set(item.floorId, { ...item })
+    }
+  }
+
+  const items = Array.from(floorMap.values())
+  const totalReceived = running.totalReceived + newCat.totalReceived
+  const totalDelivery = running.totalDelivery + newCat.totalDelivery
+
+  return {
+    category: 'NORMAL',
     items,
     totalReceived,
     totalDelivery,
@@ -69,32 +117,60 @@ export function aggregateCategoryFloorStock(
 }
 
 /**
- * Calculates stock distribution across authorized categories.
- * RUNNING = Blue (#3B82F6)
- * NEW = Purple (#8B5CF6)
- * IDLE = Amber (#F59E0B)
+ * Combines RUNNING and NEW floor stocks into a Normal Needle floor stock summary.
+ * Never includes IDLE.
  */
-export function calculateStockDistribution(
+export function combineNormalFloorStock(
+  running: CategoryFloorStock,
+  newCat: CategoryFloorStock
+): CategoryFloorStock {
+  const floorMap = new Map<string, FloorStockItem>()
+
+  for (const item of running.items) {
+    floorMap.set(item.floorId, { ...item })
+  }
+
+  for (const item of newCat.items) {
+    const existing = floorMap.get(item.floorId)
+    if (existing) {
+      existing.stock += item.stock
+    } else {
+      floorMap.set(item.floorId, { ...item })
+    }
+  }
+
+  return {
+    category: 'NORMAL',
+    items: Array.from(floorMap.values()),
+    totalStock: running.totalStock + newCat.totalStock,
+  }
+}
+
+/**
+ * Calculates Normal Needle stock distribution (RUNNING vs NEW only).
+ * RUNNING = Royal Blue (#2563EB)
+ * NEW = Purple (#8B5CF6)
+ */
+export function calculateNormalStockDistribution(
   runningStock: number,
   newStock: number,
-  idleStock: number,
   authorizedCategories: DailyEntryCategory[]
-): StockDistributionItem[] {
-  const items: StockDistributionItem[] = []
+): DistributionSlice[] {
+  const items: DistributionSlice[] = []
 
   if (authorizedCategories.includes('RUNNING')) {
     items.push({
-      category: 'RUNNING',
-      label: 'Regular / Running',
+      key: 'RUNNING',
+      label: 'Running (Regular)',
       quantity: Math.max(0, runningStock),
       percentage: 0,
-      color: '#3B82F6', // Blue
+      color: '#2563EB', // Royal Blue
     })
   }
 
   if (authorizedCategories.includes('NEW')) {
     items.push({
-      category: 'NEW',
+      key: 'NEW',
       label: 'New Needle',
       quantity: Math.max(0, newStock),
       percentage: 0,
@@ -102,18 +178,7 @@ export function calculateStockDistribution(
     })
   }
 
-  if (authorizedCategories.includes('IDLE')) {
-    items.push({
-      category: 'IDLE',
-      label: 'Idle Needle',
-      quantity: Math.max(0, idleStock),
-      percentage: 0,
-      color: '#F59E0B', // Amber
-    })
-  }
-
   const grandTotal = items.reduce((acc, curr) => acc + curr.quantity, 0)
-
   for (const item of items) {
     item.percentage =
       grandTotal > 0 ? Math.round((item.quantity / grandTotal) * 1000) / 10 : 0
@@ -123,53 +188,120 @@ export function calculateStockDistribution(
 }
 
 /**
- * Calculates high-level KPI card values.
- * Needle Booth and Manpower return null to indicate "Not Available" per specifications.
+ * Calculates Idle Needle stock distribution by authorized Floor.
+ * Uses real Idle closing stock per floor rather than inventing Normal categories.
  */
-export function calculateKPIData(params: {
-  todayReports: DailyReportData[]
-  monthlyReports: MonthlyReportData[]
-  authorizedCategories: DailyEntryCategory[]
-  selectedFloorId?: string
-}): DashboardKPIData {
-  const { todayReports, monthlyReports, authorizedCategories, selectedFloorId } = params
+export function calculateIdleFloorDistribution(
+  idleFloorStock: CategoryFloorStock
+): DistributionSlice[] {
+  const positiveFloors = idleFloorStock.items
+    .filter((f) => f.stock > 0)
+    .sort((a, b) => b.stock - a.stock)
 
-  const filterReports = <T extends { floorId: string; category: DailyEntryCategory }>(
-    list: T[]
-  ): T[] => {
-    return list.filter((r) => {
-      if (!authorizedCategories.includes(r.category)) return false
-      if (selectedFloorId && selectedFloorId !== 'all' && r.floorId !== selectedFloorId) {
-        return false
-      }
-      return true
+  if (positiveFloors.length === 0) {
+    return []
+  }
+
+  const grandTotal = positiveFloors.reduce((sum, f) => sum + f.stock, 0)
+  const slices: DistributionSlice[] = []
+
+  // Show top 7 floors individually, group remainder into "Other Floors"
+  const topFloors = positiveFloors.slice(0, 7)
+  const restFloors = positiveFloors.slice(7)
+
+  topFloors.forEach((f, idx) => {
+    slices.push({
+      key: f.floorId,
+      label: f.floorCode || f.floorName,
+      quantity: f.stock,
+      percentage: grandTotal > 0 ? Math.round((f.stock / grandTotal) * 1000) / 10 : 0,
+      color: IDLE_FLOOR_PALETTE[idx % (IDLE_FLOOR_PALETTE.length - 1)],
+    })
+  })
+
+  if (restFloors.length > 0) {
+    const restSum = restFloors.reduce((sum, f) => sum + f.stock, 0)
+    slices.push({
+      key: 'OTHER_FLOORS',
+      label: `Other (${restFloors.length} floors)`,
+      quantity: restSum,
+      percentage: grandTotal > 0 ? Math.round((restSum / grandTotal) * 1000) / 10 : 0,
+      color: IDLE_FLOOR_PALETTE[IDLE_FLOOR_PALETTE.length - 1],
     })
   }
 
-  const validDaily = filterReports(todayReports)
-  const validMonthly = filterReports(monthlyReports)
+  return slices
+}
 
-  const todayReceive = validDaily.reduce((sum, r) => sum + r.summary.totalReceived, 0)
-  const todayDelivery = validDaily.reduce((sum, r) => sum + r.summary.totalDelivery, 0)
-  const totalStockQty = validDaily.reduce((sum, r) => sum + r.summary.totalPresent, 0)
+/**
+ * Calculates Normal Needle KPIs (RUNNING + NEW only; excludes IDLE).
+ */
+export function calculateNormalKPIs(params: {
+  dailyRunning: CategoryFloorActivity
+  dailyNew: CategoryFloorActivity
+  monthlyRunning: CategoryFloorActivity
+  monthlyNew: CategoryFloorActivity
+  stockRunning: CategoryFloorStock
+  stockNew: CategoryFloorStock
+}): NormalKPIData {
+  const {
+    dailyRunning,
+    dailyNew,
+    monthlyRunning,
+    monthlyNew,
+    stockRunning,
+    stockNew,
+  } = params
 
-  const monthlyReceive = validMonthly.reduce((sum, r) => sum + r.summary.totalReceived, 0)
-  const monthlyDelivery = validMonthly.reduce((sum, r) => sum + r.summary.totalDelivery, 0)
+  const runningStock = stockRunning.totalStock
+  const newStock = stockNew.totalStock
 
   return {
-    needleBoothCount: null, // "Not Available"
-    manpowerCount: null, // "Not Available"
-    todayReceive,
-    todayDelivery,
-    monthlyReceive,
-    monthlyDelivery,
-    totalStockQty,
+    runningStock,
+    newStock,
+    totalNormalStock: runningStock + newStock,
+    todayReceived: dailyRunning.totalReceived + dailyNew.totalReceived,
+    todayRunningReceived: dailyRunning.totalReceived,
+    todayNewReceived: dailyNew.totalReceived,
+    todayDelivery: dailyRunning.totalDelivery + dailyNew.totalDelivery,
+    todayRunningDelivery: dailyRunning.totalDelivery,
+    todayNewDelivery: dailyNew.totalDelivery,
+    monthlyReceived: monthlyRunning.totalReceived + monthlyNew.totalReceived,
+    monthlyRunningReceived: monthlyRunning.totalReceived,
+    monthlyNewReceived: monthlyNew.totalReceived,
+    monthlyDelivery: monthlyRunning.totalDelivery + monthlyNew.totalDelivery,
+    monthlyRunningDelivery: monthlyRunning.totalDelivery,
+    monthlyNewDelivery: monthlyNew.totalDelivery,
+  }
+}
+
+/**
+ * Calculates Idle Needle KPIs (IDLE only).
+ */
+export function calculateIdleKPIs(params: {
+  dailyIdle: CategoryFloorActivity
+  monthlyIdle: CategoryFloorActivity
+  stockIdle: CategoryFloorStock
+  totalAuthorizedFloorsCount: number
+}): IdleKPIData {
+  const { dailyIdle, monthlyIdle, stockIdle, totalAuthorizedFloorsCount } = params
+
+  const activeIdleFloorsCount = stockIdle.items.filter((f) => f.stock > 0).length
+
+  return {
+    totalIdleStock: stockIdle.totalStock,
+    todayReceived: dailyIdle.totalReceived,
+    todayDelivery: dailyIdle.totalDelivery,
+    monthlyReceived: monthlyIdle.totalReceived,
+    monthlyDelivery: monthlyIdle.totalDelivery,
+    activeIdleFloorsCount,
+    totalAuthorizedFloorsCount,
   }
 }
 
 /**
  * Identifies needle items with positive stock but no qualifying stock movement
- * during the previous two calendar months.
+ * during the previous two calendar months for a specific set of reports.
  *
  * Rules:
  * 1. Current stock > 0
@@ -189,7 +321,6 @@ export function extractNonMovingItems(params: {
   const { dailyReports, itemLastMovementMap, selectedDate } = params
 
   const selDateObj = new Date(selectedDate)
-  // Calculate cutoff: 60 days before selectedDate
   const twoMonthsAgoObj = new Date(selDateObj)
   twoMonthsAgoObj.setDate(twoMonthsAgoObj.getDate() - 60)
   const cutoffDateStr = twoMonthsAgoObj.toISOString().slice(0, 10)
@@ -210,8 +341,6 @@ export function extractNonMovingItems(params: {
       const lastDate = movementInfo?.lastDate || null
       const firstDate = movementInfo?.firstDate || null
 
-      // If item was created within the last 60 days and has had no subsequent activity,
-      // it is a newly introduced item, not a 2-month non-moving item.
       if (firstDate && firstDate > cutoffDateStr && !lastDate) {
         continue
       }
@@ -253,7 +382,6 @@ export function extractNonMovingItems(params: {
     }
   }
 
-  // Sort non-moving items by days without movement descending
   nonMovingItems.sort((a, b) => b.daysWithoutMovement - a.daysWithoutMovement)
 
   const nonMovingByFloor = Array.from(floorCountMap.entries()).map(([floorId, val]) => ({

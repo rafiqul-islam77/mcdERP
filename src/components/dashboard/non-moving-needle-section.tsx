@@ -11,32 +11,70 @@ import {
   Tooltip,
 } from 'recharts'
 import { AlertTriangle, Clock, Search, ShieldCheck } from 'lucide-react'
-import type { NonMovingNeedleItem } from '@/lib/dashboard/dashboard-types'
+import type { DashboardGroupKey, NonMovingNeedleItem } from '@/lib/dashboard/dashboard-types'
 
 interface NonMovingNeedleSectionProps {
   items: NonMovingNeedleItem[]
   floorSummary: { floorId: string; floorName: string; count: number }[]
-  selectedDate: string
+  group: DashboardGroupKey
+  showRunning?: boolean
+  showNew?: boolean
 }
 
 export function NonMovingNeedleSection({
   items,
   floorSummary,
-  selectedDate,
+  group,
+  showRunning = true,
+  showNew = true,
 }: NonMovingNeedleSectionProps) {
   const [searchTerm, setSearchTerm] = React.useState('')
   const [selectedCategoryFilter, setSelectedCategoryFilter] = React.useState<string>('ALL')
   const [page, setPage] = React.useState(1)
   const pageSize = 8
 
-  // Calculate totals
-  const totalItems = items.length
-  const totalStock = items.reduce((acc, it) => acc + it.currentStock, 0)
-  const affectedFloors = floorSummary.filter((f) => f.count > 0).length
+  // Reset sub-filter and pagination when switching groups
+  React.useEffect(() => {
+    setSelectedCategoryFilter('ALL')
+    setPage(1)
+  }, [group])
 
-  // Filter items
-  const filteredItems = React.useMemo(() => {
+  // Apply group/sub-category visibility filter
+  const scopedItems = React.useMemo(() => {
     return items.filter((it) => {
+      if (group === 'NORMAL') {
+        if (it.category === 'RUNNING' && !showRunning) return false
+        if (it.category === 'NEW' && !showNew) return false
+        return it.category === 'RUNNING' || it.category === 'NEW'
+      }
+      return it.category === 'IDLE'
+    })
+  }, [items, group, showRunning, showNew])
+
+  // Calculate totals strictly from scoped items
+  const totalItems = scopedItems.length
+  const totalStock = scopedItems.reduce((acc, it) => acc + it.currentStock, 0)
+
+  const chartData = React.useMemo(() => {
+    const counts = new Map<string, { floor: string; count: number }>()
+    for (const fl of floorSummary) {
+      counts.set(fl.floorId, { floor: fl.floorName, count: 0 })
+    }
+    for (const it of scopedItems) {
+      const existing = counts.get(it.floorId) || { floor: it.floorName, count: 0 }
+      existing.count += 1
+      counts.set(it.floorId, existing)
+    }
+    return Array.from(counts.values())
+      .filter((f) => f.count > 0)
+      .sort((a, b) => b.count - a.count)
+  }, [floorSummary, scopedItems])
+
+  const affectedFloors = chartData.length
+
+  // Filter items for table
+  const filteredItems = React.useMemo(() => {
+    return scopedItems.filter((it) => {
       if (selectedCategoryFilter !== 'ALL' && it.category !== selectedCategoryFilter) {
         return false
       }
@@ -49,33 +87,25 @@ export function NonMovingNeedleSection({
         (it.brand && it.brand.toLowerCase().includes(term))
       )
     })
-  }, [items, searchTerm, selectedCategoryFilter])
+  }, [scopedItems, searchTerm, selectedCategoryFilter])
 
   const totalPages = Math.ceil(filteredItems.length / pageSize) || 1
   const paginatedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize)
 
-  // Chart data: floors with count > 0, sorted descending
-  const chartData = React.useMemo(() => {
-    return floorSummary
-      .filter((f) => f.count > 0)
-      .sort((a, b) => b.count - a.count)
-      .map((f) => ({
-        floor: f.floorName,
-        count: f.count,
-      }))
-  }, [floorSummary])
+  const barColor = group === 'NORMAL' ? '#2563EB' : '#F59E0B'
 
   return (
     <div className="space-y-4">
       {/* KPI Overview Pills */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200/80 rounded-erp p-3 flex items-center justify-between">
+        <div className="bg-rose-50/70 border border-rose-200/80 rounded-erp p-3 flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider block">
-              Non-Moving Needle Items
+              {group === 'NORMAL' ? 'Normal Non-Moving Items' : 'Idle Non-Moving Items'}
             </span>
             <div className="text-xl font-black text-rose-900 font-mono mt-0.5">
-              {totalItems.toLocaleString()} <span className="text-xs font-semibold text-rose-700">ITEMS</span>
+              {totalItems.toLocaleString()}{' '}
+              <span className="text-xs font-semibold text-rose-700">ITEMS</span>
             </div>
           </div>
           <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
@@ -83,13 +113,14 @@ export function NonMovingNeedleSection({
           </div>
         </div>
 
-        <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 rounded-erp p-3 flex items-center justify-between">
+        <div className="bg-amber-50/70 border border-amber-200/80 rounded-erp p-3 flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">
               Tied-Up Non-Moving Stock
             </span>
             <div className="text-xl font-black text-amber-900 font-mono mt-0.5">
-              {totalStock.toLocaleString()} <span className="text-xs font-semibold text-amber-700">PCS</span>
+              {totalStock.toLocaleString()}{' '}
+              <span className="text-xs font-semibold text-amber-700">PCS</span>
             </div>
           </div>
           <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
@@ -103,7 +134,8 @@ export function NonMovingNeedleSection({
               Affected Floors
             </span>
             <div className="text-xl font-black text-ink font-mono mt-0.5">
-              {affectedFloors} <span className="text-xs font-semibold text-ink-muted">FLOORS</span>
+              {affectedFloors}{' '}
+              <span className="text-xs font-semibold text-ink-muted">FLOORS</span>
             </div>
           </div>
           <div className="w-8 h-8 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center shrink-0">
@@ -112,16 +144,15 @@ export function NonMovingNeedleSection({
         </div>
       </div>
 
-      {/* Main Grid: Chart + Table */}
+      {/* Main Grid: Horizontal Bar Chart + Table */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Floor-wise Non-Moving Count Chart */}
         <div className="bg-slate-50/40 rounded-erp border border-surface-border p-3 flex flex-col justify-between">
           <div>
             <span className="text-[11px] font-bold text-ink uppercase tracking-wider block mb-1">
               NON-MOVING ITEMS BY FLOOR
             </span>
             <span className="text-[10px] text-ink-muted block mb-3">
-              Items with balance &gt; 0 and no qualifying transactions for &ge; 60 days
+              Items with balance &gt; 0 and no qualifying movements for &ge; 60 days
             </span>
           </div>
 
@@ -138,23 +169,38 @@ export function NonMovingNeedleSection({
                     type="number"
                     tick={{ fontSize: 10, fill: '#64748B' }}
                     allowDecimals={false}
+                    axisLine={false}
+                    tickLine={false}
                   />
                   <YAxis
                     type="category"
                     dataKey="floor"
-                    tick={{ fontSize: 10, fill: '#64748B' }}
+                    tick={{ fontSize: 10, fill: '#64748B', fontWeight: 500 }}
                     width={85}
+                    axisLine={false}
+                    tickLine={false}
                   />
                   <Tooltip
                     formatter={(val) => [`${val} non-moving items`, 'Count']}
-                    contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', color: '#fff', fontSize: '11px', borderRadius: '6px' }}
+                    contentStyle={{
+                      backgroundColor: '#0F172A',
+                      borderColor: '#334155',
+                      color: '#fff',
+                      fontSize: '11px',
+                      borderRadius: '6px',
+                    }}
                   />
-                  <Bar dataKey="count" fill="#F43F5E" radius={[0, 4, 4, 0]} maxBarSize={22} />
+                  <Bar
+                    dataKey="count"
+                    fill={barColor}
+                    radius={[0, 5, 5, 0]}
+                    maxBarSize={20}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex items-center justify-center text-xs text-ink-muted italic">
-                No non-moving items detected across authorized floors ✓
+                No {group === 'NORMAL' ? 'Normal' : 'Idle'} non-moving items detected ✓
               </div>
             )}
           </div>
@@ -162,7 +208,6 @@ export function NonMovingNeedleSection({
 
         {/* Detailed Items Table */}
         <div className="lg:col-span-2 space-y-2">
-          {/* Table Controls */}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="relative max-w-xs w-full">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
@@ -178,25 +223,25 @@ export function NonMovingNeedleSection({
               />
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs">
-              <span className="text-[11px] text-ink-muted font-medium">Category:</span>
-              <select
-                value={selectedCategoryFilter}
-                onChange={(e) => {
-                  setSelectedCategoryFilter(e.target.value)
-                  setPage(1)
-                }}
-                className="text-xs font-semibold px-2 py-1 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none"
-              >
-                <option value="ALL">All Categories</option>
-                <option value="RUNNING">Regular</option>
-                <option value="NEW">New</option>
-                <option value="IDLE">Idle</option>
-              </select>
-            </div>
+            {group === 'NORMAL' && showRunning && showNew && (
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="text-[11px] text-ink-muted font-medium">Category:</span>
+                <select
+                  value={selectedCategoryFilter}
+                  onChange={(e) => {
+                    setSelectedCategoryFilter(e.target.value)
+                    setPage(1)
+                  }}
+                  className="text-xs font-semibold px-2 py-1 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none"
+                >
+                  <option value="ALL">All Normal (Regular + New)</option>
+                  <option value="RUNNING">Regular (Running)</option>
+                  <option value="NEW">New Needle</option>
+                </select>
+              </div>
+            )}
           </div>
 
-          {/* Table */}
           <div className="border border-surface-border rounded-erp overflow-hidden bg-white">
             <div className="overflow-x-auto">
               <table className="w-full text-[11px]">
@@ -204,7 +249,7 @@ export function NonMovingNeedleSection({
                   <tr className="bg-slate-100 text-ink-muted font-bold uppercase tracking-wider text-left border-b border-surface-border">
                     <th className="py-2 px-2.5">Floor</th>
                     <th className="py-2 px-2.5">Needle Code</th>
-                    <th className="py-2 px-2.5">Type & Brand</th>
+                    <th className="py-2 px-2.5">Type &amp; Brand</th>
                     <th className="py-2 px-2.5">Category</th>
                     <th className="py-2 px-2.5 text-right">Current Stock</th>
                     <th className="py-2 px-2.5 text-center">Last Movement</th>
@@ -214,15 +259,22 @@ export function NonMovingNeedleSection({
                 <tbody className="divide-y divide-surface-border">
                   {paginatedItems.length > 0 ? (
                     paginatedItems.map((item, idx) => (
-                      <tr key={`${item.floorId}-${item.category}-${item.needleItemId}-${idx}`} className="hover:bg-slate-50/60">
+                      <tr
+                        key={`${item.floorId}-${item.category}-${item.needleItemId}-${idx}`}
+                        className="hover:bg-slate-50/60"
+                      >
                         <td className="py-2 px-2.5 font-medium text-ink">
                           {item.floorCode || item.floorName}
                         </td>
                         <td className="py-2 px-2.5 font-bold font-mono text-ink">
                           {item.itemCode}
                         </td>
-                        <td className="py-2 px-2.5 text-ink-muted truncate max-w-[140px]" title={`${item.needleType} (${item.brand})`}>
-                          {item.needleType} <span className="text-[10px] text-slate-400">({item.brand})</span>
+                        <td
+                          className="py-2 px-2.5 text-ink-muted truncate max-w-[140px]"
+                          title={`${item.needleType} (${item.brand})`}
+                        >
+                          {item.needleType}{' '}
+                          <span className="text-[10px] text-slate-400">({item.brand})</span>
                         </td>
                         <td className="py-2 px-2.5">
                           <span
@@ -261,7 +313,6 @@ export function NonMovingNeedleSection({
               </table>
             </div>
 
-            {/* Pagination Controls */}
             {totalPages > 1 && (
               <div className="px-3 py-2 border-t border-surface-border bg-slate-50 flex items-center justify-between text-xs">
                 <span className="text-ink-muted">

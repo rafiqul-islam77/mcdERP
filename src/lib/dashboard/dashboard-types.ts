@@ -1,5 +1,8 @@
 import type { DailyEntryCategory, Floor } from '@/types'
 
+export type DashboardGroupKey = 'NORMAL' | 'IDLE'
+export type NormalSubCategoryFilter = 'ALL_NORMAL' | 'RUNNING' | 'NEW'
+
 export interface DashboardFilters {
   date: string // YYYY-MM-DD
   floorId: string // 'all' or specific floor UUID
@@ -8,14 +11,37 @@ export interface DashboardFilters {
   year: number // e.g. 2026
 }
 
-export interface DashboardKPIData {
+export interface FacilityKPIData {
   needleBoothCount: number | null // null indicates "Not Available"
   manpowerCount: number | null // null indicates "Not Available"
-  todayReceive: number
+}
+
+export interface NormalKPIData {
+  runningStock: number
+  newStock: number
+  totalNormalStock: number
+  todayReceived: number
+  todayRunningReceived: number
+  todayNewReceived: number
   todayDelivery: number
-  monthlyReceive: number
+  todayRunningDelivery: number
+  todayNewDelivery: number
+  monthlyReceived: number
+  monthlyRunningReceived: number
+  monthlyNewReceived: number
   monthlyDelivery: number
-  totalStockQty: number
+  monthlyRunningDelivery: number
+  monthlyNewDelivery: number
+}
+
+export interface IdleKPIData {
+  totalIdleStock: number
+  todayReceived: number
+  todayDelivery: number
+  monthlyReceived: number
+  monthlyDelivery: number
+  activeIdleFloorsCount: number
+  totalAuthorizedFloorsCount: number
 }
 
 export interface FloorReceiveDeliveryItem {
@@ -27,7 +53,7 @@ export interface FloorReceiveDeliveryItem {
 }
 
 export interface CategoryFloorActivity {
-  category: DailyEntryCategory
+  category: DailyEntryCategory | 'NORMAL'
   items: FloorReceiveDeliveryItem[]
   totalReceived: number
   totalDelivery: number
@@ -41,18 +67,26 @@ export interface FloorStockItem {
 }
 
 export interface CategoryFloorStock {
-  category: DailyEntryCategory
+  category: DailyEntryCategory | 'NORMAL'
   items: FloorStockItem[]
   totalStock: number
 }
 
 export interface MonthlyClosingStockPoint {
   monthString: string // e.g. "2026-05"
-  monthLabel: string // e.g. "May 2026"
+  monthLabel: string // e.g. "May '26"
   runningStock: number
   newStock: number
+  normalTotalStock: number // runningStock + newStock (never includes idle)
   idleStock: number
-  totalStock: number
+  runningReceived: number
+  runningDelivery: number
+  newReceived: number
+  newDelivery: number
+  normalReceived: number // runningReceived + newReceived
+  normalDelivery: number // runningDelivery + newDelivery
+  idleReceived: number
+  idleDelivery: number
 }
 
 export interface NonMovingNeedleItem {
@@ -70,36 +104,52 @@ export interface NonMovingNeedleItem {
   daysWithoutMovement: number
 }
 
-export interface StockDistributionItem {
-  category: DailyEntryCategory
+export interface DistributionSlice {
+  key: string
   label: string
   quantity: number
   percentage: number
   color: string
 }
 
-export interface DashboardData {
-  filters: DashboardFilters
-  kpis: DashboardKPIData
+export interface NormalDashboardGroupData {
+  kpis: NormalKPIData
   dailyActivity: {
     RUNNING: CategoryFloorActivity
     NEW: CategoryFloorActivity
-    IDLE: CategoryFloorActivity
+    combined: CategoryFloorActivity
   }
   monthlyActivity: {
     RUNNING: CategoryFloorActivity
     NEW: CategoryFloorActivity
-    IDLE: CategoryFloorActivity
+    combined: CategoryFloorActivity
   }
   floorStock: {
     RUNNING: CategoryFloorStock
     NEW: CategoryFloorStock
-    IDLE: CategoryFloorStock
+    combined: CategoryFloorStock
   }
-  monthlyStockTrend: MonthlyClosingStockPoint[]
-  stockDistribution: StockDistributionItem[]
+  stockDistribution: DistributionSlice[]
   nonMovingItems: NonMovingNeedleItem[]
   nonMovingByFloor: { floorId: string; floorName: string; count: number }[]
+}
+
+export interface IdleDashboardGroupData {
+  kpis: IdleKPIData
+  dailyActivity: CategoryFloorActivity
+  monthlyActivity: CategoryFloorActivity
+  floorStock: CategoryFloorStock
+  stockDistributionByFloor: DistributionSlice[]
+  nonMovingItems: NonMovingNeedleItem[]
+  nonMovingByFloor: { floorId: string; floorName: string; count: number }[]
+}
+
+export interface DashboardData {
+  filters: DashboardFilters
+  facilityKpis: FacilityKPIData
+  normal: NormalDashboardGroupData
+  idle: IdleDashboardGroupData
+  monthlyStockTrend: MonthlyClosingStockPoint[]
   authorizedFloorIds: string[]
   authorizedCategories: DailyEntryCategory[]
   allAuthorizedFloors: Floor[]

@@ -3,21 +3,21 @@
 import * as React from 'react'
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
 } from 'recharts'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import type { MonthlyClosingStockPoint } from '@/lib/dashboard/dashboard-types'
 
 interface MonthlyStockChartProps {
   trendPoints: MonthlyClosingStockPoint[]
-  dataKey: 'runningStock' | 'newStock' | 'idleStock' | 'totalStock'
+  dataKey: 'runningStock' | 'newStock' | 'idleStock' | 'normalTotalStock'
   color?: string
-  gradientId: string
   height?: number
   categoryLabel?: string
 }
@@ -31,7 +31,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           {label} (Month-End Closing)
         </div>
         <div className="flex items-center justify-between gap-4">
-          <span className="text-slate-300">Closing Stock:</span>
+          <span className="flex items-center gap-1.5 text-slate-300">
+            <span
+              className="w-2.5 h-2.5 rounded-full inline-block"
+              style={{ backgroundColor: entry.color }}
+            />
+            Closing Stock:
+          </span>
           <span className="font-mono font-bold text-white">
             {Number(entry.value).toLocaleString()} PCS
           </span>
@@ -42,22 +48,25 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null
 }
 
+/**
+ * Distinct Line Graph displaying Month-End Closing Stock across 12 months.
+ * Features smooth curves, crisp strokes, and visible data point dots.
+ */
 export function MonthlyStockChart({
   trendPoints,
   dataKey,
-  color = '#3B82F6', // Blue
-  gradientId,
+  color = '#2563EB', // Royal Blue
   height = 260,
   categoryLabel = 'Needle',
 }: MonthlyStockChartProps) {
   const chartData = React.useMemo(() => {
     return trendPoints.map((pt) => ({
       name: pt.monthLabel,
-      Stock: pt[dataKey],
+      [categoryLabel]: pt[dataKey],
     }))
-  }, [trendPoints, dataKey])
+  }, [trendPoints, dataKey, categoryLabel])
 
-  const hasData = chartData.some((d) => d.Stock > 0)
+  const hasData = chartData.some((d) => Number(d[categoryLabel]) > 0)
 
   if (!hasData) {
     return (
@@ -73,39 +82,43 @@ export function MonthlyStockChart({
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart
+        <LineChart
           data={chartData}
-          margin={{ top: 10, right: 10, left: -15, bottom: 25 }}
+          margin={{ top: 10, right: 16, left: -12, bottom: 25 }}
         >
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={color} stopOpacity={0.4} />
-              <stop offset="95%" stopColor={color} stopOpacity={0.0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
           <XAxis
             dataKey="name"
-            tick={{ fontSize: 10, fill: '#64748B' }}
+            tick={{ fontSize: 10, fill: '#64748B', fontWeight: 500 }}
             interval="preserveStartEnd"
             angle={-25}
             textAnchor="end"
-            height={40}
+            height={42}
+            axisLine={{ stroke: '#CBD5E1' }}
+            tickLine={false}
           />
           <YAxis
             tick={{ fontSize: 10, fill: '#64748B' }}
             tickFormatter={(val) => (val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val)}
+            axisLine={false}
+            tickLine={false}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Area
-            type="monotone"
-            dataKey="Stock"
-            stroke={color}
-            strokeWidth={2.5}
-            fillOpacity={1}
-            fill={`url(#${gradientId})`}
+          <Legend
+            verticalAlign="top"
+            align="right"
+            iconType="plainline"
+            wrapperStyle={{ paddingBottom: '10px', fontSize: '11px', fontWeight: 600 }}
           />
-        </AreaChart>
+          <Line
+            type="monotone"
+            dataKey={categoryLabel}
+            stroke={color}
+            strokeWidth={2.75}
+            dot={{ r: 4, strokeWidth: 2, fill: '#ffffff', stroke: color }}
+            activeDot={{ r: 6, strokeWidth: 2, fill: color, stroke: '#ffffff' }}
+          />
+        </LineChart>
       </ResponsiveContainer>
     </div>
   )
@@ -123,7 +136,7 @@ export function TotalMonthlyStockSummaryCard({
   borderColor = 'border-blue-200',
 }: {
   trendPoints: MonthlyClosingStockPoint[]
-  dataKey: 'runningStock' | 'newStock' | 'idleStock' | 'totalStock'
+  dataKey: 'runningStock' | 'newStock' | 'idleStock' | 'normalTotalStock'
   categoryLabel: string
   color?: string
   bgColor?: string
@@ -144,11 +157,11 @@ export function TotalMonthlyStockSummaryCard({
           TOTAL MONTH-WISE STOCK QTY (PCS)
         </span>
         <span className="text-xs text-ink-muted block mt-0.5">
-          {categoryLabel} closing balance as of {latest?.monthLabel || 'latest month'}
+          {categoryLabel} closing balance ({latest?.monthLabel || 'latest month'})
         </span>
 
         <div className="my-4">
-          <div className="text-3xl font-black text-ink tracking-tight font-mono">
+          <div className={`text-3xl font-black tracking-tight font-mono ${color}`}>
             {latestVal.toLocaleString()}
           </div>
           <span className="text-xs font-bold text-ink-muted">CLOSING BALANCE PCS</span>
