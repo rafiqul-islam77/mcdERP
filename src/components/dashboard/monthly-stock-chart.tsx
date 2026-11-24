@@ -5,18 +5,23 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
+  LabelList,
 } from 'recharts'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import type { MonthlyClosingStockPoint } from '@/lib/dashboard/dashboard-types'
+import { formatCompactChartNumber } from './chart-formatters'
 
 interface MonthlyStockChartProps {
   trendPoints: MonthlyClosingStockPoint[]
   dataKey: 'runningStock' | 'newStock' | 'idleStock' | 'normalTotalStock'
+  chartType?: 'line' | 'area'
   color?: string
   height?: number
   categoryLabel?: string
@@ -49,16 +54,20 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 /**
- * Distinct Line Graph displaying Month-End Closing Stock across 12 months.
- * Features smooth curves, crisp strokes, and visible data point dots.
+ * Supports both Smooth Line Chart (with distinct markers & data labels)
+ * and Area Chart (with subtle gradient fill & markers) for Month-End Closing Stock.
  */
 export function MonthlyStockChart({
   trendPoints,
   dataKey,
-  color = '#2563EB', // Royal Blue
-  height = 260,
+  chartType = 'line',
+  color = '#2563EB',
+  height = 270,
   categoryLabel = 'Needle',
 }: MonthlyStockChartProps) {
+  const uid = React.useId().replace(/:/g, '')
+  const gradId = `monthlyStockArea-${uid}`
+
   const chartData = React.useMemo(() => {
     return trendPoints.map((pt) => ({
       name: pt.monthLabel,
@@ -79,21 +88,84 @@ export function MonthlyStockChart({
     )
   }
 
+  if (chartType === 'area') {
+    return (
+      <div style={{ width: '100%', height }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart
+            data={chartData}
+            margin={{ top: 22, right: 18, left: -10, bottom: 26 }}
+          >
+            <defs>
+              <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={color} stopOpacity={0.38} />
+                <stop offset="95%" stopColor={color} stopOpacity={0.03} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+            <XAxis
+              dataKey="name"
+              tick={{ fontSize: 10, fill: '#475569', fontWeight: 600 }}
+              interval="preserveStartEnd"
+              angle={-25}
+              textAnchor="end"
+              height={44}
+              axisLine={{ stroke: '#CBD5E1' }}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fontSize: 10, fill: '#64748B' }}
+              tickFormatter={(val) => (val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val)}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend
+              verticalAlign="top"
+              align="right"
+              iconType="circle"
+              iconSize={8}
+              wrapperStyle={{ paddingBottom: '12px', fontSize: '11px', fontWeight: 600 }}
+            />
+            <Area
+              type="monotone"
+              dataKey={categoryLabel}
+              stroke={color}
+              strokeWidth={2.5}
+              fillOpacity={1}
+              fill={`url(#${gradId})`}
+              dot={{ r: 3.5, strokeWidth: 2, fill: '#ffffff', stroke: color }}
+              activeDot={{ r: 6, strokeWidth: 2, fill: color, stroke: '#ffffff' }}
+            >
+              <LabelList
+                dataKey={categoryLabel}
+                position="top"
+                offset={8}
+                formatter={formatCompactChartNumber}
+                style={{ fontSize: '9.5px', fontWeight: 700, fill: color }}
+              />
+            </Area>
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    )
+  }
+
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={chartData}
-          margin={{ top: 10, right: 16, left: -12, bottom: 25 }}
+          margin={{ top: 22, right: 18, left: -10, bottom: 26 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
           <XAxis
             dataKey="name"
-            tick={{ fontSize: 10, fill: '#64748B', fontWeight: 500 }}
+            tick={{ fontSize: 10, fill: '#475569', fontWeight: 600 }}
             interval="preserveStartEnd"
             angle={-25}
             textAnchor="end"
-            height={42}
+            height={44}
             axisLine={{ stroke: '#CBD5E1' }}
             tickLine={false}
           />
@@ -108,16 +180,24 @@ export function MonthlyStockChart({
             verticalAlign="top"
             align="right"
             iconType="plainline"
-            wrapperStyle={{ paddingBottom: '10px', fontSize: '11px', fontWeight: 600 }}
+            wrapperStyle={{ paddingBottom: '12px', fontSize: '11px', fontWeight: 600 }}
           />
           <Line
             type="monotone"
             dataKey={categoryLabel}
             stroke={color}
-            strokeWidth={2.75}
-            dot={{ r: 4, strokeWidth: 2, fill: '#ffffff', stroke: color }}
-            activeDot={{ r: 6, strokeWidth: 2, fill: color, stroke: '#ffffff' }}
-          />
+            strokeWidth={3}
+            dot={{ r: 4.5, strokeWidth: 2, fill: '#ffffff', stroke: color }}
+            activeDot={{ r: 6.5, strokeWidth: 2, fill: color, stroke: '#ffffff' }}
+          >
+            <LabelList
+              dataKey={categoryLabel}
+              position="top"
+              offset={9}
+              formatter={formatCompactChartNumber}
+              style={{ fontSize: '9.5px', fontWeight: 700, fill: color }}
+            />
+          </Line>
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -151,7 +231,7 @@ export function TotalMonthlyStockSummaryCard({
   const diffPct = priorVal > 0 ? Math.round((diff / priorVal) * 1000) / 10 : 0
 
   return (
-    <div className="flex flex-col justify-between h-full p-4 rounded-erp border border-surface-border bg-slate-50/40">
+    <div className="flex flex-col justify-between h-full p-4 rounded-erp border border-surface-border bg-white/80">
       <div>
         <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider block">
           TOTAL MONTH-WISE STOCK QTY (PCS)

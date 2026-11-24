@@ -11,6 +11,7 @@ import {
   Activity,
   PackageCheck,
   ShieldAlert,
+  Disc,
 } from 'lucide-react'
 import type { DailyEntryCategory, Floor } from '@/types'
 import type {
@@ -32,12 +33,13 @@ import { FloorReceiveDeliveryChart } from './floor-receive-delivery-chart'
 import { ReceiveDeliveryPieChart } from './receive-delivery-donut'
 import { FloorStockChart, TotalFloorStockCard } from './floor-stock-chart'
 import { MonthlyStockChart, TotalMonthlyStockSummaryCard } from './monthly-stock-chart'
-import { MonthlyMovementAreaChart } from './monthly-movement-area-chart'
+import { MonthlyMovementComboChart } from './monthly-movement-combo-chart'
 import {
   TotalMonthlyStockChart,
   TotalMonthlyCombinedSummaryCard,
 } from './total-monthly-stock-chart'
 import { StockDistributionChart } from './stock-distribution-chart'
+import { StockRadialChart } from './stock-radial-chart'
 import { NonMovingNeedleSection } from './non-moving-needle-section'
 import { useDashboardRealtime } from './use-dashboard-realtime'
 
@@ -57,13 +59,11 @@ export function DashboardClient({
     return [parseInt(parts[0], 10), parseInt(parts[1], 10)]
   }, [initialDate])
 
-  // Determine authorized groups
   const hasRunningAccess = allowedCategories.includes('RUNNING')
   const hasNewAccess = allowedCategories.includes('NEW')
   const hasNormalAccess = hasRunningAccess || hasNewAccess
   const hasIdleAccess = allowedCategories.includes('IDLE')
 
-  // Default to NORMAL Needle if authorized, else IDLE
   const [activeGroup, setActiveGroup] = React.useState<DashboardGroupKey>(() =>
     hasNormalAccess ? 'NORMAL' : 'IDLE'
   )
@@ -75,8 +75,6 @@ export function DashboardClient({
       return 'NEW'
     })
 
-  // Note: category remains 'ALL' in server request so switching tabs or Normal sub-filters
-  // never triggers unnecessary full database reloads.
   const [filters, setFilters] = React.useState<DashboardFilters>({
     date: initialDate || new Date().toISOString().slice(0, 10),
     floorId: 'all',
@@ -89,7 +87,6 @@ export function DashboardClient({
   const [loading, setLoading] = React.useState<boolean>(true)
   const [error, setError] = React.useState<string | null>(null)
 
-  // Coordinated Data Loading Function
   const loadDashboard = React.useCallback(async (currentFilters: DashboardFilters) => {
     setLoading(true)
     setError(null)
@@ -108,12 +105,10 @@ export function DashboardClient({
     }
   }, [])
 
-  // Fetch when date, floorId, month, or year change
   React.useEffect(() => {
     loadDashboard(filters)
   }, [loadDashboard, filters])
 
-  // Realtime updates with 3s debounce
   useDashboardRealtime({
     enabled: true,
     onDataChange: () => {
@@ -148,13 +143,19 @@ export function DashboardClient({
     return `${months[filters.month - 1]} ${filters.year}`
   }, [filters.month, filters.year])
 
-  // Normal category visibility flags (strictly respecting role permissions & client sub-filter)
   const showRunning =
     hasRunningAccess &&
     (normalSubCategory === 'ALL_NORMAL' || normalSubCategory === 'RUNNING')
   const showNew =
     hasNewAccess &&
     (normalSubCategory === 'ALL_NORMAL' || normalSubCategory === 'NEW')
+
+  const normalRadialFloorItems = React.useMemo(() => {
+    if (!dashboardData) return []
+    if (normalSubCategory === 'RUNNING') return dashboardData.normal.floorStock.RUNNING.items
+    if (normalSubCategory === 'NEW') return dashboardData.normal.floorStock.NEW.items
+    return dashboardData.normal.floorStock.combined.items
+  }, [dashboardData, normalSubCategory])
 
   return (
     <div className="space-y-5">
@@ -172,7 +173,6 @@ export function DashboardClient({
         authorizedCategories={allowedCategories}
       />
 
-      {/* Error state */}
       {error && (
         <div className="p-3.5 rounded-erp bg-danger/10 border border-danger/30 text-danger text-xs flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -188,7 +188,6 @@ export function DashboardClient({
         </div>
       )}
 
-      {/* Unauthorized Fallback if user has no needle category permissions */}
       {!hasNormalAccess && !hasIdleAccess ? (
         <div className="bg-white border border-surface-border rounded-erp-lg p-10 text-center space-y-2">
           <ShieldAlert className="w-8 h-8 text-amber-500 mx-auto" />
@@ -209,7 +208,6 @@ export function DashboardClient({
           {/* ══════════════════════════════════════════════════════════════════ */}
           {activeGroup === 'NORMAL' && hasNormalAccess && (
             <div className="space-y-5" role="tabpanel" aria-label="Normal Needle Dashboard">
-              {/* Group Identity Header Strip */}
               <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-erp-lg px-4 py-2.5 shadow-xs flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <PackageCheck className="w-4 h-4 shrink-0" />
@@ -217,13 +215,13 @@ export function DashboardClient({
                     NORMAL NEEDLE DASHBOARD
                   </span>
                   <span className="text-[11px] text-blue-100 hidden sm:inline">
-                    • Regular &amp; New Needle Stock &amp; Transactions (Excludes Idle)
+                    • Running (Regular) &amp; New Needle Stock &amp; Transactions (Excludes Idle)
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] font-bold">
                   {showRunning && (
                     <span className="px-2 py-0.5 rounded-full bg-white/20 text-white">
-                      REGULAR
+                      RUNNING
                     </span>
                   )}
                   {showNew && (
@@ -234,7 +232,6 @@ export function DashboardClient({
                 </div>
               </div>
 
-              {/* Normal KPI Cards */}
               <NormalKPICards
                 kpis={dashboardData.normal.kpis}
                 selectedDate={filters.date}
@@ -243,25 +240,23 @@ export function DashboardClient({
                 showNew={showNew}
               />
 
-              {/* DAILY FLOOR-WISE RECEIVE & DELIVERY — RUNNING */}
+              {/* 1. TODAY — REGULAR */}
               {showRunning && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2">
                     <DashboardSection
                       title="TODAY FLOOR-WISE RECEIVE & DELIVERY (REGULAR NEEDLE)"
-                      subtitle={`Grouped bar comparison for ${filters.date}`}
+                      subtitle={`Floor-wise transactions • ${filters.date}`}
                       icon={<BarChart3 className="w-4 h-4 text-blue-600" />}
                       accentColor="border-l-blue-600"
-                      badge={
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 uppercase">
-                          REGULAR
-                        </span>
-                      }
+                      headerTone="blue"
+                      containerVariant="default"
                     >
                       <FloorReceiveDeliveryChart
                         items={dashboardData.normal.dailyActivity.RUNNING.items}
                         receivedColor="#10B981"
                         deliveryColor="#2563EB"
+                        orientation="vertical"
                       />
                     </DashboardSection>
                   </div>
@@ -269,40 +264,41 @@ export function DashboardClient({
                   <div>
                     <DashboardSection
                       title="TOTAL RECEIVE & DELIVERY — REGULAR"
-                      subtitle="Activity mix (Pie Chart)"
+                      subtitle="Activity comparison"
                       icon={<PieChart className="w-4 h-4 text-blue-600" />}
-                      accentColor="border-l-blue-600"
+                      accentColor="border-l-cyan-500"
+                      headerTone="light"
+                      containerVariant="soft-blue"
                     >
                       <ReceiveDeliveryPieChart
                         totalReceived={dashboardData.normal.dailyActivity.RUNNING.totalReceived}
                         totalDelivery={dashboardData.normal.dailyActivity.RUNNING.totalDelivery}
                         receivedColor="#10B981"
                         deliveryColor="#2563EB"
+                        chartType="donut"
                       />
                     </DashboardSection>
                   </div>
                 </div>
               )}
 
-              {/* DAILY FLOOR-WISE RECEIVE & DELIVERY — NEW */}
+              {/* 2. TODAY — NEW */}
               {showNew && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2">
                     <DashboardSection
                       title="TODAY FLOOR-WISE RECEIVE & DELIVERY (NEW NEEDLE)"
-                      subtitle={`Grouped bar comparison for ${filters.date}`}
+                      subtitle={`Floor-wise transactions • ${filters.date}`}
                       icon={<BarChart3 className="w-4 h-4 text-purple-600" />}
                       accentColor="border-l-purple-600"
-                      badge={
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 uppercase">
-                          NEW NEEDLE
-                        </span>
-                      }
+                      headerTone="purple"
+                      containerVariant="soft-purple"
                     >
                       <FloorReceiveDeliveryChart
                         items={dashboardData.normal.dailyActivity.NEW.items}
-                        receivedColor="#10B981"
-                        deliveryColor="#2563EB"
+                        receivedColor="#8B5CF6"
+                        deliveryColor="#EC4899"
+                        orientation="horizontal"
                       />
                     </DashboardSection>
                   </div>
@@ -310,40 +306,44 @@ export function DashboardClient({
                   <div>
                     <DashboardSection
                       title="TOTAL RECEIVE & DELIVERY — NEW"
-                      subtitle="Activity mix (Pie Chart)"
+                      subtitle="Activity comparison"
                       icon={<PieChart className="w-4 h-4 text-purple-600" />}
                       accentColor="border-l-purple-600"
+                      headerTone="light"
+                      containerVariant="default"
                     >
                       <ReceiveDeliveryPieChart
                         totalReceived={dashboardData.normal.dailyActivity.NEW.totalReceived}
                         totalDelivery={dashboardData.normal.dailyActivity.NEW.totalDelivery}
-                        receivedColor="#10B981"
-                        deliveryColor="#2563EB"
+                        receivedColor="#8B5CF6"
+                        deliveryColor="#EC4899"
+                        chartType="donut"
                       />
                     </DashboardSection>
                   </div>
                 </div>
               )}
 
-              {/* MONTHLY FLOOR-WISE RECEIVE & DELIVERY — RUNNING */}
+              {/* 3. MONTHLY — REGULAR */}
               {showRunning && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2">
                     <DashboardSection
                       title="MONTH & FLOOR-WISE RECEIVE & DELIVERY (REGULAR NEEDLE)"
-                      subtitle={`Monthly totals for ${selectedMonthLabel}`}
-                      icon={<BarChart3 className="w-4 h-4 text-blue-600" />}
-                      accentColor="border-l-blue-600"
-                      badge={
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 uppercase">
-                          MONTHLY REGULAR
-                        </span>
-                      }
+                      subtitle={`Monthly totals • ${selectedMonthLabel}`}
+                      icon={<BarChart3 className="w-4 h-4 text-indigo-600" />}
+                      accentColor="border-l-indigo-600"
+                      headerTone="indigo"
+                      containerVariant="soft-blue"
                     >
                       <FloorReceiveDeliveryChart
                         items={dashboardData.normal.monthlyActivity.RUNNING.items}
-                        receivedColor="#10B981"
-                        deliveryColor="#2563EB"
+                        receivedColor="#06B6D4"
+                        receivedGradientTo="#0891B2"
+                        deliveryColor="#4F46E5"
+                        deliveryGradientTo="#3730A3"
+                        orientation="vertical"
+                        useGradient={true}
                       />
                     </DashboardSection>
                   </div>
@@ -351,40 +351,44 @@ export function DashboardClient({
                   <div>
                     <DashboardSection
                       title="TOTAL MONTHLY RECEIVE & DELIVERY — REGULAR"
-                      subtitle={`${selectedMonthLabel} (Pie Chart)`}
-                      icon={<PieChart className="w-4 h-4 text-blue-600" />}
-                      accentColor="border-l-blue-600"
+                      subtitle={selectedMonthLabel}
+                      icon={<PieChart className="w-4 h-4 text-indigo-600" />}
+                      accentColor="border-l-indigo-600"
+                      headerTone="light"
+                      containerVariant="default"
                     >
                       <ReceiveDeliveryPieChart
                         totalReceived={dashboardData.normal.monthlyActivity.RUNNING.totalReceived}
                         totalDelivery={dashboardData.normal.monthlyActivity.RUNNING.totalDelivery}
-                        receivedColor="#10B981"
-                        deliveryColor="#2563EB"
+                        receivedColor="#06B6D4"
+                        deliveryColor="#4F46E5"
+                        chartType="pie"
                       />
                     </DashboardSection>
                   </div>
                 </div>
               )}
 
-              {/* MONTHLY FLOOR-WISE RECEIVE & DELIVERY — NEW */}
+              {/* 4. MONTHLY — NEW */}
               {showNew && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2">
                     <DashboardSection
                       title="MONTH & FLOOR-WISE RECEIVE & DELIVERY (NEW NEEDLE)"
-                      subtitle={`Monthly totals for ${selectedMonthLabel}`}
+                      subtitle={`Monthly totals • ${selectedMonthLabel}`}
                       icon={<BarChart3 className="w-4 h-4 text-purple-600" />}
                       accentColor="border-l-purple-600"
-                      badge={
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 uppercase">
-                          MONTHLY NEW
-                        </span>
-                      }
+                      headerTone="purple"
+                      containerVariant="default"
                     >
                       <FloorReceiveDeliveryChart
                         items={dashboardData.normal.monthlyActivity.NEW.items}
-                        receivedColor="#10B981"
-                        deliveryColor="#2563EB"
+                        receivedColor="#F59E0B"
+                        receivedGradientTo="#D97706"
+                        deliveryColor="#7C3AED"
+                        deliveryGradientTo="#5B21B6"
+                        orientation="horizontal"
+                        useGradient={true}
                       />
                     </DashboardSection>
                   </div>
@@ -392,35 +396,43 @@ export function DashboardClient({
                   <div>
                     <DashboardSection
                       title="TOTAL MONTHLY RECEIVE & DELIVERY — NEW"
-                      subtitle={`${selectedMonthLabel} (Pie Chart)`}
+                      subtitle={selectedMonthLabel}
                       icon={<PieChart className="w-4 h-4 text-purple-600" />}
-                      accentColor="border-l-purple-600"
+                      accentColor="border-l-amber-500"
+                      headerTone="light"
+                      containerVariant="soft-purple"
                     >
                       <ReceiveDeliveryPieChart
                         totalReceived={dashboardData.normal.monthlyActivity.NEW.totalReceived}
                         totalDelivery={dashboardData.normal.monthlyActivity.NEW.totalDelivery}
-                        receivedColor="#10B981"
-                        deliveryColor="#2563EB"
+                        receivedColor="#F59E0B"
+                        deliveryColor="#7C3AED"
+                        chartType="pie"
                       />
                     </DashboardSection>
                   </div>
                 </div>
               )}
 
-              {/* FLOOR-WISE STOCK QTY — RUNNING */}
+              {/* 5. FLOOR-WISE STOCK — REGULAR & NEW */}
               {showRunning && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2">
                     <DashboardSection
                       title="FLOOR-WISE STOCK QTY (REGULAR)"
-                      subtitle={`Closing balance as of ${filters.date}`}
+                      subtitle={`Closing stock by floor • ${filters.date}`}
                       icon={<Boxes className="w-4 h-4 text-blue-600" />}
                       accentColor="border-l-blue-600"
+                      headerTone="blue"
+                      containerVariant="soft-blue"
                     >
                       <FloorStockChart
                         items={dashboardData.normal.floorStock.RUNNING.items}
                         color="#2563EB"
-                        categoryLabel="Regular Needle"
+                        gradientToColor="#06B6D4"
+                        orientation="horizontal"
+                        useGradient={true}
+                        categoryLabel="Running Needle"
                       />
                     </DashboardSection>
                   </div>
@@ -430,6 +442,8 @@ export function DashboardClient({
                       title="TOTAL FLOOR-WISE STOCK QTY (PCS)"
                       subtitle="Regular stock summary"
                       accentColor="border-l-blue-600"
+                      headerTone="light"
+                      containerVariant="default"
                     >
                       <TotalFloorStockCard
                         totalStock={dashboardData.normal.floorStock.RUNNING.totalStock}
@@ -444,19 +458,23 @@ export function DashboardClient({
                 </div>
               )}
 
-              {/* FLOOR-WISE STOCK QTY — NEW */}
               {showNew && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2">
                     <DashboardSection
                       title="FLOOR-WISE STOCK QTY (NEW)"
-                      subtitle={`Closing balance as of ${filters.date}`}
+                      subtitle={`Closing stock by floor • ${filters.date}`}
                       icon={<Boxes className="w-4 h-4 text-purple-600" />}
                       accentColor="border-l-purple-600"
+                      headerTone="purple"
+                      containerVariant="soft-purple"
                     >
                       <FloorStockChart
                         items={dashboardData.normal.floorStock.NEW.items}
                         color="#8B5CF6"
+                        gradientToColor="#EC4899"
+                        orientation="vertical"
+                        useGradient={true}
                         categoryLabel="New Needle"
                       />
                     </DashboardSection>
@@ -467,6 +485,8 @@ export function DashboardClient({
                       title="TOTAL FLOOR-WISE STOCK QTY (PCS)"
                       subtitle="New needle stock summary"
                       accentColor="border-l-purple-600"
+                      headerTone="light"
+                      containerVariant="default"
                     >
                       <TotalFloorStockCard
                         totalStock={dashboardData.normal.floorStock.NEW.totalStock}
@@ -481,19 +501,22 @@ export function DashboardClient({
                 </div>
               )}
 
-              {/* MONTH-WISE STOCK QTY — RUNNING (LINE GRAPH) */}
+              {/* 6. MONTH-WISE STOCK — REGULAR & NEW */}
               {showRunning && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2">
                     <DashboardSection
                       title="MONTH-WISE STOCK QTY (REGULAR)"
-                      subtitle="12-Month closing stock balance trend (Line Graph)"
+                      subtitle="12-Month closing stock balance trend"
                       icon={<TrendingUp className="w-4 h-4 text-blue-600" />}
                       accentColor="border-l-blue-600"
+                      headerTone="blue"
+                      containerVariant="default"
                     >
                       <MonthlyStockChart
                         trendPoints={dashboardData.monthlyStockTrend}
                         dataKey="runningStock"
+                        chartType="line"
                         color="#2563EB"
                         categoryLabel="Regular Needle"
                       />
@@ -505,6 +528,8 @@ export function DashboardClient({
                       title="TOTAL MONTH-WISE STOCK QTY (PCS)"
                       subtitle="Latest month closing"
                       accentColor="border-l-blue-600"
+                      headerTone="light"
+                      containerVariant="soft-blue"
                     >
                       <TotalMonthlyStockSummaryCard
                         trendPoints={dashboardData.monthlyStockTrend}
@@ -519,19 +544,21 @@ export function DashboardClient({
                 </div>
               )}
 
-              {/* MONTH-WISE STOCK QTY — NEW (LINE GRAPH) */}
               {showNew && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2">
                     <DashboardSection
                       title="MONTH-WISE STOCK QTY (NEW)"
-                      subtitle="12-Month closing stock balance trend (Line Graph)"
+                      subtitle="12-Month closing stock balance trend"
                       icon={<TrendingUp className="w-4 h-4 text-purple-600" />}
                       accentColor="border-l-purple-600"
+                      headerTone="purple"
+                      containerVariant="soft-purple"
                     >
                       <MonthlyStockChart
                         trendPoints={dashboardData.monthlyStockTrend}
                         dataKey="newStock"
+                        chartType="area"
                         color="#8B5CF6"
                         categoryLabel="New Needle"
                       />
@@ -543,6 +570,8 @@ export function DashboardClient({
                       title="TOTAL MONTH-WISE STOCK QTY (PCS)"
                       subtitle="Latest month closing"
                       accentColor="border-l-purple-600"
+                      headerTone="light"
+                      containerVariant="default"
                     >
                       <TotalMonthlyStockSummaryCard
                         trendPoints={dashboardData.monthlyStockTrend}
@@ -557,14 +586,16 @@ export function DashboardClient({
                 </div>
               )}
 
-              {/* COMBINED NORMAL MONTH-WISE STOCK QTY (STACKED BAR — RUNNING + NEW ONLY) */}
+              {/* 7. COMBINED NORMAL MONTH-WISE STOCK */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2">
                   <DashboardSection
                     title="TOTAL NORMAL MONTH-WISE STOCK QTY"
-                    subtitle="Stacked comparison of Regular + New closing stock (Excludes Idle)"
+                    subtitle="Combined Regular + New closing stock (Excludes Idle)"
                     icon={<BarChart3 className="w-4 h-4 text-indigo-600" />}
                     accentColor="border-l-indigo-600"
+                    headerTone="indigo"
+                    containerVariant="neutral"
                   >
                     <TotalMonthlyStockChart
                       trendPoints={dashboardData.monthlyStockTrend}
@@ -580,6 +611,8 @@ export function DashboardClient({
                     title="TOTAL NORMAL MONTH-WISE STOCK (PCS)"
                     subtitle="Regular + New combined"
                     accentColor="border-l-indigo-600"
+                    headerTone="light"
+                    containerVariant="default"
                   >
                     <TotalMonthlyCombinedSummaryCard
                       trendPoints={dashboardData.monthlyStockTrend}
@@ -591,40 +624,58 @@ export function DashboardClient({
                 </div>
               </div>
 
-              {/* NORMAL MONTHLY MOVEMENT TREND (AREA GRAPH) + STOCK DISTRIBUTION (DONUT CHART) */}
+              {/* 8. NORMAL MONTHLY MOVEMENT & CLOSING STOCK */}
+              <DashboardSection
+                title="NORMAL MONTHLY MOVEMENT & CLOSING STOCK"
+                subtitle="Monthly Received & Delivered vs. Closing Stock balance"
+                icon={<Activity className="w-4 h-4 text-emerald-600" />}
+                accentColor="border-l-emerald-500"
+                headerTone="emerald"
+                containerVariant="soft-green"
+              >
+                <MonthlyMovementComboChart
+                  trendPoints={dashboardData.monthlyStockTrend}
+                  mode="NORMAL"
+                  normalSubCategory={normalSubCategory}
+                />
+              </DashboardSection>
+
+              {/* 9. NORMAL STOCK DISTRIBUTION + TOP FLOORS NORMAL STOCK */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <DashboardSection
-                  title="NORMAL MONTHLY MOVEMENT TREND"
-                  subtitle="12-Month Receive vs Delivered flow (Area Graph)"
-                  icon={<Activity className="w-4 h-4 text-emerald-600" />}
-                  accentColor="border-l-emerald-500"
-                >
-                  <MonthlyMovementAreaChart
-                    trendPoints={dashboardData.monthlyStockTrend}
-                    mode="NORMAL"
-                    normalSubCategory={normalSubCategory}
-                  />
-                </DashboardSection>
-
-                <DashboardSection
                   title="NORMAL STOCK DISTRIBUTION (REGULAR VS NEW)"
-                  subtitle={`Inventory mix as of ${filters.date} (Donut Chart)`}
+                  subtitle={`Inventory mix as of ${filters.date}`}
                   icon={<PieChart className="w-4 h-4 text-indigo-600" />}
                   accentColor="border-l-indigo-500"
+                  headerTone="indigo"
+                  containerVariant="default"
                 >
                   <StockDistributionChart
                     items={dashboardData.normal.stockDistribution}
                     centerLabel="Normal Stock"
                   />
                 </DashboardSection>
+
+                <DashboardSection
+                  title="TOP FLOORS NORMAL STOCK"
+                  subtitle={`Stock share across authorized floors (${filters.date})`}
+                  icon={<Disc className="w-4 h-4 text-cyan-600" />}
+                  accentColor="border-l-cyan-500"
+                  headerTone="blue"
+                  containerVariant="soft-blue"
+                >
+                  <StockRadialChart items={normalRadialFloorItems} />
+                </DashboardSection>
               </div>
 
-              {/* NORMAL NON-MOVING ITEMS — 02 MONTH */}
+              {/* 10. NORMAL NON-MOVING ITEMS */}
               <DashboardSection
                 title="NORMAL NEEDLE — FLOOR-WISE NOT MOVING ITEM (02 MONTH)"
-                subtitle={`Normal Needle items with balance > 0 and no qualifying movement for >= 60 days as of ${filters.date}`}
+                subtitle={`Items with stock > 0 and no qualifying movement for >= 60 days as of ${filters.date}`}
                 icon={<Clock className="w-4 h-4 text-rose-600" />}
                 accentColor="border-l-rose-500"
+                headerTone="rose"
+                containerVariant="default"
                 badge={
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
                     {dashboardData.normal.nonMovingItems.length} NORMAL ITEMS
@@ -647,7 +698,6 @@ export function DashboardClient({
           {/* ══════════════════════════════════════════════════════════════════ */}
           {activeGroup === 'IDLE' && hasIdleAccess && (
             <div className="space-y-5" role="tabpanel" aria-label="Idle Needle Dashboard">
-              {/* Group Identity Header Strip */}
               <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-teal-600 text-white rounded-erp-lg px-4 py-2.5 shadow-xs flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 shrink-0" />
@@ -663,23 +713,24 @@ export function DashboardClient({
                 </span>
               </div>
 
-              {/* Idle KPI Cards */}
               <IdleKPICards
                 kpis={dashboardData.idle.kpis}
                 selectedDate={filters.date}
                 selectedMonthLabel={selectedMonthLabel}
               />
 
-              {/* DAILY FLOOR-WISE RECEIVE & DELIVERY — IDLE */}
+              {/* 1. IDLE TODAY */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2">
                   <DashboardSection
                     title="TODAY FLOOR-WISE RECEIVE & DELIVERY (IDLE NEEDLE)"
-                    subtitle={`Grouped bar comparison for ${filters.date}`}
+                    subtitle={`Floor-wise transactions • ${filters.date}`}
                     icon={<BarChart3 className="w-4 h-4 text-teal-600" />}
                     accentColor="border-l-teal-600"
+                    headerTone="teal"
+                    containerVariant="soft-teal"
                     badge={
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 uppercase">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-600 text-white uppercase">
                         IDLE NEEDLE
                       </span>
                     }
@@ -688,6 +739,7 @@ export function DashboardClient({
                       items={dashboardData.idle.dailyActivity.items}
                       receivedColor="#0D9488"
                       deliveryColor="#F97316"
+                      orientation="vertical"
                     />
                   </DashboardSection>
                 </div>
@@ -695,38 +747,47 @@ export function DashboardClient({
                 <div>
                   <DashboardSection
                     title="TOTAL RECEIVE & DELIVERY — IDLE"
-                    subtitle="Activity mix (Pie Chart)"
+                    subtitle="Activity comparison"
                     icon={<PieChart className="w-4 h-4 text-amber-600" />}
                     accentColor="border-l-amber-500"
+                    headerTone="light"
+                    containerVariant="default"
                   >
                     <ReceiveDeliveryPieChart
                       totalReceived={dashboardData.idle.dailyActivity.totalReceived}
                       totalDelivery={dashboardData.idle.dailyActivity.totalDelivery}
                       receivedColor="#0D9488"
                       deliveryColor="#F97316"
+                      chartType="donut"
                     />
                   </DashboardSection>
                 </div>
               </div>
 
-              {/* MONTHLY FLOOR-WISE RECEIVE & DELIVERY — IDLE */}
+              {/* 2. IDLE MONTHLY */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2">
                   <DashboardSection
                     title="MONTH & FLOOR-WISE RECEIVE & DELIVERY (IDLE NEEDLE)"
-                    subtitle={`Monthly totals for ${selectedMonthLabel}`}
+                    subtitle={`Monthly totals • ${selectedMonthLabel}`}
                     icon={<BarChart3 className="w-4 h-4 text-amber-600" />}
                     accentColor="border-l-amber-500"
+                    headerTone="amber"
+                    containerVariant="soft-amber"
                     badge={
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 uppercase">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-600 text-white uppercase">
                         MONTHLY IDLE
                       </span>
                     }
                   >
                     <FloorReceiveDeliveryChart
                       items={dashboardData.idle.monthlyActivity.items}
-                      receivedColor="#0D9488"
-                      deliveryColor="#F97316"
+                      receivedColor="#14B8A6"
+                      receivedGradientTo="#0F766E"
+                      deliveryColor="#F59E0B"
+                      deliveryGradientTo="#EA580C"
+                      orientation="horizontal"
+                      useGradient={true}
                     />
                   </DashboardSection>
                 </div>
@@ -734,32 +795,40 @@ export function DashboardClient({
                 <div>
                   <DashboardSection
                     title="TOTAL MONTHLY RECEIVE & DELIVERY — IDLE"
-                    subtitle={`${selectedMonthLabel} (Pie Chart)`}
+                    subtitle={selectedMonthLabel}
                     icon={<PieChart className="w-4 h-4 text-amber-600" />}
                     accentColor="border-l-amber-500"
+                    headerTone="light"
+                    containerVariant="default"
                   >
                     <ReceiveDeliveryPieChart
                       totalReceived={dashboardData.idle.monthlyActivity.totalReceived}
                       totalDelivery={dashboardData.idle.monthlyActivity.totalDelivery}
-                      receivedColor="#0D9488"
-                      deliveryColor="#F97316"
+                      receivedColor="#14B8A6"
+                      deliveryColor="#F59E0B"
+                      chartType="pie"
                     />
                   </DashboardSection>
                 </div>
               </div>
 
-              {/* FLOOR-WISE IDLE STOCK QTY */}
+              {/* 3. IDLE FLOOR-WISE STOCK */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2">
                   <DashboardSection
                     title="FLOOR-WISE STOCK QTY (IDLE)"
-                    subtitle={`Closing balance as of ${filters.date}`}
+                    subtitle={`Closing stock by floor • ${filters.date}`}
                     icon={<Boxes className="w-4 h-4 text-teal-600" />}
                     accentColor="border-l-teal-600"
+                    headerTone="teal"
+                    containerVariant="soft-teal"
                   >
                     <FloorStockChart
                       items={dashboardData.idle.floorStock.items}
                       color="#0D9488"
+                      gradientToColor="#06B6D4"
+                      orientation="vertical"
+                      useGradient={true}
                       categoryLabel="Idle Needle"
                     />
                   </DashboardSection>
@@ -770,6 +839,8 @@ export function DashboardClient({
                     title="TOTAL FLOOR-WISE IDLE STOCK (PCS)"
                     subtitle="Idle stock summary"
                     accentColor="border-l-teal-600"
+                    headerTone="light"
+                    containerVariant="default"
                   >
                     <TotalFloorStockCard
                       totalStock={dashboardData.idle.floorStock.totalStock}
@@ -783,18 +854,21 @@ export function DashboardClient({
                 </div>
               </div>
 
-              {/* MONTH-WISE IDLE STOCK QTY (LINE GRAPH) */}
+              {/* 4. IDLE MONTH-WISE STOCK */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2">
                   <DashboardSection
                     title="MONTH-WISE STOCK QTY (IDLE)"
-                    subtitle="12-Month Idle closing stock trend (Line Graph)"
+                    subtitle="12-Month Idle closing stock trend"
                     icon={<TrendingUp className="w-4 h-4 text-orange-600" />}
                     accentColor="border-l-orange-500"
+                    headerTone="amber"
+                    containerVariant="soft-amber"
                   >
                     <MonthlyStockChart
                       trendPoints={dashboardData.monthlyStockTrend}
                       dataKey="idleStock"
+                      chartType="area"
                       color="#F97316"
                       categoryLabel="Idle Needle"
                     />
@@ -806,6 +880,8 @@ export function DashboardClient({
                     title="TOTAL IDLE MONTH-WISE STOCK (PCS)"
                     subtitle="Latest month closing"
                     accentColor="border-l-orange-500"
+                    headerTone="light"
+                    containerVariant="default"
                   >
                     <TotalMonthlyStockSummaryCard
                       trendPoints={dashboardData.monthlyStockTrend}
@@ -819,25 +895,30 @@ export function DashboardClient({
                 </div>
               </div>
 
-              {/* IDLE MONTHLY MOVEMENT TREND (AREA GRAPH) + IDLE FLOOR STOCK DISTRIBUTION (DONUT CHART) */}
+              {/* 5. IDLE MONTHLY MOVEMENT & CLOSING STOCK */}
+              <DashboardSection
+                title="IDLE MONTHLY MOVEMENT & CLOSING STOCK"
+                subtitle="Monthly Idle Received & Delivered vs. Closing Stock balance"
+                icon={<Activity className="w-4 h-4 text-teal-600" />}
+                accentColor="border-l-teal-500"
+                headerTone="teal"
+                containerVariant="neutral"
+              >
+                <MonthlyMovementComboChart
+                  trendPoints={dashboardData.monthlyStockTrend}
+                  mode="IDLE"
+                />
+              </DashboardSection>
+
+              {/* 6. IDLE FLOOR DISTRIBUTION + TOP FLOORS IDLE STOCK */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <DashboardSection
-                  title="IDLE MONTHLY MOVEMENT TREND"
-                  subtitle="12-Month Idle Receive vs Delivered flow (Area Graph)"
-                  icon={<Activity className="w-4 h-4 text-teal-600" />}
-                  accentColor="border-l-teal-500"
-                >
-                  <MonthlyMovementAreaChart
-                    trendPoints={dashboardData.monthlyStockTrend}
-                    mode="IDLE"
-                  />
-                </DashboardSection>
-
-                <DashboardSection
                   title="IDLE STOCK DISTRIBUTION BY FLOOR"
-                  subtitle={`Floor share of Idle inventory as of ${filters.date} (Donut Chart)`}
+                  subtitle={`Floor share of Idle inventory as of ${filters.date}`}
                   icon={<PieChart className="w-4 h-4 text-amber-600" />}
                   accentColor="border-l-amber-500"
+                  headerTone="amber"
+                  containerVariant="default"
                 >
                   <StockDistributionChart
                     items={dashboardData.idle.stockDistributionByFloor}
@@ -845,14 +926,31 @@ export function DashboardClient({
                     emptyMessage="No positive Idle stock across authorized floors"
                   />
                 </DashboardSection>
+
+                <DashboardSection
+                  title="TOP FLOORS IDLE STOCK"
+                  subtitle={`Stock share across authorized floors (${filters.date})`}
+                  icon={<Disc className="w-4 h-4 text-teal-600" />}
+                  accentColor="border-l-teal-500"
+                  headerTone="teal"
+                  containerVariant="soft-teal"
+                >
+                  <StockRadialChart
+                    items={dashboardData.idle.floorStock.items}
+                    palette={['#0D9488', '#14B8A6', '#F97316', '#F59E0B', '#06B6D4', '#EA580C']}
+                    emptyMessage="No positive Idle floor stock available"
+                  />
+                </DashboardSection>
               </div>
 
-              {/* IDLE NON-MOVING ITEMS — 02 MONTH */}
+              {/* 7. IDLE NON-MOVING ITEMS */}
               <DashboardSection
                 title="IDLE NEEDLE — FLOOR-WISE NOT MOVING ITEM (02 MONTH)"
-                subtitle={`Idle Needle items with balance > 0 and no qualifying movement for >= 60 days as of ${filters.date}`}
+                subtitle={`Items with stock > 0 and no qualifying movement for >= 60 days as of ${filters.date}`}
                 icon={<Clock className="w-4 h-4 text-amber-600" />}
                 accentColor="border-l-amber-500"
+                headerTone="amber"
+                containerVariant="default"
                 badge={
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
                     {dashboardData.idle.nonMovingItems.length} IDLE ITEMS

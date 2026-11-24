@@ -14,22 +14,21 @@ interface ReceiveDeliveryPieChartProps {
   totalDelivery: number
   receivedColor?: string
   deliveryColor?: string
+  chartType?: 'donut' | 'pie'
   height?: number
-  receivedBadgeBg?: string
-  deliveryBadgeBg?: string
 }
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0]
     return (
-      <div className="bg-slate-900 text-white p-2 rounded-erp border border-slate-700 shadow-md text-xs space-y-1">
+      <div className="bg-slate-900 text-white p-2.5 rounded-erp border border-slate-700 shadow-lg text-xs space-y-1">
         <div className="flex items-center gap-1.5 font-bold">
           <span
             className="w-2.5 h-2.5 rounded-sm"
             style={{ backgroundColor: data.payload.fill }}
           />
-          <span>{data.name}</span>
+          <span>{data.name} (Activity Mix)</span>
         </div>
         <div className="font-mono text-white text-xs">
           {Number(data.value).toLocaleString()} PCS ({data.payload.percentage}%)
@@ -40,16 +39,47 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null
 }
 
+const renderPieLabel = ({
+  cx,
+  cy,
+  midAngle,
+  innerRadius,
+  outerRadius,
+  percent,
+}: any) => {
+  if (percent < 0.06) return null
+  const RADIAN = Math.PI / 180
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.56
+  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+  const y = cy + radius * Math.sin(-midAngle * RADIAN)
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#ffffff"
+      textAnchor="middle"
+      dominantBaseline="central"
+      fontSize={11}
+      fontWeight={800}
+    >
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  )
+}
+
 /**
- * Solid Pie Chart representing the relative Receive vs Delivered activity mix.
- * Visually distinct from Donut charts (solid slices with crisp white borders).
+ * Renders either a Thick-Ring Donut Chart (with central activity readout)
+ * or a Solid Pie Chart (with percentage slice labels) for Receive vs Delivered comparison.
+ * Explicitly framed as an Activity Mix comparison (not conserved inventory).
  */
 export function ReceiveDeliveryPieChart({
   totalReceived,
   totalDelivery,
   receivedColor = '#10B981', // Emerald Green
-  deliveryColor = '#2563EB', // Vibrant Blue
-  height = 240,
+  deliveryColor = '#2563EB', // Royal Blue
+  chartType = 'donut',
+  height = 260,
 }: ReceiveDeliveryPieChartProps) {
   const sum = totalReceived + totalDelivery
   const hasData = sum > 0
@@ -82,18 +112,20 @@ export function ReceiveDeliveryPieChart({
 
   return (
     <div className="flex flex-col items-center justify-between h-full" style={{ minHeight: height }}>
-      {/* Solid Pie Chart */}
-      <div style={{ width: '100%', height: height - 64 }}>
+      <div style={{ width: '100%', height: height - 66 }} className="relative">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Tooltip content={<CustomTooltip />} />
             <Pie
               data={chartData}
-              innerRadius={0}
-              outerRadius="82%"
+              innerRadius={chartType === 'donut' ? '56%' : 0}
+              outerRadius="84%"
+              paddingAngle={chartType === 'donut' ? 4 : 1}
               stroke="#ffffff"
               strokeWidth={2}
               dataKey="value"
+              label={chartType === 'pie' ? renderPieLabel : false}
+              labelLine={false}
             >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -101,11 +133,23 @@ export function ReceiveDeliveryPieChart({
             </Pie>
           </PieChart>
         </ResponsiveContainer>
+
+        {chartType === 'donut' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <span className="text-[9px] uppercase font-bold text-ink-muted tracking-wider">
+              Activity Mix
+            </span>
+            <span className="text-base font-black text-ink font-mono">
+              {sum.toLocaleString()}
+            </span>
+            <span className="text-[9px] font-semibold text-ink-muted">PCS</span>
+          </div>
+        )}
       </div>
 
-      {/* Legend / Metrics Footer with Exact Quantities & Percentages */}
+      {/* Metrics Footer with Exact Quantities & Percentages */}
       <div className="w-full grid grid-cols-2 gap-2 pt-2 border-t border-surface-border text-center">
-        <div className="p-1.5 rounded-erp bg-slate-50 border border-surface-border">
+        <div className="p-1.5 rounded-erp bg-white/80 border border-surface-border">
           <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-ink-muted">
             <span
               className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -119,7 +163,7 @@ export function ReceiveDeliveryPieChart({
           </div>
         </div>
 
-        <div className="p-1.5 rounded-erp bg-slate-50 border border-surface-border">
+        <div className="p-1.5 rounded-erp bg-white/80 border border-surface-border">
           <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-ink-muted">
             <span
               className="w-2.5 h-2.5 rounded-full shrink-0"

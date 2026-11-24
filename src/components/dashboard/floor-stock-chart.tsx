@@ -9,12 +9,18 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  LabelList,
 } from 'recharts'
 import type { FloorStockItem } from '@/lib/dashboard/dashboard-types'
+import { formatCompactChartNumber } from './chart-formatters'
 
 interface FloorStockChartProps {
   items: FloorStockItem[]
   color?: string
+  gradientToColor?: string
+  orientation?: 'vertical' | 'horizontal'
+  useGradient?: boolean
+  showDataLabels?: boolean
   height?: number
   categoryLabel?: string
 }
@@ -40,12 +46,23 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null
 }
 
+/**
+ * Floor-wise Stock Chart supporting both Horizontal Bar and Vertical Gradient Column layouts
+ * with direct PCS data labels on bars.
+ */
 export function FloorStockChart({
   items,
-  color = '#2563EB', // Royal Blue default
-  height = 260,
+  color = '#2563EB',
+  gradientToColor = '#06B6D4',
+  orientation = 'vertical',
+  useGradient = true,
+  showDataLabels = true,
+  height = 280,
   categoryLabel = 'Needle',
 }: FloorStockChartProps) {
+  const uid = React.useId().replace(/:/g, '')
+  const gradId = `floorStockGrad-${uid}`
+
   const chartData = React.useMemo(() => {
     return items.map((it) => ({
       name: it.floorCode || it.floorName,
@@ -67,21 +84,89 @@ export function FloorStockChart({
     )
   }
 
+  const barFill = useGradient ? `url(#${gradId})` : color
+
+  if (orientation === 'horizontal') {
+    const sorted = [...chartData].sort((a, b) => b.Stock - a.Stock)
+    const dynamicHeight = Math.max(height, sorted.length * 26 + 32)
+
+    return (
+      <div style={{ width: '100%', height: dynamicHeight }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={sorted}
+            layout="vertical"
+            margin={{ top: 6, right: 48, left: 6, bottom: 6 }}
+          >
+            {useGradient && (
+              <defs>
+                <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor={color} />
+                  <stop offset="100%" stopColor={gradientToColor} />
+                </linearGradient>
+              </defs>
+            )}
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
+            <XAxis
+              type="number"
+              tick={{ fontSize: 10, fill: '#64748B' }}
+              tickFormatter={(val) => (val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val)}
+              axisLine={{ stroke: '#CBD5E1' }}
+              tickLine={false}
+            />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={78}
+              tick={{ fontSize: 11, fill: '#475569', fontWeight: 600 }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(148, 163, 184, 0.12)' }} />
+            <Bar
+              dataKey="Stock"
+              fill={barFill}
+              radius={[0, 6, 6, 0]}
+              maxBarSize={18}
+            >
+              {showDataLabels && (
+                <LabelList
+                  dataKey="Stock"
+                  position="right"
+                  formatter={formatCompactChartNumber}
+                  style={{ fontSize: '10px', fontWeight: 700, fill: '#1E293B' }}
+                />
+              )}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    )
+  }
+
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={chartData}
-          margin={{ top: 10, right: 12, left: -12, bottom: 25 }}
+          margin={{ top: 22, right: 12, left: -12, bottom: 26 }}
         >
+          {useGradient && (
+            <defs>
+              <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} />
+                <stop offset="100%" stopColor={gradientToColor} />
+              </linearGradient>
+            </defs>
+          )}
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
           <XAxis
             dataKey="name"
-            tick={{ fontSize: 11, fill: '#64748B', fontWeight: 500 }}
+            tick={{ fontSize: 11, fill: '#475569', fontWeight: 600 }}
             interval={0}
             angle={-25}
             textAnchor="end"
-            height={42}
+            height={44}
             axisLine={{ stroke: '#CBD5E1' }}
             tickLine={false}
           />
@@ -94,10 +179,19 @@ export function FloorStockChart({
           <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(148, 163, 184, 0.12)' }} />
           <Bar
             dataKey="Stock"
-            fill={color}
-            radius={[5, 5, 0, 0]}
-            maxBarSize={38}
-          />
+            fill={barFill}
+            radius={[6, 6, 0, 0]}
+            maxBarSize={36}
+          >
+            {showDataLabels && (
+              <LabelList
+                dataKey="Stock"
+                position="top"
+                formatter={formatCompactChartNumber}
+                style={{ fontSize: '10px', fontWeight: 700, fill: '#1E293B' }}
+              />
+            )}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -125,7 +219,7 @@ export function TotalFloorStockCard({
   const avgPerFloor = floorCount > 0 ? Math.round(totalStock / floorCount) : 0
 
   return (
-    <div className="flex flex-col justify-between h-full p-4 rounded-erp border border-surface-border bg-slate-50/40">
+    <div className="flex flex-col justify-between h-full p-4 rounded-erp border border-surface-border bg-white/80">
       <div>
         <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider block">
           TOTAL FLOOR-WISE STOCK QTY (PCS)

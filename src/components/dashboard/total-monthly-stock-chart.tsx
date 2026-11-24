@@ -3,16 +3,19 @@
 import * as React from 'react'
 import {
   ResponsiveContainer,
-  BarChart,
+  ComposedChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
+  LabelList,
 } from 'recharts'
 import type { DailyEntryCategory } from '@/types'
 import type { MonthlyClosingStockPoint } from '@/lib/dashboard/dashboard-types'
+import { formatCompactChartNumber } from './chart-formatters'
 
 interface TotalNormalMonthlyStockChartProps {
   trendPoints: MonthlyClosingStockPoint[]
@@ -24,7 +27,8 @@ interface TotalNormalMonthlyStockChartProps {
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
-    const total = payload.reduce((sum: number, entry: any) => sum + Number(entry.value || 0), 0)
+    const row = payload[0]?.payload
+    const total = row?.NormalTotal ?? 0
     return (
       <div className="bg-slate-900 text-white p-2.5 rounded-erp border border-slate-700 shadow-lg text-xs space-y-1.5">
         <div className="font-bold border-b border-slate-800 pb-1 text-slate-200">
@@ -44,9 +48,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             </span>
           </div>
         ))}
-        <div className="border-t border-slate-700/80 pt-1 flex items-center justify-between font-bold text-emerald-400">
+        <div className="border-t border-slate-700/80 pt-1 flex items-center justify-between font-bold text-cyan-300">
           <span>Normal Combined Total:</span>
-          <span className="font-mono">{total.toLocaleString()} PCS</span>
+          <span className="font-mono">{Number(total).toLocaleString()} PCS</span>
         </div>
       </div>
     )
@@ -55,7 +59,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 /**
- * Stacked Bar Chart strictly for Normal Needle (RUNNING + NEW).
+ * Multi-Series Stacked Column + Combined Trend Line Chart for Normal Needle (RUNNING + NEW).
  * Never combines IDLE stock into Normal totals.
  */
 export function TotalMonthlyStockChart({
@@ -63,7 +67,7 @@ export function TotalMonthlyStockChart({
   authorizedCategories,
   showRunning = true,
   showNew = true,
-  height = 280,
+  height = 290,
 }: TotalNormalMonthlyStockChartProps) {
   const includeRunning = showRunning && authorizedCategories.includes('RUNNING')
   const includeNew = showNew && authorizedCategories.includes('NEW')
@@ -97,18 +101,18 @@ export function TotalMonthlyStockChart({
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart
+        <ComposedChart
           data={chartData}
-          margin={{ top: 10, right: 12, left: -12, bottom: 25 }}
+          margin={{ top: 22, right: 12, left: -12, bottom: 26 }}
         >
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
           <XAxis
             dataKey="name"
-            tick={{ fontSize: 10, fill: '#64748B', fontWeight: 500 }}
+            tick={{ fontSize: 10, fill: '#475569', fontWeight: 600 }}
             interval="preserveStartEnd"
             angle={-25}
             textAnchor="end"
-            height={42}
+            height={44}
             axisLine={{ stroke: '#CBD5E1' }}
             tickLine={false}
           />
@@ -124,13 +128,13 @@ export function TotalMonthlyStockChart({
             align="right"
             iconType="circle"
             iconSize={8}
-            wrapperStyle={{ paddingBottom: '10px', fontSize: '11px', fontWeight: 600 }}
+            wrapperStyle={{ paddingBottom: '12px', fontSize: '11px', fontWeight: 600 }}
           />
           {includeRunning && (
             <Bar
               dataKey="Regular"
               stackId="normalStockStack"
-              fill="#2563EB" // Royal Blue
+              fill="#2563EB"
               maxBarSize={34}
               radius={!includeNew ? [5, 5, 0, 0] : [0, 0, 0, 0]}
             />
@@ -139,12 +143,29 @@ export function TotalMonthlyStockChart({
             <Bar
               dataKey="New"
               stackId="normalStockStack"
-              fill="#8B5CF6" // Purple
+              fill="#8B5CF6"
               maxBarSize={34}
               radius={[5, 5, 0, 0]}
             />
           )}
-        </BarChart>
+          <Line
+            type="monotone"
+            dataKey="NormalTotal"
+            name="Combined Normal"
+            stroke="#06B6D4"
+            strokeWidth={2.5}
+            dot={{ r: 3.5, fill: '#ffffff', stroke: '#06B6D4', strokeWidth: 2 }}
+            activeDot={{ r: 5.5, fill: '#06B6D4', stroke: '#ffffff', strokeWidth: 2 }}
+          >
+            <LabelList
+              dataKey="NormalTotal"
+              position="top"
+              offset={9}
+              formatter={formatCompactChartNumber}
+              style={{ fontSize: '9.5px', fontWeight: 700, fill: '#0E7490' }}
+            />
+          </Line>
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   )
@@ -173,7 +194,7 @@ export function TotalMonthlyCombinedSummaryCard({
   const total = running + newStock
 
   return (
-    <div className="flex flex-col justify-between h-full p-4 rounded-erp border border-surface-border bg-slate-50/40">
+    <div className="flex flex-col justify-between h-full p-4 rounded-erp border border-surface-border bg-white/80">
       <div>
         <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider block">
           TOTAL NORMAL MONTH-WISE STOCK (PCS)
@@ -198,7 +219,7 @@ export function TotalMonthlyCombinedSummaryCard({
           <div className="flex items-center justify-between text-xs">
             <span className="flex items-center gap-1.5 text-ink-muted">
               <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-              Regular:
+              Regular (Running):
             </span>
             <span className="font-bold text-ink font-mono">{running.toLocaleString()} PCS</span>
           </div>
