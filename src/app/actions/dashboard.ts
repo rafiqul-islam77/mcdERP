@@ -3,9 +3,16 @@
 import { requireActiveAccount } from '@/lib/auth'
 import { requirePermission } from '@/lib/permissions'
 import { getAuthorizedContextAction } from '@/app/actions/daily-entry'
-import { getDashboardData } from '@/lib/dashboard/dashboard-data-service'
+import {
+  getDashboardData,
+  getDashboardFacilitySettings,
+} from '@/lib/dashboard/dashboard-data-service'
 import type { ActionResult } from '@/types'
-import type { DashboardData, DashboardFilters } from '@/lib/dashboard/dashboard-types'
+import type {
+  DashboardData,
+  DashboardFilters,
+  FacilityKPIData,
+} from '@/lib/dashboard/dashboard-types'
 
 /**
  * Server action to load the complete aggregated dashboard dataset.
@@ -49,6 +56,29 @@ export async function getDashboardDataAction(
     return {
       success: false,
       error: err.message || 'An unexpected error occurred while loading dashboard data.',
+    }
+  }
+}
+
+/**
+ * Lightweight server action to refresh only Dashboard General Information
+ * (Total Needle Booth & Total Manpower) without reloading charts/transactions.
+ */
+export async function getDashboardFacilityKpisAction(): Promise<ActionResult<FacilityKPIData>> {
+  try {
+    const actor = await requireActiveAccount()
+    await requirePermission(actor.profile.id, 'dashboard.view')
+
+    const facilityKpis = await getDashboardFacilitySettings()
+    return {
+      success: true,
+      data: facilityKpis,
+    }
+  } catch (err: any) {
+    console.error('[getDashboardFacilityKpisAction] error:', err)
+    return {
+      success: false,
+      error: err.message || 'Failed to refresh dashboard general settings.',
     }
   }
 }

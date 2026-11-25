@@ -386,7 +386,7 @@ export function TransferDetailsModal({
       isOpen={isOpen}
       onClose={handleClose}
       title={modalTitle}
-      description={`${needleLabel} • ${date} (${category})`}
+      description={`${needleLabel} • ${date} (${category === 'RUNNING' ? 'REGULAR' : category})`}
       maxWidth="md"
       footer={renderFooter()}
     >

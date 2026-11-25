@@ -9,26 +9,26 @@ import {
   Tooltip,
 } from 'recharts'
 
-interface ReceiveDeliveryDonutProps {
+interface ReceiveDeliveryPieChartProps {
   totalReceived: number
   totalDelivery: number
   receivedColor?: string
   deliveryColor?: string
+  chartType?: 'donut' | 'pie'
   height?: number
-  title?: string
 }
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0]
     return (
-      <div className="bg-slate-900 text-white p-2 rounded-erp border border-slate-700 shadow-md text-xs space-y-1">
+      <div className="bg-slate-900 text-white p-2.5 rounded-erp border border-slate-700 shadow-lg text-xs space-y-1">
         <div className="flex items-center gap-1.5 font-bold">
           <span
             className="w-2.5 h-2.5 rounded-sm"
             style={{ backgroundColor: data.payload.fill }}
           />
-          <span>{data.name}</span>
+          <span>{data.name} (Activity Mix)</span>
         </div>
         <div className="font-mono text-white text-xs">
           {Number(data.value).toLocaleString()} PCS ({data.payload.percentage}%)
@@ -39,13 +39,48 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null
 }
 
-export function ReceiveDeliveryDonut({
+const renderPieLabel = ({
+  cx,
+  cy,
+  midAngle,
+  innerRadius,
+  outerRadius,
+  percent,
+}: any) => {
+  if (percent < 0.06) return null
+  const RADIAN = Math.PI / 180
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.56
+  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+  const y = cy + radius * Math.sin(-midAngle * RADIAN)
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#ffffff"
+      textAnchor="middle"
+      dominantBaseline="central"
+      fontSize={11}
+      fontWeight={800}
+    >
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  )
+}
+
+/**
+ * Renders either a Thick-Ring Donut Chart (with central activity readout)
+ * or a Solid Pie Chart (with percentage slice labels) for Receive vs Delivered comparison.
+ * Explicitly framed as an Activity Mix comparison (not conserved inventory).
+ */
+export function ReceiveDeliveryPieChart({
   totalReceived,
   totalDelivery,
-  receivedColor = '#10B981', // Green
-  deliveryColor = '#F97316', // Orange
-  height = 240,
-}: ReceiveDeliveryDonutProps) {
+  receivedColor = '#10B981', // Emerald Green
+  deliveryColor = '#2563EB', // Royal Blue
+  chartType = 'donut',
+  height = 260,
+}: ReceiveDeliveryPieChartProps) {
   const sum = totalReceived + totalDelivery
   const hasData = sum > 0
 
@@ -72,19 +107,25 @@ export function ReceiveDeliveryDonut({
     )
   }
 
+  const recvPct = chartData[0]?.percentage ?? 0
+  const delPct = chartData[1]?.percentage ?? 0
+
   return (
     <div className="flex flex-col items-center justify-between h-full" style={{ minHeight: height }}>
-      {/* Chart */}
-      <div style={{ width: '100%', height: height - 60 }} className="relative">
+      <div style={{ width: '100%', height: height - 66 }} className="relative">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Tooltip content={<CustomTooltip />} />
             <Pie
               data={chartData}
-              innerRadius="58%"
-              outerRadius="82%"
-              paddingAngle={3}
+              innerRadius={chartType === 'donut' ? '56%' : 0}
+              outerRadius="84%"
+              paddingAngle={chartType === 'donut' ? 4 : 1}
+              stroke="#ffffff"
+              strokeWidth={2}
               dataKey="value"
+              label={chartType === 'pie' ? renderPieLabel : false}
+              labelLine={false}
             >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -93,40 +134,51 @@ export function ReceiveDeliveryDonut({
           </PieChart>
         </ResponsiveContainer>
 
-        {/* Center label */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="text-[10px] uppercase font-bold text-ink-muted tracking-wider">
-            Total Activity
-          </span>
-          <span className="text-base font-black text-ink">
-            {sum.toLocaleString()}
-          </span>
-          <span className="text-[9px] font-semibold text-ink-muted">PCS</span>
-        </div>
+        {chartType === 'donut' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <span className="text-[9px] uppercase font-bold text-ink-muted tracking-wider">
+              Activity Mix
+            </span>
+            <span className="text-base font-black text-ink font-mono">
+              {sum.toLocaleString()}
+            </span>
+            <span className="text-[9px] font-semibold text-ink-muted">PCS</span>
+          </div>
+        )}
       </div>
 
-      {/* Legend / Metrics Footer */}
+      {/* Metrics Footer with Exact Quantities & Percentages */}
       <div className="w-full grid grid-cols-2 gap-2 pt-2 border-t border-surface-border text-center">
-        <div className="p-1.5 rounded-erp bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30">
-          <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>RECEIVED</span>
+        <div className="p-1.5 rounded-erp bg-white/80 border border-surface-border">
+          <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-ink-muted">
+            <span
+              className="w-2.5 h-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: receivedColor }}
+            />
+            <span>RECEIVED ({recvPct}%)</span>
           </div>
           <div className="text-xs font-black text-ink mt-0.5 font-mono">
-            {totalReceived.toLocaleString()} <span className="text-[9px] font-normal text-ink-muted">PCS</span>
+            {totalReceived.toLocaleString()}{' '}
+            <span className="text-[9px] font-normal text-ink-muted">PCS</span>
           </div>
         </div>
 
-        <div className="p-1.5 rounded-erp bg-orange-50/60 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30">
-          <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-orange-700 dark:text-orange-400">
-            <span className="w-2 h-2 rounded-full bg-orange-500" />
-            <span>DELIVERED</span>
+        <div className="p-1.5 rounded-erp bg-white/80 border border-surface-border">
+          <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-ink-muted">
+            <span
+              className="w-2.5 h-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: deliveryColor }}
+            />
+            <span>DELIVERED ({delPct}%)</span>
           </div>
           <div className="text-xs font-black text-ink mt-0.5 font-mono">
-            {totalDelivery.toLocaleString()} <span className="text-[9px] font-normal text-ink-muted">PCS</span>
+            {totalDelivery.toLocaleString()}{' '}
+            <span className="text-[9px] font-normal text-ink-muted">PCS</span>
           </div>
         </div>
       </div>
     </div>
   )
 }
+
+export { ReceiveDeliveryPieChart as ReceiveDeliveryDonut }

@@ -5,11 +5,16 @@ import {
   MapPin,
   RefreshCw,
   LayoutDashboard,
-  Filter,
+  Clock,
+  PackageCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { DailyEntryCategory, Floor } from '@/types'
-import type { DashboardFilters } from '@/lib/dashboard/dashboard-types'
+import type {
+  DashboardFilters,
+  DashboardGroupKey,
+  NormalSubCategoryFilter,
+} from '@/lib/dashboard/dashboard-types'
 
 const MONTHS = [
   { value: 1, label: 'January' },
@@ -31,6 +36,10 @@ const YEARS = [2024, 2025, 2026, 2027]
 interface DashboardFiltersProps {
   filters: DashboardFilters
   onChange: (newFilters: DashboardFilters) => void
+  activeGroup: DashboardGroupKey
+  onGroupChange: (group: DashboardGroupKey) => void
+  normalSubCategory: NormalSubCategoryFilter
+  onNormalSubCategoryChange: (sub: NormalSubCategoryFilter) => void
   onRefresh: () => void
   loading: boolean
   allAuthorizedFloors: Floor[]
@@ -40,11 +49,20 @@ interface DashboardFiltersProps {
 export function DashboardFiltersBar({
   filters,
   onChange,
+  activeGroup,
+  onGroupChange,
+  normalSubCategory,
+  onNormalSubCategoryChange,
   onRefresh,
   loading,
   allAuthorizedFloors,
   authorizedCategories,
 }: DashboardFiltersProps) {
+  const hasRunning = authorizedCategories.includes('RUNNING')
+  const hasNew = authorizedCategories.includes('NEW')
+  const hasNormalAccess = hasRunning || hasNew
+  const hasIdleAccess = authorizedCategories.includes('IDLE')
+
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
     if (val) {
@@ -67,13 +85,6 @@ export function DashboardFiltersBar({
     })
   }
 
-  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onChange({
-      ...filters,
-      category: e.target.value as 'ALL' | DailyEntryCategory,
-    })
-  }
-
   const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     onChange({
       ...filters,
@@ -89,11 +100,17 @@ export function DashboardFiltersBar({
   }
 
   return (
-    <div className="bg-white border border-surface-border rounded-erp-lg p-4 shadow-xs space-y-3">
-      {/* Top Banner Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-surface-border/80">
+    <div className="bg-white border border-surface-border rounded-erp-lg p-4 shadow-xs space-y-3.5">
+      {/* Top Banner + Segmented Group Switcher */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-surface-border/80">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-blue-50 text-brand border border-blue-100 flex items-center justify-center shrink-0">
+          <div
+            className={`w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 transition-colors ${
+              activeGroup === 'NORMAL'
+                ? 'bg-blue-50 text-blue-600 border-blue-200'
+                : 'bg-amber-50 text-amber-600 border-amber-200'
+            }`}
+          >
             <LayoutDashboard className="w-5 h-5" />
           </div>
           <div>
@@ -101,18 +118,60 @@ export function DashboardFiltersBar({
               <span>GMS MCD ERP DASHBOARD</span>
             </h1>
             <p className="text-xs text-ink-muted">
-              Live needle inventory, transactions, floor metrics & management analytics.
+              Separated Normal Needle (Regular + New) &amp; Idle Needle inventory analytics.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Segmented Tabs + Refresh */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Group Tabs */}
+          <div
+            role="tablist"
+            aria-label="Dashboard Needle Group"
+            className="inline-flex p-1 rounded-erp-lg bg-slate-100 border border-surface-border gap-1 w-full sm:w-auto"
+          >
+            {hasNormalAccess && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeGroup === 'NORMAL'}
+                onClick={() => onGroupChange('NORMAL')}
+                className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-erp text-xs font-bold tracking-wide transition-all cursor-pointer ${
+                  activeGroup === 'NORMAL'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-ink-muted hover:text-ink hover:bg-white/60'
+                }`}
+              >
+                <PackageCheck className="w-3.5 h-3.5 shrink-0" />
+                <span>NORMAL NEEDLE (REGULAR + NEW)</span>
+              </button>
+            )}
+
+            {hasIdleAccess && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeGroup === 'IDLE'}
+                onClick={() => onGroupChange('IDLE')}
+                className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-erp text-xs font-bold tracking-wide transition-all cursor-pointer ${
+                  activeGroup === 'IDLE'
+                    ? 'bg-amber-500 text-white shadow-xs'
+                    : 'text-ink-muted hover:text-ink hover:bg-white/60'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <span>IDLE NEEDLE</span>
+              </button>
+            )}
+          </div>
+
           <Button
             size="sm"
             variant="outline"
             onClick={onRefresh}
             disabled={loading}
-            className="text-xs font-semibold gap-1.5 h-8 border-brand/30 text-brand hover:bg-brand/10"
+            className="text-xs font-semibold gap-1.5 h-8 border-brand/30 text-brand hover:bg-brand/10 ml-auto sm:ml-0"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
@@ -121,7 +180,7 @@ export function DashboardFiltersBar({
       </div>
 
       {/* Filter Selectors Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-1">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-0.5">
         {/* Date Filter */}
         <div>
           <label className="block text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-1">
@@ -162,30 +221,36 @@ export function DashboardFiltersBar({
           </div>
         </div>
 
-        {/* Category Filter */}
+        {/* Group-Scoped Category Filter (Client-Side Instant Switch) */}
         <div>
           <label className="block text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-1">
-            Category
+            Category View
           </label>
           <div className="relative">
             <Layers className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
-            <select
-              value={filters.category}
-              onChange={handleCategoryChange}
-              disabled={loading}
-              className="w-full text-xs font-semibold pl-8 pr-2 py-1.5 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
-            >
-              <option value="ALL">All Categories</option>
-              {authorizedCategories.includes('RUNNING') && (
-                <option value="RUNNING">Running / Regular</option>
-              )}
-              {authorizedCategories.includes('NEW') && (
-                <option value="NEW">New Needle</option>
-              )}
-              {authorizedCategories.includes('IDLE') && (
-                <option value="IDLE">Idle Needle</option>
-              )}
-            </select>
+            {activeGroup === 'NORMAL' ? (
+              <select
+                value={normalSubCategory}
+                onChange={(e) =>
+                  onNormalSubCategoryChange(e.target.value as NormalSubCategoryFilter)
+                }
+                className="w-full text-xs font-semibold pl-8 pr-2 py-1.5 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand"
+              >
+                {hasRunning && hasNew && (
+                  <option value="ALL_NORMAL">All Normal (Regular + New)</option>
+                )}
+                {hasRunning && <option value="RUNNING">Regular Only</option>}
+                {hasNew && <option value="NEW">New Needle Only</option>}
+              </select>
+            ) : (
+              <select
+                value="IDLE"
+                disabled
+                className="w-full text-xs font-semibold pl-8 pr-2 py-1.5 rounded-erp border border-amber-200 bg-amber-50/50 text-amber-800 cursor-not-allowed"
+              >
+                <option value="IDLE">Idle Needle Only</option>
+              </select>
+            )}
           </div>
         </div>
 

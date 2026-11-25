@@ -44,9 +44,89 @@ export function SystemSettingsClient({ initialSettings, canEdit }: SystemSetting
     getInitialValue('daily_report.idle.version_no', 'daily_report.version_no', '01/2026')
   )
 
+  // DASHBOARD GENERAL INFORMATION
+  const getInitialRawValue = (key: string) => {
+    const direct = initialSettings.find((item) => item.setting_key === key)
+    return direct ? direct.setting_value : ''
+  }
+
+  const [totalNeedleBooth, setTotalNeedleBooth] = React.useState<string>(() =>
+    getInitialRawValue('total_needle_booth')
+  )
+  const [totalManpower, setTotalManpower] = React.useState<string>(() =>
+    getInitialRawValue('total_manpower')
+  )
+
   const [saving, setSaving] = React.useState<boolean>(false)
+  const [savingGeneral, setSavingGeneral] = React.useState<boolean>(false)
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
+
+  const handleWholeNumberChange =
+    (setter: React.Dispatch<React.SetStateAction<string>>) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = e.target.value
+      if (val === '' || /^\d+$/.test(val)) {
+        setter(val)
+      }
+    }
+
+  const preventInvalidNumberKeys = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (['-', '+', '.', 'e', 'E'].includes(e.key)) {
+      e.preventDefault()
+    }
+  }
+
+  const handleSaveGeneral = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canEdit) return
+
+    const boothTrimmed = totalNeedleBooth.trim()
+    const manpowerTrimmed = totalManpower.trim()
+
+    if (boothTrimmed !== '' && !/^\d+$/.test(boothTrimmed)) {
+      setErrorMessage('Total Needle Booth must be a non-negative whole number (0 or greater).')
+      return
+    }
+    if (manpowerTrimmed !== '' && !/^\d+$/.test(manpowerTrimmed)) {
+      setErrorMessage('Total Manpower must be a non-negative whole number (0 or greater).')
+      return
+    }
+
+    setSavingGeneral(true)
+    setSuccessMessage(null)
+    setErrorMessage(null)
+
+    try {
+      const normalizedBooth = boothTrimmed === '' ? '' : String(parseInt(boothTrimmed, 10))
+      const normalizedManpower = manpowerTrimmed === '' ? '' : String(parseInt(manpowerTrimmed, 10))
+
+      const res = await updateSystemSettingsAction([
+        { setting_key: 'total_needle_booth', setting_value: normalizedBooth },
+        { setting_key: 'total_manpower', setting_value: normalizedManpower },
+      ])
+
+      if (!res.success) {
+        setErrorMessage(res.error || 'Failed to update dashboard general settings.')
+      } else {
+        setTotalNeedleBooth(normalizedBooth)
+        setTotalManpower(normalizedManpower)
+        setSuccessMessage('Dashboard General Information updated successfully and logged in audit trail.')
+        try {
+          const bc = new BroadcastChannel('gms-erp-system-settings')
+          bc.postMessage({ type: 'dashboard-general-updated' })
+          bc.close()
+        } catch {
+          // Ignore BroadcastChannel unavailability
+        }
+        setTimeout(() => setSuccessMessage(null), 4000)
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'An unexpected error occurred.')
+    } finally {
+      setSavingGeneral(false)
+    }
+  }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -261,6 +341,82 @@ export function SystemSettingsClient({ initialSettings, canEdit }: SystemSetting
               size="sm"
               disabled={saving}
               loading={saving}
+              loadingText="Saving Changes..."
+              className="px-5 text-xs font-semibold"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>Save Changes</span>
+            </Button>
+          </div>
+        )}
+      </form>
+
+      {/* Dashboard General Information Card */}
+      <form onSubmit={handleSaveGeneral} className="bg-surface border border-surface-border rounded-erp shadow-sm overflow-hidden">
+        <div className="p-4 bg-slate-50/60 dark:bg-slate-800/40 border-b border-surface-border">
+          <h2 className="text-sm font-bold text-ink flex items-center gap-2">
+            <span>Dashboard General Information</span>
+          </h2>
+          <p className="text-xs text-ink-muted mt-0.5">
+            Configure global facility counts displayed on the ERP Dashboard overview cards. Leave blank if not yet configured.
+          </p>
+        </div>
+
+        <div className="p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label htmlFor="total_needle_booth" className="block text-xs font-semibold text-ink">
+                Total Needle Booth
+              </label>
+              <input
+                id="total_needle_booth"
+                type="number"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                disabled={!canEdit || savingGeneral}
+                value={totalNeedleBooth}
+                onChange={handleWholeNumberChange(setTotalNeedleBooth)}
+                onKeyDown={preventInvalidNumberKeys}
+                placeholder="Not configured (e.g. 15)"
+                className="w-full text-xs font-mono font-medium px-3 py-2 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
+              />
+              <p className="text-[11px] text-ink-muted">
+                Non-negative whole number (0 or greater).
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="total_manpower" className="block text-xs font-semibold text-ink">
+                Total Manpower
+              </label>
+              <input
+                id="total_manpower"
+                type="number"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                disabled={!canEdit || savingGeneral}
+                value={totalManpower}
+                onChange={handleWholeNumberChange(setTotalManpower)}
+                onKeyDown={preventInvalidNumberKeys}
+                placeholder="Not configured (e.g. 18)"
+                className="w-full text-xs font-mono font-medium px-3 py-2 rounded-erp border border-surface-border bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
+              />
+              <p className="text-[11px] text-ink-muted">
+                Non-negative whole number (0 or greater).
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {canEdit && (
+          <div className="p-4 bg-slate-50/60 dark:bg-slate-800/40 border-t border-surface-border flex justify-end">
+            <Button
+              type="submit"
+              size="sm"
+              disabled={savingGeneral}
+              loading={savingGeneral}
               loadingText="Saving Changes..."
               className="px-5 text-xs font-semibold"
             >

@@ -8,10 +8,12 @@ import {
   Cell,
   Tooltip,
 } from 'recharts'
-import type { StockDistributionItem } from '@/lib/dashboard/dashboard-types'
+import type { DistributionSlice } from '@/lib/dashboard/dashboard-types'
 
 interface StockDistributionChartProps {
-  items: StockDistributionItem[]
+  items: DistributionSlice[]
+  centerLabel?: string
+  emptyMessage?: string
   height?: number
 }
 
@@ -36,8 +38,14 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null
 }
 
+/**
+ * Thick-Ring Donut Chart showing stock distribution with central total readout
+ * and breakdown list. Supports both Normal (RUNNING vs NEW) and Idle (Floor-wise).
+ */
 export function StockDistributionChart({
   items,
+  centerLabel = 'Total Stock',
+  emptyMessage = 'No stock distribution data available',
   height = 260,
 }: StockDistributionChartProps) {
   const grandTotal = React.useMemo(() => {
@@ -61,23 +69,25 @@ export function StockDistributionChart({
         style={{ height }}
         className="flex items-center justify-center text-xs text-ink-muted bg-slate-50/50 rounded-erp border border-dashed border-surface-border"
       >
-        <span>No stock distribution data available</span>
+        <span>{emptyMessage}</span>
       </div>
     )
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center" style={{ minHeight: height }}>
-      {/* Donut Chart */}
-      <div style={{ width: '100%', height: height - 20 }} className="relative">
+      {/* Thick-Ring Donut Chart */}
+      <div style={{ width: '100%', height: height - 10 }} className="relative">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Tooltip content={<CustomTooltip />} />
             <Pie
               data={chartData}
               innerRadius="58%"
-              outerRadius="82%"
-              paddingAngle={4}
+              outerRadius="85%"
+              paddingAngle={3}
+              stroke="#ffffff"
+              strokeWidth={2}
               dataKey="value"
             >
               {chartData.map((entry, index) => (
@@ -90,9 +100,9 @@ export function StockDistributionChart({
         {/* Center label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <span className="text-[10px] uppercase font-bold text-ink-muted tracking-wider">
-            Total Stock
+            {centerLabel}
           </span>
-          <span className="text-xl font-black text-ink">
+          <span className="text-xl font-black text-ink font-mono">
             {grandTotal.toLocaleString()}
           </span>
           <span className="text-[10px] font-bold text-ink-muted">PCS</span>
@@ -100,19 +110,19 @@ export function StockDistributionChart({
       </div>
 
       {/* Breakdown Items List */}
-      <div className="space-y-2.5">
+      <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
         {items.map((item) => (
           <div
-            key={item.category}
+            key={item.key}
             className="p-2.5 rounded-erp border border-surface-border bg-slate-50/60 flex items-center justify-between gap-3"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <span
-                className="w-3 h-3 rounded-sm shrink-0"
+                className="w-3 h-3 rounded-full shrink-0"
                 style={{ backgroundColor: item.color }}
               />
-              <div>
-                <span className="text-xs font-bold text-ink block">
+              <div className="min-w-0">
+                <span className="text-xs font-bold text-ink block truncate">
                   {item.label}
                 </span>
                 <span className="text-[10px] text-ink-muted">
@@ -121,7 +131,7 @@ export function StockDistributionChart({
               </div>
             </div>
 
-            <div className="text-right">
+            <div className="text-right shrink-0">
               <span className="text-xs font-black text-ink font-mono block">
                 {item.quantity.toLocaleString()}
               </span>
