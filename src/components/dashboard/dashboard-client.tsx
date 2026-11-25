@@ -20,7 +20,10 @@ import type {
   DashboardGroupKey,
   NormalSubCategoryFilter,
 } from '@/lib/dashboard/dashboard-types'
-import { getDashboardDataAction } from '@/app/actions/dashboard'
+import {
+  getDashboardDataAction,
+  getDashboardFacilityKpisAction,
+} from '@/app/actions/dashboard'
 import { DashboardFiltersBar } from './dashboard-filters'
 import {
   FacilityOverviewStrip,
@@ -105,15 +108,55 @@ export function DashboardClient({
     }
   }, [])
 
+  const refreshFacilityKpis = React.useCallback(async () => {
+    try {
+      const res = await getDashboardFacilityKpisAction()
+      if (res.success && res.data) {
+        const nextKpis = res.data
+        setDashboardData((prev) =>
+          prev ? { ...prev, facilityKpis: nextKpis } : prev
+        )
+      }
+    } catch {
+      // Non-critical background sync
+    }
+  }, [])
+
   React.useEffect(() => {
     loadDashboard(filters)
   }, [loadDashboard, filters])
+
+  // Sync facility KPIs instantly when saved from another tab or when returning to Dashboard tab
+  React.useEffect(() => {
+    let bc: BroadcastChannel | null = null
+    try {
+      bc = new BroadcastChannel('gms-erp-system-settings')
+      bc.onmessage = () => {
+        refreshFacilityKpis()
+      }
+    } catch {
+      // BroadcastChannel unavailable
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshFacilityKpis()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      if (bc) bc.close()
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [refreshFacilityKpis])
 
   useDashboardRealtime({
     enabled: true,
     onDataChange: () => {
       loadDashboard(filters)
     },
+    onFacilitySettingsChange: refreshFacilityKpis,
     debounceMs: 3000,
   })
 

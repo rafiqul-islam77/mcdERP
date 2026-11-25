@@ -6,6 +6,7 @@ import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 interface UseDashboardRealtimeOptions {
   enabled?: boolean
   onDataChange: () => void
+  onFacilitySettingsChange?: () => void
   debounceMs?: number
 }
 
@@ -13,17 +14,23 @@ interface UseDashboardRealtimeOptions {
  * Lightweight realtime listener for the GMS MCD ERP Dashboard.
  *
  * Automatically debounces transaction events by 3 seconds so bulk daily entry
- * updates do not flood the server with redundant recalculation requests.
+ * updates do not flood the server with redundant recalculation requests, and
+ * reacts promptly to global system_settings updates.
  */
 export function useDashboardRealtime({
   enabled = true,
   onDataChange,
+  onFacilitySettingsChange,
   debounceMs = 3000,
 }: UseDashboardRealtimeOptions) {
   const onDataChangeRef = React.useRef(onDataChange)
   onDataChangeRef.current = onDataChange
 
+  const onFacilitySettingsChangeRef = React.useRef(onFacilitySettingsChange)
+  onFacilitySettingsChangeRef.current = onFacilitySettingsChange
+
   const timerRef = React.useRef<NodeJS.Timeout | null>(null)
+  const settingsTimerRef = React.useRef<NodeJS.Timeout | null>(null)
 
   const triggerDebouncedRefresh = React.useCallback(() => {
     if (timerRef.current) {
@@ -33,6 +40,19 @@ export function useDashboardRealtime({
       onDataChangeRef.current()
     }, debounceMs)
   }, [debounceMs])
+
+  const triggerSettingsRefresh = React.useCallback(() => {
+    if (settingsTimerRef.current) {
+      clearTimeout(settingsTimerRef.current)
+    }
+    settingsTimerRef.current = setTimeout(() => {
+      if (onFacilitySettingsChangeRef.current) {
+        onFacilitySettingsChangeRef.current()
+      } else {
+        onDataChangeRef.current()
+      }
+    }, 400)
+  }, [])
 
   React.useEffect(() => {
     if (!enabled) return
@@ -70,13 +90,23 @@ export function useDashboardRealtime({
           triggerDebouncedRefresh()
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'system_settings' },
+        () => {
+          triggerSettingsRefresh()
+        }
+      )
       .subscribe()
 
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current)
       }
+      if (settingsTimerRef.current) {
+        clearTimeout(settingsTimerRef.current)
+      }
       supabase.removeChannel(channel)
     }
-  }, [enabled, triggerDebouncedRefresh])
+  }, [enabled, triggerDebouncedRefresh, triggerSettingsRefresh])
 }

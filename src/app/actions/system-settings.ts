@@ -7,6 +7,24 @@ import { createAuditLog } from '@/lib/audit'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult, SystemSetting } from '@/types'
 
+const DASHBOARD_SETTING_META: Record<
+  string,
+  { label: string; description: string; section: string; setting_type: string }
+> = {
+  total_needle_booth: {
+    label: 'Total Needle Booth',
+    description: 'Configured factory-wide count of needle booths displayed on the Dashboard',
+    section: 'dashboard',
+    setting_type: 'integer',
+  },
+  total_manpower: {
+    label: 'Total Manpower',
+    description: 'Configured factory-wide needle section manpower displayed on the Dashboard',
+    section: 'dashboard',
+    setting_type: 'integer',
+  },
+}
+
 const DEFAULT_SETTINGS: SystemSetting[] = [
   // RUNNING
   {
@@ -83,6 +101,31 @@ const DEFAULT_SETTINGS: SystemSetting[] = [
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
+  // DASHBOARD GENERAL INFORMATION (unset by default -> empty string)
+  {
+    id: 'total_needle_booth',
+    setting_key: 'total_needle_booth',
+    setting_value: '',
+    setting_type: 'integer',
+    section: 'dashboard',
+    label: 'Total Needle Booth',
+    description: DASHBOARD_SETTING_META.total_needle_booth.description,
+    updated_by: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'total_manpower',
+    setting_key: 'total_manpower',
+    setting_value: '',
+    setting_type: 'integer',
+    section: 'dashboard',
+    label: 'Total Manpower',
+    description: DASHBOARD_SETTING_META.total_manpower.description,
+    updated_by: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
 ]
 
 /**
@@ -121,6 +164,8 @@ export async function getSystemSettingsAction(): Promise<ActionResult<SystemSett
     const legacyDoc = existingMap.get('daily_report.document_no') || 'QA/03/310'
     const legacyVer = existingMap.get('daily_report.version_no') || '01/2026'
 
+    const nowIso = new Date().toISOString()
+
     const categorySettings: SystemSetting[] = [
       {
         id: 'daily_report.running.document_no',
@@ -131,8 +176,8 @@ export async function getSystemSettingsAction(): Promise<ActionResult<SystemSett
         label: 'Document No.',
         description: 'Document identification number for Regular Needle Present Balance reports',
         updated_by: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: nowIso,
+        updated_at: nowIso,
       },
       {
         id: 'daily_report.running.version_no',
@@ -143,8 +188,8 @@ export async function getSystemSettingsAction(): Promise<ActionResult<SystemSett
         label: 'Version No.',
         description: 'Document version number for Regular Needle Present Balance reports',
         updated_by: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: nowIso,
+        updated_at: nowIso,
       },
       {
         id: 'daily_report.new.document_no',
@@ -155,8 +200,8 @@ export async function getSystemSettingsAction(): Promise<ActionResult<SystemSett
         label: 'Document No.',
         description: 'Document identification number for New Needle Present Balance reports',
         updated_by: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: nowIso,
+        updated_at: nowIso,
       },
       {
         id: 'daily_report.new.version_no',
@@ -167,8 +212,8 @@ export async function getSystemSettingsAction(): Promise<ActionResult<SystemSett
         label: 'Version No.',
         description: 'Document version number for New Needle Present Balance reports',
         updated_by: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: nowIso,
+        updated_at: nowIso,
       },
       {
         id: 'daily_report.idle.document_no',
@@ -179,8 +224,8 @@ export async function getSystemSettingsAction(): Promise<ActionResult<SystemSett
         label: 'Document No.',
         description: 'Document identification number for Idle Needle Present Balance reports',
         updated_by: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: nowIso,
+        updated_at: nowIso,
       },
       {
         id: 'daily_report.idle.version_no',
@@ -191,8 +236,36 @@ export async function getSystemSettingsAction(): Promise<ActionResult<SystemSett
         label: 'Version No.',
         description: 'Document version number for Idle Needle Present Balance reports',
         updated_by: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: nowIso,
+        updated_at: nowIso,
+      },
+      {
+        id: 'total_needle_booth',
+        setting_key: 'total_needle_booth',
+        setting_value: existingMap.has('total_needle_booth')
+          ? (existingMap.get('total_needle_booth') ?? '')
+          : '',
+        setting_type: 'integer',
+        section: 'dashboard',
+        label: 'Total Needle Booth',
+        description: DASHBOARD_SETTING_META.total_needle_booth.description,
+        updated_by: null,
+        created_at: nowIso,
+        updated_at: nowIso,
+      },
+      {
+        id: 'total_manpower',
+        setting_key: 'total_manpower',
+        setting_value: existingMap.has('total_manpower')
+          ? (existingMap.get('total_manpower') ?? '')
+          : '',
+        setting_type: 'integer',
+        section: 'dashboard',
+        label: 'Total Manpower',
+        description: DASHBOARD_SETTING_META.total_manpower.description,
+        updated_by: null,
+        created_at: nowIso,
+        updated_at: nowIso,
       },
     ]
 
@@ -220,9 +293,19 @@ export async function updateSystemSettingsAction(
     return { success: false, error: 'No settings provided to update.' }
   }
 
-  // Validate non-empty values
+  // Validate values per setting type
   for (const item of updates) {
-    if (!item.setting_value || !item.setting_value.trim()) {
+    const trimmed = (item.setting_value ?? '').trim()
+    if (item.setting_key in DASHBOARD_SETTING_META) {
+      // Allow empty string (clears/unsets to "Not Available"), or strictly non-negative whole integer (including "0")
+      if (trimmed !== '' && !/^\d+$/.test(trimmed)) {
+        const label = DASHBOARD_SETTING_META[item.setting_key].label
+        return {
+          success: false,
+          error: `${label} must be a non-negative whole number (0 or greater).`,
+        }
+      }
+    } else if (!trimmed) {
       return { success: false, error: `Setting value for ${item.setting_key} cannot be empty.` }
     }
   }
@@ -242,37 +325,89 @@ export async function updateSystemSettingsAction(
       existingMap.set(item.setting_key, item.setting_value)
     }
 
-    // 2. Upsert each setting
+    // 2. Upsert (or clear) each setting
     for (const update of updates) {
-      const cleanVal = update.setting_value.trim()
+      const trimmed = (update.setting_value ?? '').trim()
+      const dashboardMeta = DASHBOARD_SETTING_META[update.setting_key]
+      const isDashboardInt = Boolean(dashboardMeta)
+
+      if (isDashboardInt && trimmed === '') {
+        // Unset value: remove existing row if previously stored, otherwise skip no-op
+        if (existingMap.has(update.setting_key)) {
+          const oldVal = existingMap.get(update.setting_key) ?? ''
+          const { error: delErr } = await admin
+            .from('system_settings')
+            .delete()
+            .eq('setting_key', update.setting_key)
+
+          if (delErr) throw delErr
+
+          if (oldVal !== '') {
+            await createAuditLog({
+              actorUserId: actor.profile.id,
+              eventType: 'SYSTEM_SETTING_UPDATED',
+              entityType: 'system_settings',
+              entityId: update.setting_key,
+              oldData: { [update.setting_key]: oldVal },
+              newData: { [update.setting_key]: null },
+              metadata: {
+                label: dashboardMeta.label,
+                change: `${oldVal} → Not Available`,
+                changed_by: actor.profile.name,
+              },
+            })
+          }
+        }
+        continue
+      }
+
+      const cleanVal = isDashboardInt ? String(parseInt(trimmed, 10)) : trimmed
       const oldVal = existingMap.get(update.setting_key) ?? ''
 
-      const { error: upsertErr } = await admin.from('system_settings').upsert(
-        {
-          setting_key: update.setting_key,
-          setting_value: cleanVal,
-          updated_by: actor.profile.id,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'setting_key' }
-      )
+      const upsertPayload: Record<string, unknown> = {
+        setting_key: update.setting_key,
+        setting_value: cleanVal,
+        updated_by: actor.profile.id,
+        updated_at: new Date().toISOString(),
+      }
+
+      if (dashboardMeta) {
+        upsertPayload.setting_type = dashboardMeta.setting_type
+        upsertPayload.section = dashboardMeta.section
+        upsertPayload.label = dashboardMeta.label
+        upsertPayload.description = dashboardMeta.description
+      }
+
+      const { error: upsertErr } = await admin
+        .from('system_settings')
+        .upsert(upsertPayload, { onConflict: 'setting_key' })
 
       if (upsertErr) {
         throw upsertErr
       }
 
       // 3. Record Audit Log for change
-      await createAuditLog({
-        actorUserId: actor.profile.id,
-        eventType: 'SYSTEM_SETTING_UPDATED',
-        entityType: 'system_settings',
-        entityId: update.setting_key,
-        oldData: { [update.setting_key]: oldVal },
-        newData: { [update.setting_key]: cleanVal },
-      })
+      if (!isDashboardInt || oldVal !== cleanVal) {
+        await createAuditLog({
+          actorUserId: actor.profile.id,
+          eventType: 'SYSTEM_SETTING_UPDATED',
+          entityType: 'system_settings',
+          entityId: update.setting_key,
+          oldData: { [update.setting_key]: oldVal || (isDashboardInt ? null : '') },
+          newData: { [update.setting_key]: cleanVal },
+          metadata: dashboardMeta
+            ? {
+                label: dashboardMeta.label,
+                change: `${oldVal !== '' ? oldVal : 'Not Available'} → ${cleanVal}`,
+                changed_by: actor.profile.name,
+              }
+            : undefined,
+        })
+      }
     }
 
     revalidatePath('/administration/system-settings')
+    revalidatePath('/dashboard')
     return { success: true, message: 'Settings saved successfully.' }
   } catch (err: any) {
     console.error('[updateSystemSettingsAction] error:', err)

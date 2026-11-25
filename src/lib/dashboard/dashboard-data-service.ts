@@ -46,12 +46,53 @@ const MONTH_SHORT_NAMES = [
   'Dec',
 ]
 
+function parseNonNegativeIntSetting(value: string | null | undefined): number | null {
+  if (value === null || value === undefined) return null
+  const trimmed = String(value).trim()
+  if (trimmed === '' || !/^\d+$/.test(trimmed)) return null
+  return parseInt(trimmed, 10)
+}
+
+/**
+ * Fetches global Dashboard General Information settings (Total Needle Booth & Total Manpower)
+ * from public.system_settings. Unset/missing values return null ("Not Available"); "0" returns 0.
+ */
+export async function getDashboardFacilitySettings(): Promise<{
+  needleBoothCount: number | null
+  manpowerCount: number | null
+}> {
+  try {
+    const admin = getAdminClient()
+    const { data, error } = await admin
+      .from('system_settings')
+      .select('setting_key, setting_value')
+      .in('setting_key', ['total_needle_booth', 'total_manpower'])
+
+    if (error || !data) {
+      return { needleBoothCount: null, manpowerCount: null }
+    }
+
+    const map = new Map<string, string>()
+    for (const row of data) {
+      map.set(row.setting_key, row.setting_value)
+    }
+
+    return {
+      needleBoothCount: parseNonNegativeIntSetting(map.get('total_needle_booth')),
+      manpowerCount: parseNonNegativeIntSetting(map.get('total_manpower')),
+    }
+  } catch {
+    return { needleBoothCount: null, manpowerCount: null }
+  }
+}
+
 function createEmptyDashboardData(
   filters: DashboardFilters,
   authorizedFloorIds: string[],
   authorizedCategories: DailyEntryCategory[],
   allAuthorizedFloors: Floor[],
-  monthStr: string
+  monthStr: string,
+  facilityKpis: { needleBoothCount: number | null; manpowerCount: number | null }
 ): DashboardData {
   const emptyActivity = (cat: DailyEntryCategory | 'NORMAL') => ({
     category: cat,
@@ -67,10 +108,7 @@ function createEmptyDashboardData(
 
   return {
     filters,
-    facilityKpis: {
-      needleBoothCount: null,
-      manpowerCount: null,
-    },
+    facilityKpis,
     normal: {
       kpis: {
         runningStock: 0,
@@ -154,6 +192,7 @@ export async function getDashboardData(
 ): Promise<DashboardData> {
   const admin = getAdminClient()
   const monthStr = `${filters.year}-${String(filters.month).padStart(2, '0')}`
+  const facilityKpis = await getDashboardFacilitySettings()
 
   // 1. Determine target floors (strictly constrained to authorized floors)
   const authorizedFloorIds = allAuthorizedFloors.map((f) => f.id)
@@ -172,7 +211,8 @@ export async function getDashboardData(
       authorizedFloorIds,
       authorizedCategories,
       allAuthorizedFloors,
-      monthStr
+      monthStr,
+      facilityKpis
     )
   }
 
@@ -440,10 +480,7 @@ export async function getDashboardData(
 
   return {
     filters,
-    facilityKpis: {
-      needleBoothCount: null, // Not Available
-      manpowerCount: null, // Not Available
-    },
+    facilityKpis,
     normal: {
       kpis: normalKpis,
       dailyActivity: {
